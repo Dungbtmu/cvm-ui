@@ -29,13 +29,17 @@ const deliveryDataPrev = [
   { day: '13', sent: 44000, delivered: 42560, failed: 1440 },
 ]
 
+// open: null = kênh không track được (hiển thị N/A); ctr: null = tương tự
+// Push, Email: hỗ trợ open + ctr
+// Zalo OA, Banner: không track open, có ctr
+// SMS, USSD: không track open, không track ctr
 const channelPerf = [
-  { ch: 'Push',    open: 52, ctr: 18, conv: 9 },
-  { ch: 'Zalo OA', open: 44, ctr: 15, conv: 7 },
-  { ch: 'SMS',     open: 22, ctr: 8,  conv: 4 },
-  { ch: 'USSD',    open: 15, ctr: 5,  conv: 2 },
-  { ch: 'Banner',  open: 9,  ctr: 3,  conv: 1 },
-  { ch: 'Email',   open: 21, ctr: 9,  conv: 4 },
+  { ch: 'Push',    open: 52,   ctr: 18,  conv: 9 },
+  { ch: 'Zalo OA', open: null, ctr: 15,  conv: 7 },
+  { ch: 'SMS',     open: null, ctr: null, conv: 4 },
+  { ch: 'USSD',    open: null, ctr: null, conv: 2 },
+  { ch: 'Banner',  open: null, ctr: 3,   conv: 1 },
+  { ch: 'Email',   open: 21,   ctr: 9,   conv: 4 },
 ]
 
 const campaignCompare = [
@@ -197,32 +201,65 @@ export function Report() {
         <div className="space-y-4">
           <div className="grid grid-cols-4 gap-4">
             {[
-              { label: 'Tỉ lệ mở', value: '38.4%', sub: '↑2.1% vs tuần trước · Mở / Đã tới đích × 100%' },
-              { label: 'Tỉ lệ nhấp (CTR)', value: '12.1%', sub: '↑0.8% · Click / Đã tới đích × 100%' },
-              { label: 'Tỉ lệ chuyển đổi', value: '8.3%', sub: '↑0.4% · Hoàn thành mục tiêu / Đã tới đích × 100% (24h)' },
-              { label: 'Kênh hiệu quả nhất', value: 'Push', sub: 'Tỉ lệ chuyển đổi cao nhất trong kỳ' },
+              { label: 'Tỉ lệ mở', value: '38.4%', sub: '↑2.1% vs tuần trước · Mở / Đã tới đích × 100%', note: '* Push & Email' },
+              { label: 'Tỉ lệ nhấp (CTR)', value: '12.1%', sub: '↑0.8% · Click / Đã tới đích × 100%', note: '* Trừ SMS & USSD' },
+              { label: 'Tỉ lệ chuyển đổi', value: '8.3%', sub: '↑0.4% · Hoàn thành mục tiêu / Đã tới đích × 100% (24h)', note: '' },
+              { label: 'Kênh hiệu quả nhất', value: 'Push', sub: 'Tỉ lệ chuyển đổi cao nhất trong kỳ', note: '' },
             ].map((k, i) => (
               <Card key={i}>
                 <div className="text-xs text-slate-500">{k.label}</div>
                 <div className="text-2xl font-bold text-slate-800 mt-1">{k.value}</div>
                 <div className="text-xs text-green-600 mt-1">{k.sub}</div>
+                {k.note && <div className="text-xs text-slate-400 mt-1">{k.note}</div>}
               </Card>
             ))}
           </div>
           <Card>
-            <div className="text-sm font-semibold text-slate-700 mb-3">Hiệu suất theo kênh</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={channelPerf} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis type="number" tick={{ fontSize: 11 }} unit="%" />
-                <YAxis dataKey="ch" type="category" tick={{ fontSize: 11 }} width={60} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="open" name="Tỉ lệ mở" fill="#3b82f6" />
-                <Bar dataKey="ctr" name="Tỉ lệ nhấp (CTR)" fill="#8b5cf6" />
-                <Bar dataKey="conv" name="Tỉ lệ chuyển đổi" fill="#22c55e" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="text-sm font-semibold text-slate-700 mb-1">Hiệu suất theo kênh</div>
+            <div className="text-xs text-slate-400 mb-3">N/A = kênh không hỗ trợ đo chỉ số này</div>
+            <div className="space-y-3">
+              {channelPerf.map(row => (
+                <div key={row.ch} className="flex items-center gap-3 text-xs">
+                  <span className="w-14 text-slate-500 shrink-0">{row.ch}</span>
+                  <div className="flex-1 grid grid-cols-3 gap-2">
+                    {/* Open Rate */}
+                    {row.open === null ? (
+                      <div className="flex items-center gap-1">
+                        <div className="h-5 w-8 bg-slate-100 rounded flex items-center justify-center text-slate-400 text-[10px]">N/A</div>
+                        <span className="text-slate-400 text-[10px]">Mở</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <div className="h-5 rounded bg-blue-400" style={{ width: `${Math.max(row.open, 4)}%`, minWidth: 8 }} />
+                        <span className="text-slate-600">{row.open}% Mở</span>
+                      </div>
+                    )}
+                    {/* CTR */}
+                    {row.ctr === null ? (
+                      <div className="flex items-center gap-1">
+                        <div className="h-5 w-8 bg-slate-100 rounded flex items-center justify-center text-slate-400 text-[10px]">N/A</div>
+                        <span className="text-slate-400 text-[10px]">CTR</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <div className="h-5 rounded bg-violet-400" style={{ width: `${Math.max(row.ctr, 4)}%`, minWidth: 8 }} />
+                        <span className="text-slate-600">{row.ctr}% CTR</span>
+                      </div>
+                    )}
+                    {/* Conversion */}
+                    <div className="flex items-center gap-1">
+                      <div className="h-5 rounded bg-green-400" style={{ width: `${Math.max(row.conv, 4)}%`, minWidth: 8 }} />
+                      <span className="text-slate-600">{row.conv}% Conv</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-400 inline-block" /> Tỉ lệ mở</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-violet-400 inline-block" /> Tỉ lệ nhấp (CTR)</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-400 inline-block" /> Tỉ lệ chuyển đổi</span>
+            </div>
           </Card>
         </div>
       )}
