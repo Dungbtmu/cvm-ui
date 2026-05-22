@@ -952,8 +952,7 @@ export function CampaignBuilder() {
   const [dncOn, setDncOn] = useState(true)
   const [blMode, setBlMode] = useState<'none' | 'list' | 'upload'>('none')
   const [wlMode, setWlMode] = useState<'none' | 'list' | 'upload'>('none')
-  const [blSearch, setBlSearch] = useState('')
-  const [wlSearch, setWlSearch] = useState('')
+
   const [blSelected, setBlSelected] = useState<string[]>([])
   const [wlSelected, setWlSelected] = useState<string[]>([])
   const [blUploadDone, setBlUploadDone] = useState(false)
@@ -1461,8 +1460,6 @@ export function CampaignBuilder() {
                     title="Blacklist campaign — theo kênh"
                     mode={blMode}
                     onMode={setBlMode}
-                    search={blSearch}
-                    onSearch={setBlSearch}
                     selected={blSelected}
                     onSelected={setBlSelected}
                     channels={blChannel.length ? blChannel : activeChannels}
@@ -1478,8 +1475,6 @@ export function CampaignBuilder() {
                     title="Whitelist campaign — theo kênh"
                     mode={wlMode}
                     onMode={setWlMode}
-                    search={wlSearch}
-                    onSearch={setWlSearch}
                     selected={wlSelected}
                     onSelected={setWlSelected}
                     channels={wlChannel.length ? wlChannel : activeChannels}
