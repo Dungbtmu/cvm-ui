@@ -609,8 +609,6 @@ interface SuppressionProps {
   title: string
   mode: 'none' | 'list' | 'upload'
   onMode: (m: 'none' | 'list' | 'upload') => void
-  search: string
-  onSearch: (s: string) => void
   selected: string[]
   onSelected: (s: string[]) => void
   channels: ChannelType[]
@@ -621,7 +619,7 @@ interface SuppressionProps {
   syncNote: string
 }
 
-function SuppressionSection({ title, mode, onMode, search, onSearch, selected, onSelected, uploadDone, onUpload, activeChannels, syncNote }: SuppressionProps) {
+function SuppressionSection({ title, mode, onMode, selected, onSelected, uploadDone, onUpload, activeChannels, syncNote }: SuppressionProps) {
   const [activeTab, setActiveTab] = useState<ChannelType | null>(null)
   const [searchPerCh, setSearchPerCh] = useState<Record<string, string>>({})
 
