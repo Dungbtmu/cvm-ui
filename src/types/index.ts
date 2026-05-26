@@ -28,8 +28,6 @@ export interface Trigger {
   type: TriggerType
   status: 'Active' | 'Inactive'
   description?: string
-  activationCondition?: string
-  blockCondition?: string
   supportedChannels?: ChannelType[]
   params: TriggerParam[]
 }

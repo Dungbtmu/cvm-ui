@@ -237,30 +237,9 @@ export function TriggerManagement() {
               </div>
             </section>
 
-            {/* B — Điều kiện kích hoạt */}
-            {(viewTarget.activationCondition || viewTarget.blockCondition) && (
-              <section>
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">B. Điều kiện kích hoạt</h3>
-                <div className="bg-slate-50 rounded-lg p-3 space-y-2">
-                  {viewTarget.activationCondition && (
-                    <div>
-                      <span className="text-xs text-slate-400">Khi nào trigger kích hoạt</span>
-                      <p className="text-sm text-slate-700 mt-0.5">{viewTarget.activationCondition}</p>
-                    </div>
-                  )}
-                  {viewTarget.blockCondition && (
-                    <div>
-                      <span className="text-xs text-slate-400">Điều kiện chặn</span>
-                      <p className="text-sm text-slate-600 mt-0.5">{viewTarget.blockCondition}</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {/* C — Tham số đầu ra */}
+            {/* B — Tham số đầu ra */}
             <section>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">C. Tham số đầu ra</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">B. Tham số đầu ra</h3>
               <div className="border border-slate-200 rounded-lg overflow-hidden">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 border-b border-slate-200">
@@ -305,7 +284,7 @@ export function TriggerManagement() {
 
             {/* D — Thông tin vận hành */}
             <section>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">D. Thông tin vận hành</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">C. Thông tin vận hành</h3>
               <div className="bg-slate-50 rounded-lg p-3 space-y-3">
                 {viewTarget.supportedChannels && viewTarget.supportedChannels.length > 0 && (
                   <div>

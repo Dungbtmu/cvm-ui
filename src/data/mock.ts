@@ -154,8 +154,6 @@ export const mockTriggers: Trigger[] = [
     type: 'Realtime',
     status: 'Active',
     description: 'Fired khi khách hàng kích hoạt SIM mới lần đầu tiên (T=0 của hành trình khách hàng).',
-    activationCondition: 'Khi SIM được kích hoạt lần đầu tiên — T=0 của hành trình khách hàng. Không áp dụng cho tái kích hoạt SIM đã dùng.',
-    blockCondition: 'SIM đã từng được kích hoạt trước đó.',
     supportedChannels: ['Push', 'Zalo OA', 'SMS', 'Banner'],
     params: [
       { name: 'ten_kh', description: 'Họ tên đầy đủ của khách hàng', format: 'text', source: 'BSS', example: 'Nguyễn Văn An' },
@@ -172,8 +170,6 @@ export const mockTriggers: Trigger[] = [
     type: 'Realtime',
     status: 'Inactive',
     description: 'Fired khi KH đến vùng du lịch mới.',
-    activationCondition: 'Khi hệ thống phát hiện SIM đăng ký mạng tại tỉnh/thành được đánh dấu là điểm du lịch.',
-    blockCondition: 'KH đã nhận tin về cùng tỉnh/thành trong 7 ngày gần nhất.',
     supportedChannels: ['Push', 'SMS'],
     params: [
       { name: 'tinh_thanh', description: 'Tên tỉnh/thành', format: 'text', source: 'OCS', example: 'Đà Nẵng' },
@@ -188,8 +184,6 @@ export const mockTriggers: Trigger[] = [
     type: 'Near Realtime',
     status: 'Active',
     description: 'Fired sau 24h kể từ kích hoạt SIM nếu KH chưa cài app.',
-    activationCondition: 'Sau đúng 24h kể từ T=0 (SIM_ACTIVATED), nếu không có sự kiện đăng nhập app từ số điện thoại này.',
-    blockCondition: 'KH đã cài và đăng nhập app ít nhất 1 lần.',
     supportedChannels: ['SMS', 'USSD'],
     params: [
       { name: 'ten_kh', description: 'Họ tên đầy đủ', format: 'text', source: 'BSS', example: 'Trần Thị Bình' },
@@ -204,8 +198,6 @@ export const mockTriggers: Trigger[] = [
     type: 'Offline',
     status: 'Active',
     description: 'Batch job phát hiện KH sắp hết data, chạy lúc 2:00 sáng mỗi ngày.',
-    activationCondition: 'Khi lượng data còn lại của gói cước hiện tại dưới 100MB, phát hiện qua batch job chạy đêm.',
-    blockCondition: 'KH đã nhận tin cảnh báo data trong 24h gần nhất.',
     supportedChannels: ['Push', 'SMS', 'Zalo OA'],
     params: [
       { name: 'ten_kh', description: 'Họ tên đầy đủ', format: 'text', source: 'BSS', example: 'Lê Văn Cường' },
@@ -221,7 +213,6 @@ export const mockTriggers: Trigger[] = [
     type: 'Offline',
     status: 'Inactive',
     description: 'Phát hiện KH giảm sử dụng đột ngột so với trung bình 7 ngày trước.',
-    activationCondition: 'Khi usage 3 ngày gần nhất giảm >40% so với avg 7 ngày trước, phát hiện qua batch job đêm.',
     supportedChannels: ['Push', 'SMS'],
     params: [
       { name: 'pct_drop', description: 'Phần trăm giảm', format: 'number', source: 'OCS', example: '52' },
@@ -236,8 +227,6 @@ export const mockTriggers: Trigger[] = [
     type: 'Offline',
     status: 'Active',
     description: 'KH không có giao dịch nào trong 30 ngày — nguy cơ rời mạng.',
-    activationCondition: 'Khi không có bất kỳ giao dịch nào (cuộc gọi, tin nhắn, data, nạp tiền) trong 30 ngày liên tiếp.',
-    blockCondition: 'SIM đã bị khóa hoặc hủy dịch vụ.',
     supportedChannels: ['SMS', 'USSD'],
     params: [
       { name: 'ten_kh', description: 'Họ tên đầy đủ', format: 'text', source: 'BSS', example: 'Hoàng Văn Em' },
