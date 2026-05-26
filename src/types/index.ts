@@ -24,10 +24,13 @@ export interface Trigger {
   id: string
   code: string
   name: string
-  source: 'BSS' | 'OCS'
+  source: 'BSS' | 'OCS' | 'SuperApp'
   type: TriggerType
   status: 'Active' | 'Inactive'
   description?: string
+  activationCondition?: string
+  blockCondition?: string
+  supportedChannels?: ChannelType[]
   params: TriggerParam[]
 }
 
@@ -36,6 +39,7 @@ export interface TriggerParam {
   description: string
   format: 'text' | 'date' | 'number' | 'boolean' | 'currency'
   source: string
+  example?: string
 }
 
 export interface Template {

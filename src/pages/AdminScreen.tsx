@@ -54,7 +54,7 @@ export function AdminScreen() {
 
       {/* Tab bar */}
       <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1 w-fit">
-        {['Duyệt Campaign', 'Cấu hình Trigger'].map((t, i) => (
+        {['Duyệt Campaign', 'Trigger'].map((t, i) => (
           <button
             key={t}
             onClick={() => setActiveTab(i)}
@@ -150,7 +150,7 @@ export function AdminScreen() {
         </div>
       )}
 
-      {activeTab === 1 && <TriggerManagement forceAdmin />}
+      {activeTab === 1 && <TriggerManagement />}
 
       {/* Approve dialog */}
       <Dialog open={!!approveTarget} onClose={() => setApproveTarget(null)} title="Duyệt campaign?">

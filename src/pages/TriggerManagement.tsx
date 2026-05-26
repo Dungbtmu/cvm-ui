@@ -1,128 +1,92 @@
 import { useState } from 'react'
-import { Search, Plus, X } from 'lucide-react'
-import { Button } from '../components/ui/Button'
-import { Dialog, DialogActions } from '../components/ui/Dialog'
-import { useToast } from '../components/ui/Toast'
-import { useRole } from '../lib/roleContext'
+import { Search, Info, Copy, X, CheckCircle } from 'lucide-react'
+import { Dialog } from '../components/ui/Dialog'
 import { mockTriggers, mockCampaigns } from '../data/mock'
-import type { Trigger, TriggerType, TriggerParam } from '../types'
+import type { Trigger, TriggerType, ChannelType } from '../types'
 
-const statusColor: Record<string, string> = {
-  Active: 'text-green-600',
-  Inactive: 'text-slate-400',
+const CHANNEL_LABELS: Record<ChannelType, string> = {
+  Push: 'Push Notification',
+  'Zalo OA': 'Zalo OA',
+  SMS: 'SMS',
+  Banner: 'Banner App',
+  Email: 'Email',
+  USSD: 'USSD',
 }
 
-interface TriggerManagementProps {
-  forceAdmin?: boolean // Admin screen passes this to override role
+const TYPE_BADGE: Record<TriggerType, string> = {
+  Realtime: 'bg-green-100 text-green-700',
+  'Near Realtime': 'bg-blue-100 text-blue-700',
+  Offline: 'bg-slate-100 text-slate-600',
 }
 
-export function TriggerManagement({ forceAdmin }: TriggerManagementProps) {
-  const { toast } = useToast()
-  const { isAdmin } = useRole()
-  const canEdit = forceAdmin || isAdmin
+const FORMAT_LABEL: Record<string, string> = {
+  text: 'Văn bản',
+  date: 'Ngày (DD/MM/YYYY)',
+  number: 'Số',
+  boolean: 'Boolean',
+  currency: 'Tiền (VND)',
+}
 
-  const [triggers, setTriggers] = useState<Trigger[]>(mockTriggers)
+export function TriggerManagement() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('Tất cả')
   const [expandedGroups, setExpandedGroups] = useState<TriggerType[]>(['Realtime', 'Near Realtime', 'Offline'])
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<Trigger | null>(null)
-  const [toggleTarget, setToggleTarget] = useState<Trigger | null>(null)
-
-  // Form state
-  const [formCode, setFormCode] = useState('')
-  const [formName, setFormName] = useState('')
-  const [formType, setFormType] = useState<TriggerType>('Realtime')
-  const [formSource, setFormSource] = useState<'BSS' | 'OCS'>('BSS')
-  const [formDesc, setFormDesc] = useState('')
-  const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active')
-  const [formParams, setFormParams] = useState<TriggerParam[]>([])
-
-  const openAdd = () => {
-    setEditing(null)
-    setFormCode(''); setFormName(''); setFormType('Realtime'); setFormSource('BSS')
-    setFormDesc(''); setFormStatus('Active'); setFormParams([])
-    setDialogOpen(true)
-  }
-  const openEdit = (t: Trigger) => {
-    setEditing(t)
-    setFormCode(t.code); setFormName(t.name); setFormType(t.type); setFormSource(t.source)
-    setFormDesc(t.description ?? ''); setFormStatus(t.status === 'Active' ? 'Active' : 'Inactive')
-    setFormParams([...t.params])
-    setDialogOpen(true)
-  }
-  const handleSave = () => {
-    if (!formCode || !formName) return
-    if (formParams.length === 0) return
-    if (editing) {
-      setTriggers(prev => prev.map(t => t.id === editing.id
-        ? { ...t, code: formCode, name: formName, type: formType, source: formSource, description: formDesc, status: formStatus === 'Active' ? 'Active' : 'Inactive', params: formParams }
-        : t))
-    } else {
-      setTriggers(prev => [...prev, {
-        id: String(Date.now()), code: formCode, name: formName, type: formType,
-        source: formSource, description: formDesc, status: formStatus === 'Active' ? 'Active' : 'Inactive', params: formParams
-      }])
-    }
-    toast('Đã lưu trigger ✓', 'success')
-    setDialogOpen(false)
-  }
+  const [viewTarget, setViewTarget] = useState<Trigger | null>(null)
+  const [copiedParam, setCopiedParam] = useState<string | null>(null)
 
   const toggleGroup = (type: TriggerType) => {
-    setExpandedGroups(prev => prev.includes(type) ? prev.filter(x => x !== type) : [...prev, type])
+    setExpandedGroups(prev =>
+      prev.includes(type) ? prev.filter(x => x !== type) : [...prev, type]
+    )
   }
 
-  // Khi tắt trigger: check nếu đang dùng trong Active campaign thì cần confirm có cảnh báo
-  const handleToggleClick = (t: Trigger) => {
-    setToggleTarget(t)
+  const handleCopyParam = (paramName: string) => {
+    const syntax = `{{${paramName}}}`
+    navigator.clipboard.writeText(syntax).catch(() => {})
+    setCopiedParam(paramName)
+    setTimeout(() => setCopiedParam(null), 1800)
   }
-  const confirmToggle = () => {
-    if (!toggleTarget) return
-    setTriggers(prev => prev.map(x => x.id === toggleTarget.id
-      ? { ...x, status: x.status === 'Active' ? 'Inactive' : 'Active' } : x))
-    toast(toggleTarget.status === 'Active' ? 'Đã tắt trigger' : 'Đã bật trigger', 'success')
-    setToggleTarget(null)
-  }
-
-  // Active campaigns using this trigger
-  const affectedCampaigns = toggleTarget
-    ? mockCampaigns.filter(c => c.status === 'Active' && c.triggers.includes(toggleTarget.code))
-    : []
 
   const groups: TriggerType[] = ['Realtime', 'Near Realtime', 'Offline']
-  const filtered = triggers.filter(t => {
-    const matchSearch = !search ||
+
+  const filtered = mockTriggers.filter(t => {
+    const matchSearch =
+      !search ||
       t.code.toLowerCase().includes(search.toLowerCase()) ||
       t.name.toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'Tất cả' || t.status === statusFilter
     return matchSearch && matchStatus
   })
 
-  // Auto-expand groups that have search results
-  const visibleGroups = groups.filter(group => {
-    const groupTriggers = filtered.filter(t => t.type === group)
-    return groupTriggers.length > 0 || !search
-  })
+  const campaignsUsingTrigger = viewTarget
+    ? mockCampaigns.filter(c => c.triggers.includes(viewTarget.code))
+    : []
 
   return (
     <div className="space-y-4">
-      {!forceAdmin && (
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-800">Trigger Management</h1>
-          {canEdit && (
-            <Button variant="primary" onClick={openAdd}>
-              <Plus size={14} /> Thêm Trigger
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-slate-800">Trigger Management</h1>
+      </div>
 
+      {/* Banner catalog */}
+      <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
+        <Info size={15} className="mt-0.5 shrink-0" />
+        <span>
+          Danh sách sự kiện kích hoạt do hệ thống cung cấp.{' '}
+          <span className="font-medium">Liên hệ Team Kỹ thuật để thêm hoặc điều chỉnh trigger.</span>
+        </span>
+      </div>
+
+      {/* Search + filter */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 flex items-center gap-3">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
             placeholder="Tìm trigger code hoặc tên..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400"
+          />
         </div>
         <select
           value={statusFilter}
@@ -133,11 +97,13 @@ export function TriggerManagement({ forceAdmin }: TriggerManagementProps) {
         </select>
       </div>
 
+      {/* Groups */}
       <div className="space-y-4">
-        {visibleGroups.map(group => {
+        {groups.map(group => {
           const groupTriggers = filtered.filter(t => t.type === group)
-          // Auto-expand group containing search results
+          if (groupTriggers.length === 0 && search) return null
           const expanded = search ? true : expandedGroups.includes(group)
+
           return (
             <div key={group} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
               <button
@@ -149,6 +115,7 @@ export function TriggerManagement({ forceAdmin }: TriggerManagementProps) {
                   <span className="ml-2 text-xs font-normal text-slate-500">({groupTriggers.length} trigger)</span>
                 </span>
               </button>
+
               {expanded && (
                 <table className="w-full text-sm">
                   <thead className="border-b border-slate-100">
@@ -157,14 +124,17 @@ export function TriggerManagement({ forceAdmin }: TriggerManagementProps) {
                       <th className="text-left px-4 py-2 font-medium">Tên</th>
                       <th className="text-left px-4 py-2 font-medium">Source</th>
                       <th className="text-left px-4 py-2 font-medium">Trạng thái</th>
-                      {canEdit && <th className="text-right px-4 py-2 font-medium">Hành động</th>}
+                      <th className="text-right px-4 py-2 font-medium">Hành động</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {groupTriggers.map(t => (
-                      <tr key={t.id} className="hover:bg-slate-50">
+                      <tr
+                        key={t.id}
+                        className={`hover:bg-slate-50 ${t.status === 'Inactive' ? 'opacity-60' : ''}`}
+                      >
                         <td className="px-4 py-2.5">
-                          <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${search && (t.code.toLowerCase().includes(search.toLowerCase())) ? 'bg-yellow-100 text-yellow-800' : 'bg-amber-50 text-amber-700'}`}>
+                          <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${search && t.code.toLowerCase().includes(search.toLowerCase()) ? 'bg-yellow-100 text-yellow-800' : 'bg-amber-50 text-amber-700'}`}>
                             {t.code}
                           </span>
                         </td>
@@ -173,24 +143,28 @@ export function TriggerManagement({ forceAdmin }: TriggerManagementProps) {
                         </td>
                         <td className="px-4 py-2.5 text-slate-500 text-xs">{t.source}</td>
                         <td className="px-4 py-2.5">
-                          <span className={`text-xs font-medium ${statusColor[t.status] ?? 'text-slate-500'}`}>
-                            {t.status === 'Active' ? '● ' : '○ '}{t.status}
-                          </span>
+                          {t.status === 'Active' ? (
+                            <span className="text-xs font-medium text-green-600">● Active</span>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>
+                          )}
                         </td>
-                        {canEdit && (
-                          <td className="px-4 py-2.5">
-                            <div className="flex gap-2 justify-end">
-                              <Button size="sm" onClick={() => openEdit(t)}>Sửa</Button>
-                              <Button size="sm" variant={t.status === 'Active' ? 'danger' : 'success'} onClick={() => handleToggleClick(t)}>
-                                {t.status === 'Active' ? 'Tắt' : 'Bật'}
-                              </Button>
-                            </div>
-                          </td>
-                        )}
+                        <td className="px-4 py-2.5 text-right">
+                          <button
+                            onClick={() => setViewTarget(t)}
+                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          >
+                            Xem
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {groupTriggers.length === 0 && (
-                      <tr><td colSpan={canEdit ? 5 : 4} className="px-4 py-4 text-sm text-slate-400 text-center">Không có trigger</td></tr>
+                      <tr>
+                        <td colSpan={5} className="px-4 py-4 text-sm text-slate-400 text-center">
+                          Không có trigger
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>
@@ -198,156 +172,192 @@ export function TriggerManagement({ forceAdmin }: TriggerManagementProps) {
             </div>
           )
         })}
-        {visibleGroups.length === 0 && (
+
+        {filtered.length === 0 && (
           <div className="bg-white border border-slate-200 rounded-lg px-4 py-8 text-center text-slate-400 text-sm">
             Không tìm thấy trigger nào
           </div>
         )}
       </div>
 
-      {/* Add/Edit dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} title={editing ? 'Sửa Trigger' : 'Thêm Trigger Mới'} className="max-w-2xl">
-        <div className="space-y-3 text-sm">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">Trigger code *</label>
-              <input value={formCode} onChange={e => setFormCode(e.target.value.toUpperCase())}
-                placeholder="VD: SIM_ACTIVATED"
-                className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-400" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">Loại *</label>
-              <select value={formType} onChange={e => setFormType(e.target.value as TriggerType)}
-                className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none">
-                <option>Realtime</option>
-                <option>Near Realtime</option>
-                <option>Offline</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-slate-600 mb-1 block">Tên trigger *</label>
-            <input value={formName} onChange={e => setFormName(e.target.value)}
-              placeholder="VD: Kích hoạt SIM thành công"
-              className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-400" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">Event source *</label>
-              <select value={formSource} onChange={e => setFormSource(e.target.value as 'BSS' | 'OCS')}
-                className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none">
-                <option>BSS</option>
-                <option>OCS</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">Trạng thái</label>
-              <div className="flex gap-3 pt-1">
-                {['Active', 'Inactive'].map(s => (
-                  <label key={s} className="flex items-center gap-1.5 cursor-pointer text-sm">
-                    <input type="radio" checked={formStatus === s} onChange={() => setFormStatus(s as any)} />
-                    <span>{s}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-slate-600 mb-1 block">Mô tả</label>
-            <input value={formDesc} onChange={e => setFormDesc(e.target.value)}
-              placeholder="VD: Fired khi KH kích hoạt SIM mới thành công"
-              className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-400" />
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-medium text-slate-600">Payload / Tham số</label>
-              <Button size="sm" variant="ghost" onClick={() => setFormParams(prev => [...prev, { name: '', description: '', format: 'text', source: formSource }])}>
-                <Plus size={10} /> Thêm tham số
-              </Button>
-            </div>
-            {formParams.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex gap-2 items-center text-xs text-slate-400 px-0.5">
-                  <span className="flex-1 min-w-0">Tên tham số</span>
-                  <span className="flex-1 min-w-0">Mô tả</span>
-                  <span className="w-20 shrink-0">Định dạng</span>
-                  <span className="w-14 shrink-0">Nguồn</span>
-                  <span className="w-3 shrink-0" />
-                </div>
-                {formParams.map((p, i) => (
-                  <div key={i} className="flex gap-2 items-center">
-                    <input value={p.name}
-                      onChange={e => {
-                        const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')
-                        setFormParams(prev => prev.map((x, j) => j === i ? { ...x, name: val } : x))
-                      }}
-                      placeholder="ten_param"
-                      className="flex-1 min-w-0 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none font-mono" />
-                    <input value={p.description} onChange={e => setFormParams(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))}
-                      placeholder="Mô tả"
-                      className="flex-1 min-w-0 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none" />
-                    <select value={p.format} onChange={e => setFormParams(prev => prev.map((x, j) => j === i ? { ...x, format: e.target.value as any } : x))}
-                      className="w-20 shrink-0 px-1 py-1 border border-slate-200 rounded text-xs focus:outline-none">
-                      {['text', 'date', 'number', 'boolean', 'currency'].map(f => <option key={f}>{f}</option>)}
-                    </select>
-                    <select value={p.source} onChange={e => setFormParams(prev => prev.map((x, j) => j === i ? { ...x, source: e.target.value as any } : x))}
-                      className="w-14 shrink-0 px-1 py-1 border border-slate-200 rounded text-xs focus:outline-none">
-                      {['BSS', 'OCS'].map(s => <option key={s}>{s}</option>)}
-                    </select>
-                    <button
-                      onClick={() => setFormParams(prev => prev.filter((_, j) => j !== i))}
-                      disabled={formParams.length === 1}
-                      className="text-slate-300 hover:text-red-400 shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title={formParams.length === 1 ? 'Trigger phải có ít nhất 1 tham số' : 'Xóa tham số'}
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="text-xs text-slate-400 mt-1">Định dạng: text / date (DD/MM/YYYY) / number / boolean / currency (VND)</div>
-            {formParams.length === 0 && (
-              <div className="text-xs text-red-500 mt-1">Trigger phải có ít nhất 1 tham số payload</div>
-            )}
-          </div>
-        </div>
-        <DialogActions>
-          <Button variant="outline" onClick={() => setDialogOpen(false)}>Hủy</Button>
-          <Button variant="primary" onClick={handleSave} disabled={!formCode || !formName}>Lưu</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Toggle confirm (with affected campaigns warning) */}
+      {/* Modal xem chi tiết */}
       <Dialog
-        open={!!toggleTarget}
-        onClose={() => setToggleTarget(null)}
-        title={toggleTarget?.status === 'Active' ? `Tắt trigger ${toggleTarget?.code}?` : `Bật trigger ${toggleTarget?.code}?`}
+        open={!!viewTarget}
+        onClose={() => setViewTarget(null)}
+        title="Chi tiết Sự kiện kích hoạt"
+        className="max-w-2xl"
       >
-        <div className="space-y-3 text-sm text-slate-600">
-          {toggleTarget?.status === 'Active' ? (
-            <>
-              <p>Trigger <strong className="font-mono">{toggleTarget?.code}</strong> sẽ chuyển sang trạng thái Inactive.</p>
-              {affectedCampaigns.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-1">
-                  <div className="text-red-700 font-medium text-xs">⚠ Đang dùng trong {affectedCampaigns.length} campaign Active:</div>
-                  {affectedCampaigns.map(c => (
-                    <div key={c.id} className="text-xs text-red-600 pl-2">• {c.name} ({c.code})</div>
-                  ))}
-                  <div className="text-xs text-red-500 mt-1">Tắt trigger có thể ảnh hưởng đến việc xử lý sự kiện của các campaign này.</div>
+        {viewTarget && (
+          <div className="space-y-5 text-sm">
+
+            {/* A — Định danh */}
+            <section>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">A. Định danh</h3>
+              <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+                <div className="flex flex-wrap gap-x-6 gap-y-1.5">
+                  <div>
+                    <span className="text-xs text-slate-400">Code</span>
+                    <div className="font-mono text-sm font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded mt-0.5 inline-block">
+                      {viewTarget.code}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400">Kiểu chạy</span>
+                    <div className="mt-0.5">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_BADGE[viewTarget.type]}`}>
+                        {viewTarget.type}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400">Nguồn sự kiện</span>
+                    <div className="text-sm font-medium text-slate-700 mt-0.5">{viewTarget.source}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400">Trạng thái</span>
+                    <div className="mt-0.5">
+                      {viewTarget.status === 'Active' ? (
+                        <span className="text-xs font-medium text-green-600">● Active</span>
+                      ) : (
+                        <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </>
-          ) : (
-            <p>Trigger <strong className="font-mono">{toggleTarget?.code}</strong> sẽ chuyển sang trạng thái Active.</p>
-          )}
+                <div>
+                  <span className="text-xs text-slate-400">Tên</span>
+                  <div className="text-sm font-medium text-slate-800 mt-0.5">{viewTarget.name}</div>
+                </div>
+                {viewTarget.description && (
+                  <div>
+                    <span className="text-xs text-slate-400">Mô tả</span>
+                    <div className="text-sm text-slate-600 mt-0.5">{viewTarget.description}</div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* B — Điều kiện kích hoạt */}
+            {(viewTarget.activationCondition || viewTarget.blockCondition) && (
+              <section>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">B. Điều kiện kích hoạt</h3>
+                <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+                  {viewTarget.activationCondition && (
+                    <div>
+                      <span className="text-xs text-slate-400">Khi nào trigger kích hoạt</span>
+                      <p className="text-sm text-slate-700 mt-0.5">{viewTarget.activationCondition}</p>
+                    </div>
+                  )}
+                  {viewTarget.blockCondition && (
+                    <div>
+                      <span className="text-xs text-slate-400">Điều kiện chặn</span>
+                      <p className="text-sm text-slate-600 mt-0.5">{viewTarget.blockCondition}</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* C — Tham số đầu ra */}
+            <section>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">C. Tham số đầu ra</h3>
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr className="text-slate-500">
+                      <th className="text-left px-3 py-2 font-medium">Tham số</th>
+                      <th className="text-left px-3 py-2 font-medium">Mô tả</th>
+                      <th className="text-left px-3 py-2 font-medium">Định dạng</th>
+                      <th className="text-left px-3 py-2 font-medium">Nguồn</th>
+                      <th className="text-left px-3 py-2 font-medium">Ví dụ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {viewTarget.params.map(p => (
+                      <tr key={p.name} className="hover:bg-slate-50">
+                        <td className="px-3 py-2">
+                          <button
+                            onClick={() => handleCopyParam(p.name)}
+                            className="flex items-center gap-1 font-mono text-blue-600 hover:text-blue-800 group"
+                            title="Nhấn để copy cú pháp"
+                          >
+                            <span>{`{{${p.name}}}`}</span>
+                            {copiedParam === p.name
+                              ? <CheckCircle size={10} className="text-green-500" />
+                              : <Copy size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                            }
+                          </button>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">{p.description}</td>
+                        <td className="px-3 py-2 text-slate-500">{FORMAT_LABEL[p.format] ?? p.format}</td>
+                        <td className="px-3 py-2 text-slate-500">{p.source}</td>
+                        <td className="px-3 py-2 text-slate-400 font-mono">{p.example ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+                <Copy size={10} />
+                Nhấn vào tên tham số để copy cú pháp vào clipboard
+              </p>
+            </section>
+
+            {/* D — Thông tin vận hành */}
+            <section>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">D. Thông tin vận hành</h3>
+              <div className="bg-slate-50 rounded-lg p-3 space-y-3">
+                {viewTarget.supportedChannels && viewTarget.supportedChannels.length > 0 && (
+                  <div>
+                    <span className="text-xs text-slate-400 block mb-1.5">Kênh hỗ trợ</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {viewTarget.supportedChannels.map(ch => (
+                        <span key={ch} className="text-xs bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+                          {CHANNEL_LABELS[ch] ?? ch}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <span className="text-xs text-slate-400 block mb-1.5">
+                    Campaign đang dùng trigger này ({campaignsUsingTrigger.length})
+                  </span>
+                  {campaignsUsingTrigger.length > 0 ? (
+                    <div className="space-y-1">
+                      {campaignsUsingTrigger.map(c => (
+                        <div key={c.id} className="flex items-center gap-2 text-xs text-slate-600">
+                          <span>•</span>
+                          <span className="font-medium">{c.name}</span>
+                          <span className="text-slate-400 font-mono">{c.code}</span>
+                          <span className={`ml-auto px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                            c.status === 'Active' ? 'bg-green-100 text-green-700' :
+                            c.status === 'Paused' ? 'bg-orange-100 text-orange-700' :
+                            c.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-slate-100 text-slate-500'
+                          }`}>
+                            {c.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">Chưa có campaign nào dùng trigger này.</p>
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2 border-t border-slate-100 mt-4">
+          <button
+            onClick={() => setViewTarget(null)}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-3 py-1.5"
+          >
+            <X size={13} /> Đóng
+          </button>
         </div>
-        <DialogActions>
-          <Button variant="outline" onClick={() => setToggleTarget(null)}>Hủy</Button>
-          <Button variant={toggleTarget?.status === 'Active' ? 'danger' : 'success'} onClick={confirmToggle}>
-            {toggleTarget?.status === 'Active' ? 'Tắt' : 'Bật'}
-          </Button>
-        </DialogActions>
       </Dialog>
     </div>
   )
