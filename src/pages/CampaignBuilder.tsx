@@ -64,8 +64,15 @@ function defaultVariant(): { segmentId: null; segmentName: string; content: Vari
   return { segmentId: null, segmentName: 'Tất cả (dự phòng)', content: {} }
 }
 
+function interpolate(text: string | undefined, sampleValues: Record<string, string> | undefined): string {
+  if (!text) return ''
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => sampleValues?.[key] ?? `{{${key}}}`)
+}
+
 function ChannelPreview({ ch, content }: { ch: ChannelType; content: VariantContent }) {
-  const { title, body, cta } = content
+  const title = interpolate(content.title, content.sampleValues)
+  const body = interpolate(content.body, content.sampleValues)
+  const cta = content.cta
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs space-y-1.5">
       {ch === 'Push' && (
@@ -140,6 +147,15 @@ function TriggerCard({ trig, ti, ch, logic, availableSegments, data, onChange, g
   const updateContent = (field: keyof VariantContent, value: string) => {
     const newVariants = data.variants.map((v, i) =>
       i === activeVariant ? { ...v, content: { ...v.content, [field]: value } } : v
+    )
+    onChange({ ...data, variants: newVariants })
+  }
+
+  const updateSampleValue = (paramName: string, value: string) => {
+    const newVariants = data.variants.map((v, i) =>
+      i === activeVariant
+        ? { ...v, content: { ...v.content, sampleValues: { ...(v.content.sampleValues ?? {}), [paramName]: value } } }
+        : v
     )
     onChange({ ...data, variants: newVariants })
   }
@@ -408,10 +424,7 @@ function TriggerCard({ trig, ti, ch, logic, availableSegments, data, onChange, g
                 <input
                   placeholder={p.format === 'date' ? 'DD/MM/YYYY' : p.format === 'number' ? '123' : '...'}
                   value={content.sampleValues?.[p.name] ?? ''}
-                  onChange={e => updateContent('sampleValues', JSON.stringify({
-                    ...(content.sampleValues ?? {}),
-                    [p.name]: e.target.value
-                  }))}
+                  onChange={e => updateSampleValue(p.name, e.target.value)}
                   className="flex-1 px-1.5 py-0.5 border border-slate-200 rounded text-xs focus:outline-none"
                 />
               </div>
