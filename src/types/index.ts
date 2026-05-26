@@ -27,7 +27,6 @@ export interface Trigger {
   source: 'BSS' | 'OCS' | 'SuperApp'
   type: TriggerType
   status: 'Active' | 'Inactive'
-  description?: string
   supportedChannels?: ChannelType[]
   params: TriggerParam[]
 }

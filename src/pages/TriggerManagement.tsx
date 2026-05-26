@@ -228,12 +228,6 @@ export function TriggerManagement() {
                   <span className="text-xs text-slate-400">Tên</span>
                   <div className="text-sm font-medium text-slate-800 mt-0.5">{viewTarget.name}</div>
                 </div>
-                {viewTarget.description && (
-                  <div>
-                    <span className="text-xs text-slate-400">Mô tả</span>
-                    <div className="text-sm text-slate-600 mt-0.5">{viewTarget.description}</div>
-                  </div>
-                )}
               </div>
             </section>
 

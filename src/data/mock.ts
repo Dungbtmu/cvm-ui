@@ -153,7 +153,6 @@ export const mockTriggers: Trigger[] = [
     source: 'BSS',
     type: 'Realtime',
     status: 'Active',
-    description: 'Fired khi khách hàng kích hoạt SIM mới lần đầu tiên (T=0 của hành trình khách hàng).',
     supportedChannels: ['Push', 'Zalo OA', 'SMS', 'Banner'],
     params: [
       { name: 'ten_kh', description: 'Họ tên đầy đủ của khách hàng', format: 'text', source: 'BSS', example: 'Nguyễn Văn An' },
@@ -169,7 +168,6 @@ export const mockTriggers: Trigger[] = [
     source: 'OCS',
     type: 'Realtime',
     status: 'Inactive',
-    description: 'Fired khi KH đến vùng du lịch mới.',
     supportedChannels: ['Push', 'SMS'],
     params: [
       { name: 'tinh_thanh', description: 'Tên tỉnh/thành', format: 'text', source: 'OCS', example: 'Đà Nẵng' },
@@ -183,7 +181,6 @@ export const mockTriggers: Trigger[] = [
     source: 'SuperApp',
     type: 'Near Realtime',
     status: 'Active',
-    description: 'Fired sau 24h kể từ kích hoạt SIM nếu KH chưa cài app.',
     supportedChannels: ['SMS', 'USSD'],
     params: [
       { name: 'ten_kh', description: 'Họ tên đầy đủ', format: 'text', source: 'BSS', example: 'Trần Thị Bình' },
@@ -197,7 +194,6 @@ export const mockTriggers: Trigger[] = [
     source: 'OCS',
     type: 'Offline',
     status: 'Active',
-    description: 'Batch job phát hiện KH sắp hết data, chạy lúc 2:00 sáng mỗi ngày.',
     supportedChannels: ['Push', 'SMS', 'Zalo OA'],
     params: [
       { name: 'ten_kh', description: 'Họ tên đầy đủ', format: 'text', source: 'BSS', example: 'Lê Văn Cường' },
@@ -212,7 +208,6 @@ export const mockTriggers: Trigger[] = [
     source: 'OCS',
     type: 'Offline',
     status: 'Inactive',
-    description: 'Phát hiện KH giảm sử dụng đột ngột so với trung bình 7 ngày trước.',
     supportedChannels: ['Push', 'SMS'],
     params: [
       { name: 'pct_drop', description: 'Phần trăm giảm', format: 'number', source: 'OCS', example: '52' },
@@ -226,7 +221,6 @@ export const mockTriggers: Trigger[] = [
     source: 'BSS',
     type: 'Offline',
     status: 'Active',
-    description: 'KH không có giao dịch nào trong 30 ngày — nguy cơ rời mạng.',
     supportedChannels: ['SMS', 'USSD'],
     params: [
       { name: 'ten_kh', description: 'Họ tên đầy đủ', format: 'text', source: 'BSS', example: 'Hoàng Văn Em' },
