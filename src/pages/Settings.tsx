@@ -54,7 +54,7 @@ export function Settings() {
     ['Tạo / Sửa Campaign', false, true],
     ['Gửi duyệt campaign', false, true],
     ['Duyệt / Từ chối Campaign', true, false],
-    ['Thêm / Sửa Trigger', true, false],
+    ['Xem Trigger catalog', true, true],
     ['Quản lý Blacklist', true, true],
     ['Xem Report', true, true],
     ['Cài đặt hệ thống (Settings)', true, false],
