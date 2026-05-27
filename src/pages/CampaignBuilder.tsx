@@ -125,7 +125,6 @@ interface TriggerCardProps {
   trig: TriggerEntry
   ti: number
   ch: ChannelType
-  logic: TriggerLogic
   availableSegments: SegmentEntry[]
   data: TriggerCardData
   onChange: (d: TriggerCardData) => void
@@ -133,7 +132,7 @@ interface TriggerCardProps {
   onGuideToggle: () => void
 }
 
-function TriggerCard({ trig, ti, ch, logic, availableSegments, data, onChange, guideOpen, onGuideToggle }: TriggerCardProps) {
+function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpen, onGuideToggle }: TriggerCardProps) {
   const trigData = mockTriggers.find(x => x.code === trig.code)
   const [activeVariant, setActiveVariant] = useState(0)
   const [showPreview, setShowPreview] = useState(false)
@@ -234,8 +233,8 @@ function TriggerCard({ trig, ti, ch, logic, availableSegments, data, onChange, g
         )}
       </div>
 
-      {/* Audience variant tabs (OR mode only) */}
-      {logic === 'OR' && (
+      {/* Audience variant tabs */}
+      {(
         <div className="border-b border-slate-200 px-4 py-2 flex items-center gap-2 flex-wrap bg-slate-50">
           <span className="text-xs text-slate-500">Đối tượng:</span>
           {data.variants.map((v, idx) => (
@@ -268,7 +267,7 @@ function TriggerCard({ trig, ti, ch, logic, availableSegments, data, onChange, g
       )}
 
       {/* Assign segment to current variant (if variant idx > 0) */}
-      {logic === 'OR' && activeVariant > 0 && (
+      {activeVariant > 0 && (
         <div className="px-4 py-2 border-b border-slate-100 bg-amber-50">
           <label className="text-xs text-slate-500 font-medium mr-2">Phân khúc:</label>
           <select
@@ -1227,7 +1226,7 @@ export function CampaignBuilder() {
 
           {/* S2 */}
           <Card amber>
-            <SectionHeader title="2. Trigger & Logic" collapsed={s2Collapsed} onToggle={() => setS2Collapsed(!s2Collapsed)} />
+            <SectionHeader title="3. Trigger & Logic" collapsed={s2Collapsed} onToggle={() => setS2Collapsed(!s2Collapsed)} />
             {!s2Collapsed && (
               <div className="mt-4 space-y-4">
                 {/* Mode radio */}
@@ -1433,7 +1432,6 @@ export function CampaignBuilder() {
                               trig={displayTrig}
                               ti={ti}
                               ch={activeChannelTab}
-                              logic={triggerLogic}
                               availableSegments={segments}
                               data={cardData}
                               onChange={d => setCardData(activeChannelTab, trig.code, d)}
@@ -1548,7 +1546,7 @@ export function CampaignBuilder() {
 
           {/* Kênh & Lịch gửi */}
           <Card amber className="space-y-3">
-            <div className="text-sm font-semibold text-slate-700">Kênh &amp; Lịch gửi</div>
+            <div className="text-sm font-semibold text-slate-700">5. Kênh &amp; Lịch gửi</div>
 
             {activeChannels.length === 0 ? (
               <div className="text-xs text-slate-400 bg-slate-50 rounded px-3 py-2">
@@ -1623,7 +1621,7 @@ export function CampaignBuilder() {
 
           {/* S3 Audience */}
           <Card amber className="space-y-4">
-            <div className="text-sm font-semibold text-slate-700">3. Audience / Phân khúc</div>
+            <div className="text-sm font-semibold text-slate-700">2. Audience / Phân khúc</div>
             <div className="text-xs text-slate-500">
               Nguồn: Customer 360 · Team Data · BSS · OCS
               <br />Reach ước tính tại: {new Date().toLocaleDateString('vi-VN')} {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
