@@ -1544,81 +1544,6 @@ export function CampaignBuilder() {
             </div>
           </Card>
 
-          {/* Kênh & Lịch gửi */}
-          <Card amber className="space-y-3">
-            <div className="text-sm font-semibold text-slate-700">5. Kênh &amp; Lịch gửi</div>
-
-            {activeChannels.length === 0 ? (
-              <div className="text-xs text-slate-400 bg-slate-50 rounded px-3 py-2">
-                Chưa có kênh — thêm kênh trong Message Matrix để cấu hình lịch.
-              </div>
-            ) : (
-              <div className="text-xs text-slate-500">
-                Kênh đang có: <span className="font-medium text-slate-700">{activeChannels.join(' · ')}</span>
-              </div>
-            )}
-
-            {/* Schedule type radio */}
-            {activeChannels.length > 0 && (
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <div className="text-xs font-medium text-slate-600">Lịch gửi:</div>
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
-                  <input type="radio" checked={schedulePer === 'common'} onChange={handleSwitchToCommon} />
-                  Lịch chung (áp dụng cho tất cả kênh)
-                </label>
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
-                  <input type="radio" checked={schedulePer === 'per'} onChange={() => setSchedulePer('per')} />
-                  Lịch riêng theo kênh
-                </label>
-
-                {/* ── Lịch chung ── */}
-                {schedulePer === 'common' && (
-                  <div className="pl-4 space-y-2 mt-1 border-l-2 border-slate-100">
-                    <ScheduleBlock
-                      scheduleType={scheduleType}
-                      onScheduleType={setScheduleType}
-                      blackoutOn={blackoutOn}
-                      onBlackoutOn={setBlackoutOn}
-                      blackoutAction={blackoutAction}
-                      onBlackoutAction={setBlackoutAction}
-                      namePrefix="common"
-                    />
-                  </div>
-                )}
-
-                {/* ── Lịch riêng theo kênh — accordion ── */}
-                {schedulePer === 'per' && activeChannels.length > 0 && (
-                  <div className="space-y-2 mt-1">
-                    {activeChannels.map(ch => (
-                      <div key={ch} className="border border-slate-200 rounded-lg overflow-hidden">
-                        <button
-                          onClick={() => setPerChannelSchedule(prev => ({ ...prev, [ch]: !prev[ch] }))}
-                          className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                        >
-                          <span>{ch}</span>
-                          <span className="text-slate-400">{perChannelSchedule[ch] ? '▼' : '▶'}</span>
-                        </button>
-                        {perChannelSchedule[ch] && (
-                          <div className="p-3">
-                            <ScheduleBlock
-                              scheduleType={perChScheduleType[ch] ?? 'now'}
-                              onScheduleType={v => setPerChScheduleType(prev => ({ ...prev, [ch]: v }))}
-                              blackoutOn={!!perChBlackoutOn[ch]}
-                              onBlackoutOn={v => setPerChBlackoutOn(prev => ({ ...prev, [ch]: v }))}
-                              blackoutAction={perChBlackoutAction[ch] ?? 'discard'}
-                              onBlackoutAction={v => setPerChBlackoutAction(prev => ({ ...prev, [ch]: v }))}
-                              namePrefix={ch}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-
           {/* S3 Audience */}
           <Card amber className="space-y-4">
             <div className="text-sm font-semibold text-slate-700">2. Audience / Phân khúc</div>
@@ -1694,6 +1619,81 @@ export function CampaignBuilder() {
             <div className="text-xs text-slate-400 bg-blue-50 rounded px-2 py-1.5">
               ⓘ Reach ước tính tại thời điểm hiện tại. Phân khúc được đánh giá lại khi trigger kích hoạt — KH có thể vào/ra phân khúc theo thời gian.
             </div>
+          </Card>
+
+          {/* Kênh & Lịch gửi */}
+          <Card amber className="space-y-3">
+            <div className="text-sm font-semibold text-slate-700">5. Kênh &amp; Lịch gửi</div>
+
+            {activeChannels.length === 0 ? (
+              <div className="text-xs text-slate-400 bg-slate-50 rounded px-3 py-2">
+                Chưa có kênh — thêm kênh trong Message Matrix để cấu hình lịch.
+              </div>
+            ) : (
+              <div className="text-xs text-slate-500">
+                Kênh đang có: <span className="font-medium text-slate-700">{activeChannels.join(' · ')}</span>
+              </div>
+            )}
+
+            {/* Schedule type radio */}
+            {activeChannels.length > 0 && (
+              <div className="space-y-2 border-t border-slate-100 pt-3">
+                <div className="text-xs font-medium text-slate-600">Lịch gửi:</div>
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input type="radio" checked={schedulePer === 'common'} onChange={handleSwitchToCommon} />
+                  Lịch chung (áp dụng cho tất cả kênh)
+                </label>
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input type="radio" checked={schedulePer === 'per'} onChange={() => setSchedulePer('per')} />
+                  Lịch riêng theo kênh
+                </label>
+
+                {/* ── Lịch chung ── */}
+                {schedulePer === 'common' && (
+                  <div className="pl-4 space-y-2 mt-1 border-l-2 border-slate-100">
+                    <ScheduleBlock
+                      scheduleType={scheduleType}
+                      onScheduleType={setScheduleType}
+                      blackoutOn={blackoutOn}
+                      onBlackoutOn={setBlackoutOn}
+                      blackoutAction={blackoutAction}
+                      onBlackoutAction={setBlackoutAction}
+                      namePrefix="common"
+                    />
+                  </div>
+                )}
+
+                {/* ── Lịch riêng theo kênh — accordion ── */}
+                {schedulePer === 'per' && activeChannels.length > 0 && (
+                  <div className="space-y-2 mt-1">
+                    {activeChannels.map(ch => (
+                      <div key={ch} className="border border-slate-200 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => setPerChannelSchedule(prev => ({ ...prev, [ch]: !prev[ch] }))}
+                          className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                        >
+                          <span>{ch}</span>
+                          <span className="text-slate-400">{perChannelSchedule[ch] ? '▼' : '▶'}</span>
+                        </button>
+                        {perChannelSchedule[ch] && (
+                          <div className="p-3">
+                            <ScheduleBlock
+                              scheduleType={perChScheduleType[ch] ?? 'now'}
+                              onScheduleType={v => setPerChScheduleType(prev => ({ ...prev, [ch]: v }))}
+                              blackoutOn={!!perChBlackoutOn[ch]}
+                              onBlackoutOn={v => setPerChBlackoutOn(prev => ({ ...prev, [ch]: v }))}
+                              blackoutAction={perChBlackoutAction[ch] ?? 'discard'}
+                              onBlackoutAction={v => setPerChBlackoutAction(prev => ({ ...prev, [ch]: v }))}
+                              namePrefix={ch}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
         </div>
       </div>
