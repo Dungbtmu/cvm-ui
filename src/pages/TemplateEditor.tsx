@@ -6,7 +6,7 @@ import { ParamChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockTemplates, mockCampaigns } from '../data/mock'
-import type { ChannelType } from '../types'
+import type { ChannelType, TemplateChannelContent } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
@@ -101,11 +101,13 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
   const existing = id && id !== 'new' ? mockTemplates.find(t => t.id === id) : null
 
   const [tplName, setTplName] = useState(existing?.name ?? '')
-  const [tplDesc, setTplDesc] = useState('')
-  const [tplStatus, setTplStatus] = useState<'Active' | 'Inactive'>('Active')
+  const [tplDesc, setTplDesc] = useState(existing?.description ?? '')
+  const [tplStatus, setTplStatus] = useState<'Active' | 'Inactive'>(existing?.status ?? 'Active')
   const [activeChannels, setActiveChannels] = useState<ChannelType[]>(existing?.channels ?? [])
   const [activeTab, setActiveTab] = useState<ChannelType>(existing?.channels[0] ?? 'Push')
-  const [contents, setContents] = useState<Record<ChannelType, ChannelContent>>({} as any)
+  const [contents, setContents] = useState<Record<ChannelType, ChannelContent>>(
+    (existing?.contents ?? {}) as Record<ChannelType, TemplateChannelContent>
+  )
   const [guideOpen, setGuideOpen] = useState(false)
   const [inactiveConfirm, setInactiveConfirm] = useState(false)
   const bodyRef = useRef<HTMLTextAreaElement>(null)

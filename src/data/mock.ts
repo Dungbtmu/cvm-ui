@@ -231,11 +231,49 @@ export const mockTriggers: Trigger[] = [
 ]
 
 export const mockTemplates: Template[] = [
-  { id: '1', name: 'Chào mừng SIM', channels: ['Push', 'Zalo OA'], usageCount: 3, status: 'Active' },
-  { id: '2', name: 'Nhắc nạp thẻ', channels: ['SMS', 'USSD'], usageCount: 3, status: 'Active' },
-  { id: '3', name: 'Sắp hết data', channels: ['Push', 'SMS'], usageCount: 2, status: 'Active' },
-  { id: '4', name: 'Sinh nhật KH', channels: ['Zalo OA', 'Email'], usageCount: 2, status: 'Active' },
-  { id: '5', name: 'Cài app nhắc nhở', channels: ['Push'], usageCount: 2, status: 'Inactive' },
+  {
+    id: '1', name: 'Chào mừng SIM', channels: ['Push', 'Zalo OA'], usageCount: 3, status: 'Active',
+    description: 'Gửi khi khách hàng kích hoạt SIM mới — chào đón và giới thiệu gói cước',
+    contents: {
+      Push: { title: 'Chào mừng {{ten_kh}} đến với VietnamPost!', body: 'SIM {{loai_sim}} của bạn đã kích hoạt thành công vào {{ngay_kich_hoat}}. Khám phá các gói cước ưu đãi dành riêng cho bạn ngay hôm nay.' },
+      'Zalo OA': { body: 'Xin chào {{ten_kh}},\n\nChúc mừng bạn đã kích hoạt thành công SIM {{loai_sim}} của VietnamPost vào ngày {{ngay_kich_hoat}}.\n\nSố dư hiện tại: {{so_du}} đ\nSố điện thoại: {{so_dt}}\n\nCảm ơn bạn đã tin tùy chọn VietnamPost. Chúc bạn có trải nghiệm tuyệt vời!' },
+    },
+  },
+  {
+    id: '2', name: 'Nhắc nạp thẻ', channels: ['SMS', 'USSD'], usageCount: 3, status: 'Active',
+    description: 'Nhắc khách hàng nạp tiền khi số dư tài khoản thấp hoặc sắp hết hạn gói',
+    contents: {
+      SMS: { body: 'VietnamPost: Tai khoan {{so_dt}} con {{so_du}}d, het han {{ngay_het_han}}. Nap the ngay de khong bi gian doan lien lac. Hotline: 1800 xxxx.' },
+      USSD: { body: 'VietnamPost thong bao: So du con {{so_du}}d. Het han {{ngay_het_han}}. Nap the de tiep tuc su dung dich vu.' },
+    },
+  },
+  {
+    id: '3', name: 'Sắp hết data', channels: ['Push', 'SMS'], usageCount: 2, status: 'Active',
+    description: 'Cảnh báo khi data gói cước còn dưới ngưỡng — khuyến khích mua thêm data',
+    contents: {
+      Push: { title: 'Data của bạn sắp hết!', body: 'Gói data còn {{data_con_lai}} MB — sắp hết rồi {{ten_kh}} ơi. Mua thêm data ngay để lướt net không bị gián đoạn.' },
+      SMS: { body: 'VietnamPost: Goi data cua {{so_dt}} chi con {{data_con_lai}}MB. Mua them data tai *098# hoac lien he hotline 1800 xxxx.' },
+    },
+  },
+  {
+    id: '4', name: 'Sinh nhật KH', channels: ['Zalo OA', 'Email'], usageCount: 2, status: 'Active',
+    description: 'Gửi lời chúc sinh nhật kèm ưu đãi đặc biệt dành riêng cho khách hàng',
+    contents: {
+      'Zalo OA': { body: 'Chúc mừng sinh nhật {{ten_kh}}! 🎂\n\nNhân dịp sinh nhật, VietnamPost tặng bạn ưu đãi đặc biệt: 1GB data miễn phí trong hôm nay.\n\nSố dư hiện tại: {{so_du}} đ\nSố điện thoại: {{so_dt}}\n\nTrân trọng,\nĐội ngũ VietnamPost' },
+      Email: {
+        title: 'Chúc mừng sinh nhật {{ten_kh}} — Quà tặng đặc biệt từ VietnamPost',
+        body: 'Kính gửi {{ten_kh}},\n\nNhân dịp sinh nhật của bạn, toàn thể đội ngũ VietnamPost xin gửi lời chúc mừng nồng nhiệt nhất!\n\nĐể tri ân sự đồng hành của bạn, chúng tôi xin tặng bạn:\n• 1GB data miễn phí (hiệu lực trong 24 giờ)\n• Ưu đãi giảm 20% khi nâng cấp gói cước trong tháng sinh nhật\n\nThông tin tài khoản:\nSố điện thoại: {{so_dt}}\nLoại SIM: {{loai_sim}}\nSố dư hiện tại: {{so_du}} đ\n\nTrân trọng,\nĐội ngũ chăm sóc khách hàng VietnamPost',
+        imageName: 'banner-birthday.jpg',
+      },
+    },
+  },
+  {
+    id: '5', name: 'Cài app nhắc nhở', channels: ['Push'], usageCount: 2, status: 'Inactive',
+    description: 'Nhắc khách hàng chưa cài ứng dụng VietnamPost Mobile',
+    contents: {
+      Push: { title: 'Quản lý tài khoản dễ dàng hơn!', body: 'Xin chào {{ten_kh}}, hãy tải app VietnamPost để nạp tiền, kiểm tra số dư và đăng ký gói cước mọi lúc mọi nơi. Tải ngay — hoàn toàn miễn phí!' },
+    },
+  },
 ]
 
 export const mockBlacklist: BlacklistEntry[] = [

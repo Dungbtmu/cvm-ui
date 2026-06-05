@@ -39,6 +39,14 @@ export interface TriggerParam {
   example?: string
 }
 
+export interface TemplateChannelContent {
+  title?: string
+  body?: string
+  cta?: string
+  ctaUrl?: string
+  imageName?: string
+}
+
 export interface Template {
   id: string
   name: string
@@ -46,6 +54,7 @@ export interface Template {
   channels: ChannelType[]
   usageCount: number
   status: 'Active' | 'Inactive'
+  contents?: Partial<Record<ChannelType, TemplateChannelContent>>
 }
 
 export interface BlacklistEntry {
