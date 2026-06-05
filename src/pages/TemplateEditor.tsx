@@ -40,7 +40,7 @@ interface ChannelContent {
 }
 
 function ChannelPreview({ ch, content }: { ch: ChannelType; content: ChannelContent }) {
-  const { title, body, cta } = content
+  const { title, body, cta, imageName } = content
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs space-y-1.5">
       {ch === 'Push' && (
@@ -81,6 +81,10 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: ChannelCont
       {ch === 'Email' && (
         <>
           <div className="text-[10px] text-slate-400">From: VietnamPost</div>
+          {imageName
+            ? <img src={imageName} alt="banner" className="w-full rounded object-cover max-h-20" />
+            : <div className="bg-slate-200 rounded h-12 flex items-center justify-center text-slate-400 text-[10px]">Banner (optional)</div>
+          }
           <div className="font-medium border-b border-slate-100 pb-1">{title || 'Subject...'}</div>
           <div className="text-slate-500">{body || 'Body...'}</div>
         </>
