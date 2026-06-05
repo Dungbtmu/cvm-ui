@@ -31,6 +31,7 @@ export default function App() {
             <Route path="campaigns/:id/detail" element={<CampaignDetail />} />
             <Route path="templates" element={<TemplateManagement />} />
             <Route path="templates/new" element={<TemplateEditor />} />
+            <Route path="templates/:id/view" element={<TemplateEditor readOnly />} />
             <Route path="templates/:id" element={<TemplateEditor />} />
             <Route path="triggers" element={<TriggerManagement />} />
             <Route path="blacklist" element={<BlacklistManagement />} />

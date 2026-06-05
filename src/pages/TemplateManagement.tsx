@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Copy } from 'lucide-react'
+import { Plus, Search, Copy, Eye } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
@@ -157,6 +157,9 @@ export function TemplateManagement() {
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="ghost" onClick={() => navigate(`/templates/${t.id}/view`)}>
+                      <Eye size={12} /> Xem
+                    </Button>
                     <Button size="sm" onClick={() => navigate(`/templates/${t.id}`)}>Sửa</Button>
                     <Button size="sm" variant="ghost" onClick={() => handleClone(t)}>
                       <Copy size={12} /> Nhân bản

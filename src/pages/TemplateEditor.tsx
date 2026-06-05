@@ -93,7 +93,7 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: ChannelCont
   )
 }
 
-export function TemplateEditor() {
+export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -183,36 +183,45 @@ export function TemplateEditor() {
         </button>
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 space-y-2">
-            <input
-              value={tplName}
-              onChange={e => setTplName(e.target.value)}
-              placeholder="VD: Nhắc nạp tiền - SMS"
-              maxLength={200}
-              className="text-lg font-semibold border-b border-slate-200 focus:border-blue-400 focus:outline-none w-full py-1 bg-transparent"
-            />
-            <input
-              value={tplDesc}
-              onChange={e => setTplDesc(e.target.value)}
-              placeholder="Mô tả ngắn về mục đích template này..."
-              maxLength={500}
-              className="text-sm text-slate-500 border-b border-slate-100 focus:border-blue-300 focus:outline-none w-full py-1 bg-transparent"
-            />
+            {readOnly
+              ? <div className="text-lg font-semibold py-1">{tplName || 'Không có tên'}</div>
+              : <input
+                  value={tplName}
+                  onChange={e => setTplName(e.target.value)}
+                  placeholder="VD: Nhắc nạp tiền - SMS"
+                  maxLength={200}
+                  className="text-lg font-semibold border-b border-slate-200 focus:border-blue-400 focus:outline-none w-full py-1 bg-transparent"
+                />
+            }
+            {readOnly
+              ? tplDesc && <div className="text-sm text-slate-500 py-1">{tplDesc}</div>
+              : <input
+                  value={tplDesc}
+                  onChange={e => setTplDesc(e.target.value)}
+                  placeholder="Mô tả ngắn về mục đích template này..."
+                  maxLength={500}
+                  className="text-sm text-slate-500 border-b border-slate-100 focus:border-blue-300 focus:outline-none w-full py-1 bg-transparent"
+                />
+            }
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <div className="flex items-center gap-1 border border-slate-200 rounded-lg overflow-hidden text-xs">
-              <label className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer transition-colors ${tplStatus === 'Active' ? 'bg-green-50 text-green-700 font-medium' : 'text-slate-400 hover:bg-slate-50'}`}>
-                <input type="radio" className="hidden" checked={tplStatus === 'Active'} onChange={() => setTplStatus('Active')} />
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 ${readOnly ? 'cursor-default' : 'cursor-pointer'} transition-colors ${tplStatus === 'Active' ? 'bg-green-50 text-green-700 font-medium' : 'text-slate-400 hover:bg-slate-50'}`}>
+                <input type="radio" className="hidden" checked={tplStatus === 'Active'} onChange={() => !readOnly && setTplStatus('Active')} readOnly={readOnly} />
                 <span className={`w-1.5 h-1.5 rounded-full ${tplStatus === 'Active' ? 'bg-green-500' : 'bg-slate-300'}`} />
                 Active
               </label>
               <div className="w-px h-5 bg-slate-200" />
-              <label className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer transition-colors ${tplStatus === 'Inactive' ? 'bg-slate-100 text-slate-600 font-medium' : 'text-slate-400 hover:bg-slate-50'}`}>
-                <input type="radio" className="hidden" checked={tplStatus === 'Inactive'} onChange={() => setTplStatus('Inactive')} />
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 ${readOnly ? 'cursor-default' : 'cursor-pointer'} transition-colors ${tplStatus === 'Inactive' ? 'bg-slate-100 text-slate-600 font-medium' : 'text-slate-400 hover:bg-slate-50'}`}>
+                <input type="radio" className="hidden" checked={tplStatus === 'Inactive'} onChange={() => !readOnly && setTplStatus('Inactive')} readOnly={readOnly} />
                 <span className={`w-1.5 h-1.5 rounded-full ${tplStatus === 'Inactive' ? 'bg-slate-400' : 'bg-slate-300'}`} />
                 Inactive
               </label>
             </div>
-            <Button variant="primary" onClick={handleSave}>Lưu Template</Button>
+            {readOnly
+              ? <span className="text-xs text-slate-400 border border-slate-200 rounded px-3 py-1.5">Chỉ xem</span>
+              : <Button variant="primary" onClick={handleSave}>Lưu Template</Button>
+            }
           </div>
         </div>
       </div>
@@ -241,19 +250,23 @@ export function TemplateEditor() {
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}>
               {ch} {hasContent(ch) ? <span className="text-green-500">●</span> : <span className="text-slate-300">○</span>}
-              <button onClick={e => { e.stopPropagation(); removeChannel(ch) }}
-                className="ml-1 hover:text-red-400 text-slate-300"><X size={10} /></button>
+              {!readOnly && (
+                <button onClick={e => { e.stopPropagation(); removeChannel(ch) }}
+                  className="ml-1 hover:text-red-400 text-slate-300"><X size={10} /></button>
+              )}
             </div>
           ))}
-          <select
-            onChange={e => { if (e.target.value) { addChannel(e.target.value as ChannelType); (e.target as HTMLSelectElement).value = '' }}}
-            className="text-xs border border-dashed border-slate-300 rounded px-2 py-1 text-slate-500 focus:outline-none mb-0.5"
-            value="">
-            <option value="">+ Kênh</option>
-            {CHANNELS.filter(ch => !activeChannels.includes(ch)).map(ch => (
-              <option key={ch} value={ch}>{ch}</option>
-            ))}
-          </select>
+          {!readOnly && (
+            <select
+              onChange={e => { if (e.target.value) { addChannel(e.target.value as ChannelType); (e.target as HTMLSelectElement).value = '' }}}
+              className="text-xs border border-dashed border-slate-300 rounded px-2 py-1 text-slate-500 focus:outline-none mb-0.5"
+              value="">
+              <option value="">+ Kênh</option>
+              {CHANNELS.filter(ch => !activeChannels.includes(ch)).map(ch => (
+                <option key={ch} value={ch}>{ch}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {activeChannels.length === 0 ? (
@@ -261,9 +274,9 @@ export function TemplateEditor() {
             Chưa có kênh nào. Nhấn "+ Kênh" để bắt đầu soạn nội dung.
           </div>
         ) : (
-          <div className="grid grid-cols-[55%_45%]">
+          <div className={readOnly ? 'grid grid-cols-1 max-w-sm mx-auto py-5' : 'grid grid-cols-[55%_45%]'}>
             {/* LEFT: compose */}
-            <div className="p-5 border-r border-slate-100 space-y-4">
+            {!readOnly && <div className="p-5 border-r border-slate-100 space-y-4">
               {/* Guide toggle */}
               <button onClick={() => setGuideOpen(!guideOpen)}
                 className="flex items-center gap-1.5 text-xs text-blue-600 hover:bg-blue-50 w-full text-left py-1">
@@ -392,13 +405,12 @@ export function TemplateEditor() {
                   </div>
                 </>
               )}
-            </div>
+            </div>}
 
             {/* RIGHT: preview realtime */}
             <div className="p-5 bg-slate-50 space-y-3">
               <div className="text-xs text-slate-500 font-medium">XEM TRƯỚC · {activeTab.toUpperCase()}</div>
               <ChannelPreview ch={activeTab} content={content} />
-
             </div>
           </div>
         )}
