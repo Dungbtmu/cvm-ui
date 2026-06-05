@@ -218,10 +218,19 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                 Inactive
               </label>
             </div>
-            {readOnly
-              ? <span className="text-xs text-slate-400 border border-slate-200 rounded px-3 py-1.5">Chỉ xem</span>
-              : <Button variant="primary" onClick={handleSave}>Lưu Template</Button>
-            }
+            {readOnly ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 border border-slate-200 rounded px-3 py-1.5">Chỉ xem</span>
+                <Button variant="outline" onClick={() => {
+                  if (!existing) return
+                  const clone = { ...existing, id: String(Date.now()), name: `Bản sao của ${existing.name}`, usageCount: 0 }
+                  navigate(`/templates/${clone.id}`)
+                }}>Sao chép</Button>
+                <Button variant="primary" onClick={() => navigate(`/templates/${id}`)}>Sửa</Button>
+              </div>
+            ) : (
+              <Button variant="primary" onClick={handleSave}>Lưu Template</Button>
+            )}
           </div>
         </div>
       </div>
