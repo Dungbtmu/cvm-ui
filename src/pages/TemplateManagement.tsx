@@ -107,19 +107,26 @@ export function TemplateManagement() {
             <tr className="text-xs text-slate-500">
               <th className="text-left px-4 py-3 font-medium">Tên Template</th>
               <th className="text-left px-4 py-3 font-medium">Kênh hỗ trợ</th>
+              <th className="text-left px-4 py-3 font-medium">Trạng thái</th>
               <th className="text-left px-4 py-3 font-medium">Dùng</th>
               <th className="text-right px-4 py-3 font-medium">Hành động</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {paged.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">Không có template nào phù hợp</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">Không có template nào phù hợp</td></tr>
             )}
             {paged.map(t => (
               <tr key={t.id} className={`hover:bg-slate-50 ${t.status === 'Inactive' ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-2.5 font-medium text-slate-800">{t.name}</td>
                 <td className="px-4 py-2.5">
                   <div className="flex gap-1 flex-wrap">{channelDots(t.channels)}</div>
+                </td>
+                <td className="px-4 py-2.5">
+                  {t.status === 'Active'
+                    ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Hoạt động</span>
+                    : <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Không hoạt động</span>
+                  }
                 </td>
                 <td className="px-4 py-2.5">
                   {t.usageCount === 0 ? (
