@@ -274,66 +274,72 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
             Chưa có kênh nào. Nhấn "+ Kênh" để bắt đầu soạn nội dung.
           </div>
         ) : (
-          <div className={readOnly ? 'grid grid-cols-1 max-w-sm mx-auto py-5' : 'grid grid-cols-[55%_45%]'}>
+          <div className="grid grid-cols-[55%_45%]">
             {/* LEFT: compose */}
-            {!readOnly && <div className="p-5 border-r border-slate-100 space-y-4">
-              {/* Guide toggle */}
-              <button onClick={() => setGuideOpen(!guideOpen)}
-                className="flex items-center gap-1.5 text-xs text-blue-600 hover:bg-blue-50 w-full text-left py-1">
-                {guideOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                ℹ Hướng dẫn khai báo {activeTab}
-              </button>
-              {guideOpen && (
-                <div className="text-xs text-slate-600 bg-blue-50 rounded p-3 space-y-1">
-                  {activeTab === 'Push' && <>
-                    <div>• Title: tối đa 65 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
-                    <div>• Body: tối đa 240 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
-                    <div>• Image: optional, tỉ lệ 1:1, tối đa 1MB.</div>
-                  </>}
-                  {activeTab === 'SMS' && <>
-                    <div>• Body: tối đa 160 ký tự/segment. Vượt 160 → tính thêm segment.</div>
-                    <div>• Chỉ plain text — không hỗ trợ ảnh.</div>
-                  </>}
-                  {activeTab === 'Zalo OA' && <>
-                    <div>• Nội dung: tối đa 1000 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
-                    <div>• OA phải được liên kết và phê duyệt trước khi gửi.</div>
-                  </>}
-                  {activeTab === 'USSD' && <>
-                    <div>• Body: tối đa 182 ký tự. Chỉ plain text, không dấu tiếng Việt.</div>
-                  </>}
-                  {activeTab === 'Banner' && <>
-                    <div>• Image: BẮT BUỘC, tỉ lệ 16:9, tối đa 2MB.</div>
-                    <div>• Title: tối đa 65 ký tự. Body: tối đa 120 ký tự.</div>
-                    <div>• CTA Label + CTA URL: bắt buộc.</div>
-                  </>}
-                  {activeTab === 'Email' && <>
-                    <div>• Subject: tối đa 100 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
-                    <div>• Body: plain text, không giới hạn.</div>
-                  </>}
-                </div>
+            <div className="p-5 border-r border-slate-100 space-y-4">
+              {/* Guide toggle — ẩn khi readOnly */}
+              {!readOnly && (
+                <>
+                  <button onClick={() => setGuideOpen(!guideOpen)}
+                    className="flex items-center gap-1.5 text-xs text-blue-600 hover:bg-blue-50 w-full text-left py-1">
+                    {guideOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    ℹ Hướng dẫn khai báo {activeTab}
+                  </button>
+                  {guideOpen && (
+                    <div className="text-xs text-slate-600 bg-blue-50 rounded p-3 space-y-1">
+                      {activeTab === 'Push' && <>
+                        <div>• Title: tối đa 65 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
+                        <div>• Body: tối đa 240 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
+                        <div>• Image: optional, tỉ lệ 1:1, tối đa 1MB.</div>
+                      </>}
+                      {activeTab === 'SMS' && <>
+                        <div>• Body: tối đa 160 ký tự/segment. Vượt 160 → tính thêm segment.</div>
+                        <div>• Chỉ plain text — không hỗ trợ ảnh.</div>
+                      </>}
+                      {activeTab === 'Zalo OA' && <>
+                        <div>• Nội dung: tối đa 1000 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
+                        <div>• OA phải được liên kết và phê duyệt trước khi gửi.</div>
+                      </>}
+                      {activeTab === 'USSD' && <>
+                        <div>• Body: tối đa 182 ký tự. Chỉ plain text, không dấu tiếng Việt.</div>
+                      </>}
+                      {activeTab === 'Banner' && <>
+                        <div>• Image: BẮT BUỘC, tỉ lệ 16:9, tối đa 2MB.</div>
+                        <div>• Title: tối đa 65 ký tự. Body: tối đa 120 ký tự.</div>
+                        <div>• CTA Label + CTA URL: bắt buộc.</div>
+                      </>}
+                      {activeTab === 'Email' && <>
+                        <div>• Subject: tối đa 100 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
+                        <div>• Body: plain text, không giới hạn.</div>
+                      </>}
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* PARAMS */}
-              <div>
-                <div className="text-xs text-slate-500 font-medium mb-1.5">THAM SỐ ĐỘNG:</div>
-                {ALL_PARAMS.length > 0 ? (
-                  <>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ALL_PARAMS.map(p => (
-                        <div key={p.name} className="relative group">
-                          <ParamChip name={p.name} onClick={() => insertParam(p.name)} />
-                          <div className="absolute bottom-full left-0 mb-1 hidden group-hover:block bg-slate-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-30">
-                            {p.description} · {p.format}
+              {/* PARAMS — ẩn khi readOnly */}
+              {!readOnly && (
+                <div>
+                  <div className="text-xs text-slate-500 font-medium mb-1.5">THAM SỐ ĐỘNG:</div>
+                  {ALL_PARAMS.length > 0 ? (
+                    <>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ALL_PARAMS.map(p => (
+                          <div key={p.name} className="relative group">
+                            <ParamChip name={p.name} onClick={() => insertParam(p.name)} />
+                            <div className="absolute bottom-full left-0 mb-1 hidden group-hover:block bg-slate-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-30">
+                              {p.description} · {p.format}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="text-xs text-slate-400 mt-1">→ Click chip để chèn vào nội dung</div>
-                  </>
-                ) : (
-                  <div className="text-xs text-slate-400 italic">Chưa có tham số động — cần có ít nhất 1 trigger Active trong hệ thống</div>
-                )}
-              </div>
+                        ))}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">→ Click chip để chèn vào nội dung</div>
+                    </>
+                  ) : (
+                    <div className="text-xs text-slate-400 italic">Chưa có tham số động — cần có ít nhất 1 trigger Active trong hệ thống</div>
+                  )}
+                </div>
+              )}
 
               {/* Image */}
               {limits.hasImage && (
@@ -345,12 +351,15 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                   {content.imageName ? (
                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-xs">
                       <span className="text-slate-600 flex-1 truncate">{content.imageName}</span>
-                      <button onClick={() => updateContent('imageName', '')} className="text-slate-400 hover:text-red-400">Xóa</button>
-                      <button onClick={() => updateContent('imageName', 'new-image.jpg')} className="text-blue-500">Đổi</button>
+                      {!readOnly && <>
+                        <button onClick={() => updateContent('imageName', '')} className="text-slate-400 hover:text-red-400">Xóa</button>
+                        <button onClick={() => updateContent('imageName', 'new-image.jpg')} className="text-blue-500">Đổi</button>
+                      </>}
                     </div>
                   ) : (
-                    <button onClick={() => updateContent('imageName', 'sample.jpg')}
-                      className="w-full border-2 border-dashed border-slate-200 rounded-lg py-3 text-xs text-slate-400 hover:border-blue-300 hover:text-blue-500 flex items-center justify-center gap-2">
+                    <button disabled={readOnly}
+                      onClick={() => !readOnly && updateContent('imageName', 'sample.jpg')}
+                      className="w-full border-2 border-dashed border-slate-200 rounded-lg py-3 text-xs text-slate-400 flex items-center justify-center gap-2 disabled:cursor-not-allowed">
                       <Upload size={12} /> Kéo thả hoặc Tải lên · Chọn thư viện
                     </button>
                   )}
@@ -361,26 +370,27 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
               {limits.title !== undefined && (
                 <div>
                   <label className="text-xs text-slate-600 font-medium block mb-1">
-                    {activeTab === 'Email' ? 'Subject *' : 'Title *'}
+                    {activeTab === 'Email' ? 'Subject' : 'Title'}
                     <span className="float-right text-slate-400">{(content.title ?? '').length}/{limits.title}</span>
                   </label>
                   <input value={content.title ?? ''} onChange={e => updateContent('title', e.target.value)}
-                    maxLength={limits.title}
-                    className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400" />
+                    maxLength={limits.title} disabled={readOnly}
+                    className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed" />
                 </div>
               )}
 
               {/* Body */}
               <div>
                 <label className="text-xs text-slate-600 font-medium block mb-1">
-                  {activeTab === 'Email' ? 'Body * (plain text)' : 'Nội dung *'}
+                  {activeTab === 'Email' ? 'Body (plain text)' : 'Nội dung'}
                   <span className={`float-right ${limits.body !== 99999 && (content.body ?? '').length > limits.body ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
                     {(content.body ?? '').length}{limits.body !== 99999 ? `/${limits.body}` : ''}
                   </span>
                 </label>
                 <textarea ref={bodyRef} rows={activeTab === 'Email' ? 5 : 3}
                   value={content.body ?? ''} onChange={e => updateContent('body', e.target.value)}
-                  className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 resize-none" />
+                  disabled={readOnly}
+                  className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 resize-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed" />
                 {activeTab === 'SMS' && (content.body ?? '').length > 160 && (
                   <div className="text-xs text-orange-500 mt-1">
                     {Math.ceil((content.body ?? '').length / 160)} SMS segments
@@ -392,20 +402,20 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
               {activeTab === 'Banner' && (
                 <>
                   <div>
-                    <label className="text-xs text-slate-600 font-medium block mb-1">CTA Label *</label>
+                    <label className="text-xs text-slate-600 font-medium block mb-1">CTA Label</label>
                     <input value={content.cta ?? ''} onChange={e => updateContent('cta', e.target.value)}
-                      placeholder="Khám phá ngay"
-                      className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400" />
+                      placeholder="Khám phá ngay" disabled={readOnly}
+                      className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed" />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-600 font-medium block mb-1">CTA URL *</label>
+                    <label className="text-xs text-slate-600 font-medium block mb-1">CTA URL</label>
                     <input value={content.ctaUrl ?? ''} onChange={e => updateContent('ctaUrl', e.target.value)}
-                      placeholder="https://..."
-                      className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400" />
+                      placeholder="https://..." disabled={readOnly}
+                      className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed" />
                   </div>
                 </>
               )}
-            </div>}
+            </div>
 
             {/* RIGHT: preview realtime */}
             <div className="p-5 bg-slate-50 space-y-3">
