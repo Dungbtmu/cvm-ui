@@ -150,14 +150,6 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
     onChange({ ...data, variants: newVariants })
   }
 
-  const updateSampleValue = (paramName: string, value: string) => {
-    const newVariants = data.variants.map((v, i) =>
-      i === activeVariant
-        ? { ...v, content: { ...v.content, sampleValues: { ...(v.content.sampleValues ?? {}), [paramName]: value } } }
-        : v
-    )
-    onChange({ ...data, variants: newVariants })
-  }
 
   const insertParam = (paramName: string) => {
     const tag = `{{${paramName}}}`
@@ -414,21 +406,6 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
             </div>
           )}
 
-          {/* Sample values */}
-          <div className="space-y-1">
-            <div className="text-xs text-slate-400 font-medium">GIÁ TRỊ MẪU</div>
-            {trigData?.params.map(p => (
-              <div key={p.name} className="flex items-center gap-2 text-xs">
-                <span className="text-slate-400 w-24 truncate">{p.name}</span>
-                <input
-                  placeholder={p.format === 'date' ? 'DD/MM/YYYY' : p.format === 'number' ? '123' : '...'}
-                  value={content.sampleValues?.[p.name] ?? ''}
-                  onChange={e => updateSampleValue(p.name, e.target.value)}
-                  className="flex-1 px-1.5 py-0.5 border border-slate-200 rounded text-xs focus:outline-none"
-                />
-              </div>
-            ))}
-          </div>
 
           <button
             onClick={() => setShowPreview(true)}

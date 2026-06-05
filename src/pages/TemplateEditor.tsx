@@ -106,7 +106,6 @@ export function TemplateEditor() {
   const [activeChannels, setActiveChannels] = useState<ChannelType[]>(existing?.channels ?? [])
   const [activeTab, setActiveTab] = useState<ChannelType>(existing?.channels[0] ?? 'Push')
   const [contents, setContents] = useState<Record<ChannelType, ChannelContent>>({} as any)
-  const [sampleValues, setSampleValues] = useState<Record<string, string>>({})
   const [guideOpen, setGuideOpen] = useState(false)
   const [inactiveConfirm, setInactiveConfirm] = useState(false)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
@@ -400,21 +399,6 @@ export function TemplateEditor() {
               <div className="text-xs text-slate-500 font-medium">XEM TRƯỚC · {activeTab.toUpperCase()}</div>
               <ChannelPreview ch={activeTab} content={content} />
 
-              {/* Sample values */}
-              <div className="space-y-1.5">
-                <div className="text-xs text-slate-400 font-medium">GIÁ TRỊ MẪU</div>
-                {ALL_PARAMS.slice(0, 4).map(p => (
-                  <div key={p.name} className="flex items-center gap-2 text-xs">
-                    <span className="text-slate-400 w-28 truncate">{p.name}</span>
-                    <input
-                      placeholder={p.format === 'date' ? 'DD/MM/YYYY' : p.format === 'number' ? '123' : '...'}
-                      value={sampleValues[p.name] ?? ''}
-                      onChange={e => setSampleValues(prev => ({ ...prev, [p.name]: e.target.value }))}
-                      className="flex-1 px-1.5 py-0.5 border border-slate-200 rounded text-xs focus:outline-none"
-                    />
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         )}
