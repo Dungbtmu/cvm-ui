@@ -1203,7 +1203,7 @@ export function CampaignBuilder() {
 
           {/* S2 */}
           <Card amber>
-            <SectionHeader title="3. Trigger & Logic" collapsed={s2Collapsed} onToggle={() => setS2Collapsed(!s2Collapsed)} />
+            <SectionHeader title="2. Trigger & Logic" collapsed={s2Collapsed} onToggle={() => setS2Collapsed(!s2Collapsed)} />
             {!s2Collapsed && (
               <div className="mt-4 space-y-4">
                 {/* Mode radio */}
@@ -1523,7 +1523,7 @@ export function CampaignBuilder() {
 
           {/* S3 Audience */}
           <Card amber className="space-y-4">
-            <div className="text-sm font-semibold text-slate-700">2. Audience / Phân khúc</div>
+            <div className="text-sm font-semibold text-slate-700">3. Audience / Phân khúc</div>
             <div className="text-xs text-slate-500">
               Nguồn: Customer 360 · Team Data · BSS · OCS
               <br />Reach ước tính tại: {new Date().toLocaleDateString('vi-VN')} {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
