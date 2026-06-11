@@ -235,9 +235,13 @@ export function BlacklistManagement() {
         <div className="space-y-3 text-sm">
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Campaign *</label>
-            <input value={upCampaign} onChange={e => setUpCampaign(e.target.value)}
-              placeholder="Tên hoặc mã campaign"
-              className="w-full px-2 py-1.5 border border-slate-200 rounded focus:outline-none focus:border-blue-400" />
+            <select value={upCampaign} onChange={e => setUpCampaign(e.target.value)}
+              className="w-full px-2 py-1.5 border border-slate-200 rounded focus:outline-none focus:border-blue-400 text-sm">
+              <option value="">-- Chọn campaign --</option>
+              {mockCampaigns.map(c => (
+                <option key={c.id} value={c.name}>{c.name} ({c.code})</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Kênh *</label>
@@ -290,7 +294,7 @@ export function BlacklistManagement() {
         </div>
         <DialogActions>
           <Button variant="outline" onClick={() => { setUploadOpen(false); setUpParsed(null) }}>Hủy</Button>
-          <Button variant="primary" onClick={handleUploadConfirm} disabled={!upParsed}>
+          <Button variant="primary" onClick={handleUploadConfirm} disabled={!upParsed || !upCampaign}>
             Xác nhận Tải lên
           </Button>
         </DialogActions>
