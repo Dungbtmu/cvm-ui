@@ -356,7 +356,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
               {limits.hasImage && (
                 <div>
                   <label className="text-xs text-slate-600 font-medium block mb-1">
-                    Image {limits.imageRequired ? '** bắt buộc **' : '(optional)'}
+                    Hình ảnh {limits.imageRequired ? '** bắt buộc **' : '(tùy chọn)'}
                     {activeTab === 'Push' ? ' · 1:1' : activeTab === 'Banner' ? ' · 16:9' : activeTab === 'Email' ? ' · banner ngang' : ''}
                   </label>
                   {content.imageName ? (
@@ -381,7 +381,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
               {limits.title !== undefined && (
                 <div>
                   <label className="text-xs text-slate-600 font-medium block mb-1">
-                    {activeTab === 'Email' ? 'Subject' : 'Title'}
+                    {activeTab === 'Email' ? 'Tiêu đề' : 'Tiêu đề'}
                     <span className="float-right text-slate-400">{(content.title ?? '').length}/{limits.title}</span>
                   </label>
                   <input value={content.title ?? ''} onChange={e => updateContent('title', e.target.value)}
@@ -393,7 +393,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
               {/* Body */}
               <div>
                 <label className="text-xs text-slate-600 font-medium block mb-1">
-                  {activeTab === 'Email' ? 'Body (plain text)' : 'Nội dung'}
+                  {'Nội dung'}
                   <span className={`float-right ${limits.body !== 99999 && (content.body ?? '').length > limits.body ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
                     {(content.body ?? '').length}{limits.body !== 99999 ? `/${limits.body}` : ''}
                   </span>
@@ -404,7 +404,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                   className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 resize-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed" />
                 {activeTab === 'SMS' && (content.body ?? '').length > 160 && (
                   <div className="text-xs text-orange-500 mt-1">
-                    {Math.ceil((content.body ?? '').length / 160)} SMS segments
+                    {Math.ceil((content.body ?? '').length / 160)} đoạn SMS
                   </div>
                 )}
               </div>
@@ -413,13 +413,13 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
               {activeTab === 'Banner' && (
                 <>
                   <div>
-                    <label className="text-xs text-slate-600 font-medium block mb-1">CTA Label</label>
+                    <label className="text-xs text-slate-600 font-medium block mb-1">Nhãn nút bấm</label>
                     <input value={content.cta ?? ''} onChange={e => updateContent('cta', e.target.value)}
                       placeholder="Khám phá ngay" disabled={readOnly}
                       className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed" />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-600 font-medium block mb-1">CTA URL</label>
+                    <label className="text-xs text-slate-600 font-medium block mb-1">Đường dẫn nút bấm</label>
                     <input value={content.ctaUrl ?? ''} onChange={e => updateContent('ctaUrl', e.target.value)}
                       placeholder="https://..." disabled={readOnly}
                       className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed" />
