@@ -96,8 +96,8 @@ export function TemplateManagement() {
           className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none"
         >
           <option value="Tất cả">Trạng thái: Tất cả</option>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
+          <option value="Active">Hoạt động</option>
+          <option value="Inactive">Không hoạt động</option>
         </select>
       </div>
 

@@ -9,6 +9,9 @@ import { mockCampaigns, mockTriggers } from '../data/mock'
 import type { Campaign, CampaignStatus } from '../types'
 
 const statusFilters: CampaignStatus[] = ['Active', 'Draft', 'Pending', 'Paused', 'Ended']
+const statusLabel: Record<CampaignStatus, string> = {
+  Active: 'Đang chạy', Draft: 'Nháp', Pending: 'Chờ duyệt', Paused: 'Tạm dừng', Ended: 'Đã kết thúc',
+}
 
 export function CampaignList() {
   const navigate = useNavigate()
@@ -69,7 +72,7 @@ export function CampaignList() {
               className={`text-xs px-3 py-1 rounded-full border transition-colors ${
                 activeFilters.includes(f) ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600'
               }`}>
-              {f}
+              {statusLabel[f]}
             </button>
           ))}
           {activeFilters.length > 0 && (

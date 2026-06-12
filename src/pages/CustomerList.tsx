@@ -72,7 +72,7 @@ export function CustomerList() {
                 <td className="px-4 py-2.5 text-slate-600">{c.simType}</td>
                 <td className="px-4 py-2.5">
                   <span className={`text-xs font-medium ${c.status === 'Active' ? 'text-green-600' : 'text-slate-400'}`}>
-                    {c.status === 'Active' ? '● ' : '○ '}{c.status}
+                    {c.status === 'Active' ? '● Hoạt động' : '○ Không hoạt động'}
                   </span>
                 </td>
                 <td className="px-4 py-2.5">

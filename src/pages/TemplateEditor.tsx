@@ -211,13 +211,13 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
               <label className={`flex items-center gap-1.5 px-3 py-1.5 ${readOnly ? 'cursor-default' : 'cursor-pointer'} transition-colors ${tplStatus === 'Active' ? 'bg-green-50 text-green-700 font-medium' : 'text-slate-400 hover:bg-slate-50'}`}>
                 <input type="radio" className="hidden" checked={tplStatus === 'Active'} onChange={() => !readOnly && setTplStatus('Active')} readOnly={readOnly} />
                 <span className={`w-1.5 h-1.5 rounded-full ${tplStatus === 'Active' ? 'bg-green-500' : 'bg-slate-300'}`} />
-                Active
+                Hoạt động
               </label>
               <div className="w-px h-5 bg-slate-200" />
               <label className={`flex items-center gap-1.5 px-3 py-1.5 ${readOnly ? 'cursor-default' : 'cursor-pointer'} transition-colors ${tplStatus === 'Inactive' ? 'bg-slate-100 text-slate-600 font-medium' : 'text-slate-400 hover:bg-slate-50'}`}>
                 <input type="radio" className="hidden" checked={tplStatus === 'Inactive'} onChange={() => !readOnly && setTplStatus('Inactive')} readOnly={readOnly} />
                 <span className={`w-1.5 h-1.5 rounded-full ${tplStatus === 'Inactive' ? 'bg-slate-400' : 'bg-slate-300'}`} />
-                Inactive
+                Không hoạt động
               </label>
             </div>
             {readOnly ? (
@@ -437,9 +437,9 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
         )}
       </div>
 
-      <Dialog open={inactiveConfirm} onClose={() => setInactiveConfirm(false)} title="Chuyển template sang Inactive?">
+      <Dialog open={inactiveConfirm} onClose={() => setInactiveConfirm(false)} title="Xác nhận lưu template">
         <p className="text-sm text-slate-600">
-          Template này đang được dùng trong <strong>{activeCampaignsUsingThis.length} campaign Active</strong>. Chuyển sang Inactive sẽ ảnh hưởng đến nội dung tin nhắn của các campaign đó. Xác nhận?
+          Template này đang được dùng trong <strong>{activeCampaignsUsingThis.length} chiến dịch đang hoạt động</strong>. Chuyển sang không hoạt động sẽ ảnh hưởng đến nội dung tin nhắn của các chiến dịch đó. Xác nhận?
         </p>
         <DialogActions>
           <Button variant="outline" onClick={() => setInactiveConfirm(false)}>Hủy</Button>

@@ -1217,7 +1217,7 @@ export function CampaignBuilder() {
                             setSelectedTriggers(prev => [prev[0]])
                           }
                         }} />
-                      <span>{m === 'basic' ? 'Basic (1 trigger)' : 'Advanced (nhiều trigger + logic)'}</span>
+                      <span>{m === 'basic' ? 'Cơ bản (1 trigger)' : 'Nâng cao (nhiều trigger + logic)'}</span>
                     </label>
                   ))}
                 </div>
@@ -1229,13 +1229,13 @@ export function CampaignBuilder() {
                     size="sm"
                     onClick={() => canAddTrigger && setTriggerDropdown(!triggerDropdown)}
                     disabled={!canAddTrigger}
-                    title={!canAddTrigger ? 'Basic mode chỉ cho phép 1 trigger' : undefined}
+                    title={!canAddTrigger ? 'Chế độ cơ bản chỉ cho phép 1 trigger' : undefined}
                   >
                     <Plus size={12} /> Chọn trigger
                     <ChevronDown size={12} />
                   </Button>
                   {!canAddTrigger && (
-                    <span className="ml-2 text-xs text-slate-400">Basic mode: chỉ 1 trigger</span>
+                    <span className="ml-2 text-xs text-slate-400">Chế độ cơ bản: chỉ 1 trigger</span>
                   )}
                   {triggerDropdown && (
                     <div className="absolute top-full left-0 mt-1 w-96 bg-white border border-slate-200 rounded-lg shadow-lg z-20">
@@ -1686,9 +1686,9 @@ export function CampaignBuilder() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={andConfirm} onClose={() => setAndConfirm(false)} title="Chuyển sang AND mode?">
+      <Dialog open={andConfirm} onClose={() => setAndConfirm(false)} title="Chuyển sang logic AND?">
         <p className="text-sm text-slate-600">
-          Chuyển sang AND mode sẽ xóa toàn bộ Biến thể đối tượng đã tạo. Tiếp tục?
+          Chuyển sang logic AND sẽ xóa toàn bộ Biến thể đối tượng đã tạo. Tiếp tục?
         </p>
         <DialogActions>
           <Button variant="outline" onClick={() => setAndConfirm(false)}>Hủy</Button>

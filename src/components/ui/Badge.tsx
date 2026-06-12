@@ -7,11 +7,11 @@ interface StatusBadgeProps {
 }
 
 const statusConfig: Record<CampaignStatus, { label: string; className: string }> = {
-  Active: { label: 'Active', className: 'bg-green-100 text-green-700' },
-  Draft: { label: 'Draft', className: 'bg-slate-100 text-slate-600' },
-  Pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-700' },
-  Paused: { label: 'Paused', className: 'bg-orange-100 text-orange-700' },
-  Ended: { label: 'Ended', className: 'bg-slate-100 text-slate-500' },
+  Active: { label: 'Đang chạy', className: 'bg-green-100 text-green-700' },
+  Draft: { label: 'Nháp', className: 'bg-slate-100 text-slate-600' },
+  Pending: { label: 'Chờ duyệt', className: 'bg-yellow-100 text-yellow-700' },
+  Paused: { label: 'Tạm dừng', className: 'bg-orange-100 text-orange-700' },
+  Ended: { label: 'Đã kết thúc', className: 'bg-slate-100 text-slate-500' },
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {

@@ -54,7 +54,7 @@ export function Customer360() {
               {[
                 ['Số điện thoại', phone],
                 ['Loại SIM', 'eSIM'],
-                ['Trạng thái', 'Active'],
+                ['Trạng thái', 'Hoạt động'],
                 ['Gói cước', 'D50 (HH 18/05)'],
                 ['Ngày KH SIM', '01/04/2026'],
                 ['Thiết bị', 'Android'],
@@ -107,9 +107,9 @@ export function Customer360() {
               <tbody>
                 {[
                   { ch: 'Zalo OA', status: '⛔ Blocked', date: '05/05 09:32', ok: false },
-                  { ch: 'SMS', status: '✅ Active', date: '—', ok: true },
-                  { ch: 'USSD', status: '✅ Active', date: '—', ok: true },
-                  { ch: 'Push', status: '✅ Active', date: '—', ok: true },
+                  { ch: 'SMS', status: '✅ Hoạt động', date: '—', ok: true },
+                  { ch: 'USSD', status: '✅ Hoạt động', date: '—', ok: true },
+                  { ch: 'Push', status: '✅ Hoạt động', date: '—', ok: true },
                 ].map((c, i) => (
                   <tr key={i} className="border-b border-slate-50">
                     <td className="py-1.5 text-slate-700">{c.ch}</td>
