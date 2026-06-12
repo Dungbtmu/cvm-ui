@@ -7,6 +7,7 @@ import { StatusBadge, TriggerChip, ParamChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockTriggers, mockSegments, mockCampaigns, mockTemplates } from '../data/mock'
+import { removeVietnameseTones } from '../lib/utils'
 import type { ChannelType, TriggerLogic, BlackoutAction } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
@@ -359,7 +360,10 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
               ref={bodyRef}
               rows={ch === 'Email' ? 5 : 3}
               value={content.body ?? ''}
-              onChange={e => updateContent('body', e.target.value)}
+              onChange={e => {
+                const val = ch === 'USSD' ? removeVietnameseTones(e.target.value) : e.target.value
+                updateContent('body', val)
+              }}
               placeholder="Nhập nội dung tin nhắn. Dùng {{ten_bien}} để chèn tham số động."
               className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 resize-none"
             />
@@ -369,7 +373,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
               </div>
             )}
             {ch === 'USSD' && (
-              <div className="text-xs text-orange-500 mt-1">⚠ Chỉ plain text, không ký tự đặc biệt</div>
+              <div className="text-xs text-slate-400 mt-1">⚠ USSD không hỗ trợ tiếng Việt có dấu — tự động chuyển sang không dấu</div>
             )}
           </div>
 

@@ -11,3 +11,10 @@ export function formatNumber(n: number): string {
 export function formatDate(d: string): string {
   return d
 }
+
+export function removeVietnameseTones(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+}

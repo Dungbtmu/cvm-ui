@@ -6,16 +6,11 @@ import { ParamChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockTemplates, mockCampaigns } from '../data/mock'
+import { removeVietnameseTones } from '../lib/utils'
 import type { ChannelType, TemplateChannelContent } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
-function removeVietnameseTones(str: string): string {
-  return str
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-}
 
 const ALL_PARAMS = [
   { name: 'ten_kh', description: 'Họ tên đầy đủ', format: 'text' },
