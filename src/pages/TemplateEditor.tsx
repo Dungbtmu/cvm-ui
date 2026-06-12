@@ -10,6 +10,13 @@ import type { ChannelType, TemplateChannelContent } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
+function removeVietnameseTones(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+}
+
 const ALL_PARAMS = [
   { name: 'ten_kh', description: 'Họ tên đầy đủ', format: 'text' },
   { name: 'loai_sim', description: 'Loại SIM', format: 'text' },
@@ -399,9 +406,16 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                   </span>
                 </label>
                 <textarea ref={bodyRef} rows={activeTab === 'Email' ? 5 : 3}
-                  value={content.body ?? ''} onChange={e => updateContent('body', e.target.value)}
+                  value={content.body ?? ''}
+                  onChange={e => {
+                    const val = activeTab === 'USSD' ? removeVietnameseTones(e.target.value) : e.target.value
+                    updateContent('body', val)
+                  }}
                   disabled={readOnly}
                   className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 resize-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed" />
+                {activeTab === 'USSD' && (
+                  <div className="text-xs text-slate-400 mt-1">⚠ USSD không hỗ trợ tiếng Việt có dấu — tự động chuyển sang không dấu</div>
+                )}
                 {activeTab === 'SMS' && (content.body ?? '').length > 160 && (
                   <div className="text-xs text-orange-500 mt-1">
                     {Math.ceil((content.body ?? '').length / 160)} đoạn SMS
