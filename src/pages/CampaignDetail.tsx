@@ -19,6 +19,21 @@ const CHANNEL_MESSAGES: Record<ChannelType, { title?: string; body: string }> = 
   USSD: { body: 'Chao {{ten_kh}}! SIM kich hoat thanh cong. Bam 1 de xem them.' },
 }
 
+const MOCK_SCHEDULE = {
+  perChannel: false,
+  common: {
+    blackout: { enabled: true, from: '22:00', to: '08:00', action: 'Hủy luôn' },
+  },
+  channels: {
+    Push:      { blackout: { enabled: true,  from: '22:00', to: '08:00', action: 'Hủy luôn' } },
+    'Zalo OA': { blackout: { enabled: false, from: '',      to: '',      action: '' } },
+    SMS:       { blackout: { enabled: true,  from: '21:00', to: '07:00', action: 'Hoãn đến đầu khung giờ' } },
+    Banner:    { blackout: { enabled: false, from: '',      to: '',      action: '' } },
+    Email:     { blackout: { enabled: false, from: '',      to: '',      action: '' } },
+    USSD:      { blackout: { enabled: true,  from: '22:00', to: '06:00', action: 'Hủy luôn' } },
+  } as Record<string, { blackout: { enabled: boolean; from: string; to: string; action: string } }>,
+}
+
 const BL_PREVIEW = [
   { phone: '0987 xxx 001', status: 'Hợp lệ' },
   { phone: '0912 xxx 002', status: 'Hợp lệ' },
@@ -189,9 +204,46 @@ export function CampaignDetail() {
         </section>
 
         {/* S5 */}
-        <section className="px-6 py-4 space-y-2">
+        <section className="px-6 py-4 space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">5. Kênh &amp; Lịch gửi</h2>
-          <div className="text-sm text-slate-600">Đặt lịch theo kênh: Không (tất cả theo thời gian gửi message)</div>
+          <div className="flex gap-2 text-sm">
+            <span className="text-slate-500 w-40 flex-shrink-0">Đặt lịch theo kênh:</span>
+            <span className="font-medium text-slate-700">{MOCK_SCHEDULE.perChannel ? 'Có — lịch riêng per kênh' : 'Không — tất cả theo thời gian gửi message'}</span>
+          </div>
+          {!MOCK_SCHEDULE.perChannel ? (
+            <div className="flex gap-2 text-sm">
+              <span className="text-slate-500 w-40 flex-shrink-0">Blackout chung:</span>
+              <span className="font-medium text-slate-700">
+                {MOCK_SCHEDULE.common.blackout.enabled
+                  ? `Bật · ${MOCK_SCHEDULE.common.blackout.from} – ${MOCK_SCHEDULE.common.blackout.to} · ${MOCK_SCHEDULE.common.blackout.action}`
+                  : 'Tắt'}
+              </span>
+            </div>
+          ) : (
+            <table className="w-full text-sm border border-slate-100 rounded-lg overflow-hidden">
+              <thead className="bg-slate-50">
+                <tr className="text-xs text-slate-500">
+                  <th className="text-left px-3 py-2 font-medium">Kênh</th>
+                  <th className="text-left px-3 py-2 font-medium">Blackout</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {CHANNELS.map(ch => {
+                  const s = MOCK_SCHEDULE.channels[ch]
+                  return (
+                    <tr key={ch} className="text-slate-700">
+                      <td className="px-3 py-2 font-medium">{ch}</td>
+                      <td className="px-3 py-2">
+                        {s.blackout.enabled
+                          ? `Bật · ${s.blackout.from} – ${s.blackout.to} · ${s.blackout.action}`
+                          : <span className="text-slate-400">Tắt</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </section>
 
         {/* S6 */}
