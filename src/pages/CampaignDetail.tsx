@@ -72,10 +72,15 @@ const DEFAULT_SCHEDULE: ScheduleConfig = {
   channels: {},
 }
 
-const BL_PREVIEW = [
-  { phone: '0987 xxx 001', status: 'Hợp lệ' },
-  { phone: '0912 xxx 002', status: 'Hợp lệ' },
-  { phone: '0965 xxx 003', status: 'Trùng' },
+const BL_PHONES = [
+  '0987 xxx 001',
+  '0912 xxx 002',
+  '0965 xxx 003',
+]
+
+const WL_PHONES = [
+  '0901 xxx 101',
+  '0938 xxx 202',
 ]
 
 export function CampaignDetail() {
@@ -89,6 +94,7 @@ export function CampaignDetail() {
   const [activeTab, setActiveTab] = useState<ChannelType>('Push')
   const [stopConfirm, setStopConfirm] = useState(false)
   const [blPreviewOpen, setBlPreviewOpen] = useState(false)
+  const [wlPreviewOpen, setWlPreviewOpen] = useState(false)
 
   const handleStop = () => {
     setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: 'Paused' as CampaignStatus } : c))
@@ -306,7 +312,7 @@ export function CampaignDetail() {
             <div className="flex gap-2 items-center">
               <dt className="text-slate-500 w-40 flex-shrink-0">Blacklist campaign:</dt>
               <dd className="flex items-center gap-2 font-medium">
-                BL_ESIM_Q2_2026 · 320 KH
+                BL_ESIM_Q2_2026 · {BL_PHONES.length} SĐT
                 <button
                   onClick={() => setBlPreviewOpen(true)}
                   className="text-xs text-blue-500 hover:text-blue-700 underline"
@@ -315,8 +321,19 @@ export function CampaignDetail() {
                 </button>
               </dd>
             </div>
+            <div className="flex gap-2 items-center">
+              <dt className="text-slate-500 w-40 flex-shrink-0">Whitelist:</dt>
+              <dd className="flex items-center gap-2 font-medium">
+                WL_VIP_Q2_2026 · {WL_PHONES.length} SĐT
+                <button
+                  onClick={() => setWlPreviewOpen(true)}
+                  className="text-xs text-blue-500 hover:text-blue-700 underline"
+                >
+                  [Xem]
+                </button>
+              </dd>
+            </div>
             {[
-              ['Whitelist', 'Không dùng'],
               ['Reach cuối cùng', '~6,480 KH'],
             ].map(([label, value]) => (
               <div key={label} className="flex gap-2">
@@ -340,30 +357,28 @@ export function CampaignDetail() {
       </Dialog>
 
       {/* BL file preview */}
-      <Dialog open={blPreviewOpen} onClose={() => setBlPreviewOpen(false)} title="Xem trước tệp Blacklist — BL_ESIM_Q2_2026" className="max-w-md">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs text-slate-500 border-b border-slate-100">
-              <th className="text-left pb-2 font-medium">Số điện thoại</th>
-              <th className="text-left pb-2 font-medium">Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            {BL_PREVIEW.map((row, i) => (
-              <tr key={i} className="border-b border-slate-50">
-                <td className="py-1.5 font-mono text-xs">{row.phone}</td>
-                <td className={`py-1.5 text-xs font-medium ${row.status === 'Hợp lệ' ? 'text-green-600' : 'text-orange-500'}`}>
-                  {row.status}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="mt-3 text-xs text-slate-500">
-          ✅ 319 số hợp lệ · ⚠ 1 số trùng · 320 tổng
-        </div>
+      <Dialog open={blPreviewOpen} onClose={() => setBlPreviewOpen(false)} title="Blacklist — BL_ESIM_Q2_2026" className="max-w-sm">
+        <ul className="space-y-1">
+          {BL_PHONES.map((phone, i) => (
+            <li key={i} className="font-mono text-sm text-slate-700">{phone}</li>
+          ))}
+        </ul>
+        <div className="mt-3 text-xs text-slate-500">{BL_PHONES.length} số điện thoại</div>
         <DialogActions>
           <Button variant="outline" onClick={() => setBlPreviewOpen(false)}>Đóng</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* WL file preview */}
+      <Dialog open={wlPreviewOpen} onClose={() => setWlPreviewOpen(false)} title="Whitelist — WL_VIP_Q2_2026" className="max-w-sm">
+        <ul className="space-y-1">
+          {WL_PHONES.map((phone, i) => (
+            <li key={i} className="font-mono text-sm text-slate-700">{phone}</li>
+          ))}
+        </ul>
+        <div className="mt-3 text-xs text-slate-500">{WL_PHONES.length} số điện thoại</div>
+        <DialogActions>
+          <Button variant="outline" onClick={() => setWlPreviewOpen(false)}>Đóng</Button>
         </DialogActions>
       </Dialog>
     </div>
