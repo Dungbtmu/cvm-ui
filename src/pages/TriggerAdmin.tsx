@@ -1,0 +1,518 @@
+import { useState } from 'react'
+import { Search, Plus, X, CheckCircle, Copy, Trash2 } from 'lucide-react'
+import { Dialog, DialogActions } from '../components/ui/Dialog'
+import { Button } from '../components/ui/Button'
+import { useToast } from '../components/ui/Toast'
+import { mockTriggers } from '../data/mock'
+import type { Trigger, TriggerType, TriggerParam, ChannelType } from '../types'
+
+const CHANNEL_OPTIONS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
+
+const CHANNEL_LABELS: Record<ChannelType, string> = {
+  Push: 'Push Notification',
+  'Zalo OA': 'Zalo OA',
+  SMS: 'SMS',
+  Banner: 'Banner App',
+  Email: 'Email',
+  USSD: 'USSD',
+}
+
+const TYPE_BADGE: Record<TriggerType, string> = {
+  Realtime: 'bg-green-100 text-green-700',
+  'Near Realtime': 'bg-blue-100 text-blue-700',
+  Offline: 'bg-slate-100 text-slate-600',
+}
+
+const SOURCE_OPTIONS = ['BSS', 'OCS', 'SuperApp'] as const
+const TYPE_OPTIONS: TriggerType[] = ['Realtime', 'Near Realtime', 'Offline']
+
+const EMPTY_FORM = {
+  code: '',
+  name: '',
+  type: 'Realtime' as TriggerType,
+  source: 'BSS' as Trigger['source'],
+  supportedChannels: [] as ChannelType[],
+}
+
+export function TriggerAdmin() {
+  const { toast } = useToast()
+  const [triggers, setTriggers] = useState<Trigger[]>(mockTriggers)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('Tất cả')
+  const [expandedGroups, setExpandedGroups] = useState<TriggerType[]>(['Realtime', 'Near Realtime', 'Offline'])
+
+  // Modal xem + quản lý params
+  const [editTarget, setEditTarget] = useState<Trigger | null>(null)
+  const [copiedParam, setCopiedParam] = useState<string | null>(null)
+
+  // Form thêm param
+  const [addParamOpen, setAddParamOpen] = useState(false)
+  const [newParamName, setNewParamName] = useState('')
+  const [newParamDesc, setNewParamDesc] = useState('')
+  const [paramErrors, setParamErrors] = useState<{ name?: string; desc?: string }>({})
+
+  // Modal tạo trigger mới
+  const [createOpen, setCreateOpen] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [formErrors, setFormErrors] = useState<{ code?: string; name?: string }>({})
+
+  const groups: TriggerType[] = ['Realtime', 'Near Realtime', 'Offline']
+
+  const filtered = triggers.filter(t => {
+    const matchSearch =
+      !search ||
+      t.code.toLowerCase().includes(search.toLowerCase()) ||
+      t.name.toLowerCase().includes(search.toLowerCase())
+    const matchStatus = statusFilter === 'Tất cả' || t.status === statusFilter
+    return matchSearch && matchStatus
+  })
+
+  const toggleGroup = (type: TriggerType) => {
+    setExpandedGroups(prev =>
+      prev.includes(type) ? prev.filter(x => x !== type) : [...prev, type]
+    )
+  }
+
+  const handleCopyParam = (paramName: string) => {
+    navigator.clipboard.writeText(`{{${paramName}}}`).catch(() => {})
+    setCopiedParam(paramName)
+    setTimeout(() => setCopiedParam(null), 1800)
+  }
+
+  // Tạo trigger mới
+  const validateForm = () => {
+    const errors: { code?: string; name?: string } = {}
+    if (!form.code.trim()) errors.code = 'Bắt buộc'
+    else if (!/^[A-Z0-9_]+$/.test(form.code.trim())) errors.code = 'Chỉ dùng chữ hoa, số, dấu gạch dưới'
+    else if (triggers.some(t => t.code === form.code.trim())) errors.code = 'Code đã tồn tại'
+    if (!form.name.trim()) errors.name = 'Bắt buộc'
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleCreate = () => {
+    if (!validateForm()) return
+    const newTrigger: Trigger = {
+      id: String(Date.now()),
+      code: form.code.trim().toUpperCase(),
+      name: form.name.trim(),
+      type: form.type,
+      source: form.source,
+      status: 'Active',
+      supportedChannels: form.supportedChannels,
+      params: [],
+    }
+    setTriggers(prev => [...prev, newTrigger])
+    toast('Đã thêm trigger ✓', 'success')
+    setCreateOpen(false)
+    setForm(EMPTY_FORM)
+    setFormErrors({})
+  }
+
+  const toggleChannel = (ch: ChannelType) => {
+    setForm(prev => ({
+      ...prev,
+      supportedChannels: prev.supportedChannels.includes(ch)
+        ? prev.supportedChannels.filter(c => c !== ch)
+        : [...prev.supportedChannels, ch],
+    }))
+  }
+
+  // Thêm param vào trigger đang xem
+  const validateParam = () => {
+    const errors: { name?: string; desc?: string } = {}
+    if (!newParamName.trim()) errors.name = 'Bắt buộc'
+    else if (!/^[a-z0-9_]+$/.test(newParamName.trim())) errors.name = 'Chỉ dùng chữ thường, số, dấu gạch dưới'
+    else if (editTarget?.params.some(p => p.name === newParamName.trim())) errors.name = 'Tham số đã tồn tại'
+    if (!newParamDesc.trim()) errors.desc = 'Bắt buộc'
+    setParamErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleAddParam = () => {
+    if (!validateParam() || !editTarget) return
+    const newParam: TriggerParam = {
+      name: newParamName.trim(),
+      description: newParamDesc.trim(),
+      format: 'text',
+      source: editTarget.source,
+    }
+    const updated = { ...editTarget, params: [...editTarget.params, newParam] }
+    setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
+    setEditTarget(updated)
+    toast('Đã thêm tham số ✓', 'success')
+    setAddParamOpen(false)
+    setNewParamName('')
+    setNewParamDesc('')
+    setParamErrors({})
+  }
+
+  const handleDeleteParam = (paramName: string) => {
+    if (!editTarget) return
+    const updated = { ...editTarget, params: editTarget.params.filter(p => p.name !== paramName) }
+    setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
+    setEditTarget(updated)
+    toast('Đã xóa tham số', 'warning')
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Search + filter + nút thêm */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4 flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Tìm trigger code hoặc tên..."
+            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none"
+        >
+          {['Tất cả', 'Active', 'Inactive'].map(s => <option key={s}>{s}</option>)}
+        </select>
+        <Button onClick={() => { setForm(EMPTY_FORM); setFormErrors({}); setCreateOpen(true) }}>
+          <Plus size={14} /> Thêm trigger
+        </Button>
+      </div>
+
+      {/* Groups */}
+      <div className="space-y-4">
+        {groups.map(group => {
+          const groupTriggers = filtered.filter(t => t.type === group)
+          if (groupTriggers.length === 0 && search) return null
+          const expanded = search ? true : expandedGroups.includes(group)
+
+          return (
+            <div key={group} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => !search && toggleGroup(group)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 hover:bg-slate-100 transition-colors"
+              >
+                <span className="text-sm font-semibold text-slate-700">
+                  {expanded ? '▼' : '▶'} {group.toUpperCase()}
+                  <span className="ml-2 text-xs font-normal text-slate-500">({groupTriggers.length} trigger)</span>
+                </span>
+              </button>
+
+              {expanded && (
+                <table className="w-full text-sm">
+                  <thead className="border-b border-slate-100">
+                    <tr className="text-xs text-slate-500">
+                      <th className="text-left px-4 py-2 font-medium">Code</th>
+                      <th className="text-left px-4 py-2 font-medium">Tên</th>
+                      <th className="text-left px-4 py-2 font-medium">Source</th>
+                      <th className="text-left px-4 py-2 font-medium">Trạng thái</th>
+                      <th className="text-right px-4 py-2 font-medium">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {groupTriggers.map(t => (
+                      <tr key={t.id} className={`hover:bg-slate-50 ${t.status === 'Inactive' ? 'opacity-60' : ''}`}>
+                        <td className="px-4 py-2.5">
+                          <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${search && t.code.toLowerCase().includes(search.toLowerCase()) ? 'bg-yellow-100 text-yellow-800' : 'bg-amber-50 text-amber-700'}`}>
+                            {t.code}
+                          </span>
+                        </td>
+                        <td className={`px-4 py-2.5 text-slate-700 ${search && t.name.toLowerCase().includes(search.toLowerCase()) ? 'bg-yellow-50' : ''}`}>
+                          {t.name}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-500 text-xs">{t.source}</td>
+                        <td className="px-4 py-2.5">
+                          {t.status === 'Active'
+                            ? <span className="text-xs font-medium text-green-600">● Active</span>
+                            : <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <button
+                            onClick={() => setEditTarget(t)}
+                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          >
+                            Xem / Sửa
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {groupTriggers.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-4 text-sm text-slate-400 text-center">Không có trigger</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )
+        })}
+
+        {filtered.length === 0 && (
+          <div className="bg-white border border-slate-200 rounded-lg px-4 py-8 text-center text-slate-400 text-sm">
+            Không tìm thấy trigger nào
+          </div>
+        )}
+      </div>
+
+      {/* ── Modal xem + quản lý params ── */}
+      <Dialog
+        open={!!editTarget}
+        onClose={() => { setEditTarget(null); setAddParamOpen(false) }}
+        title="Chi tiết Sự kiện kích hoạt"
+        className="max-w-2xl"
+      >
+        {editTarget && (
+          <div className="space-y-5 text-sm">
+
+            {/* A — Định danh */}
+            <section>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">A. Định danh</h3>
+              <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+                <div className="flex flex-wrap gap-x-6 gap-y-1.5">
+                  <div>
+                    <span className="text-xs text-slate-400">Code</span>
+                    <div className="font-mono text-sm font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded mt-0.5 inline-block">
+                      {editTarget.code}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400">Kiểu chạy</span>
+                    <div className="mt-0.5">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_BADGE[editTarget.type]}`}>
+                        {editTarget.type}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400">Nguồn sự kiện</span>
+                    <div className="text-sm font-medium text-slate-700 mt-0.5">{editTarget.source}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400">Trạng thái</span>
+                    <div className="mt-0.5">
+                      {editTarget.status === 'Active'
+                        ? <span className="text-xs font-medium text-green-600">● Active</span>
+                        : <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400">Tên</span>
+                  <div className="text-sm font-medium text-slate-800 mt-0.5">{editTarget.name}</div>
+                </div>
+                {editTarget.supportedChannels && editTarget.supportedChannels.length > 0 && (
+                  <div>
+                    <span className="text-xs text-slate-400">Kênh hỗ trợ</span>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {editTarget.supportedChannels.map(ch => (
+                        <span key={ch} className="text-xs bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+                          {CHANNEL_LABELS[ch] ?? ch}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* B — Tham số đầu ra */}
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">B. Tham số đầu ra</h3>
+                <button
+                  onClick={() => { setAddParamOpen(true); setNewParamName(''); setNewParamDesc(''); setParamErrors({}) }}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  <Plus size={12} /> Thêm tham số
+                </button>
+              </div>
+
+              {/* Inline form thêm param */}
+              {addParamOpen && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="text-xs text-slate-500 mb-0.5 block">Tên tham số <span className="text-red-400">*</span></label>
+                      <input
+                        value={newParamName}
+                        onChange={e => setNewParamName(e.target.value)}
+                        placeholder="vd: ten_kh"
+                        className={`w-full px-2.5 py-1.5 text-xs font-mono border rounded focus:outline-none focus:border-blue-400 ${paramErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}
+                      />
+                      {paramErrors.name && <p className="text-xs text-red-500 mt-0.5">{paramErrors.name}</p>}
+                    </div>
+                    <div className="flex-[2]">
+                      <label className="text-xs text-slate-500 mb-0.5 block">Mô tả <span className="text-red-400">*</span></label>
+                      <input
+                        value={newParamDesc}
+                        onChange={e => setNewParamDesc(e.target.value)}
+                        placeholder="vd: Họ tên đầy đủ của khách hàng"
+                        className={`w-full px-2.5 py-1.5 text-xs border rounded focus:outline-none focus:border-blue-400 ${paramErrors.desc ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}
+                      />
+                      {paramErrors.desc && <p className="text-xs text-red-500 mt-0.5">{paramErrors.desc}</p>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setAddParamOpen(false)} className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1">Hủy</button>
+                    <button onClick={handleAddParam} className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Lưu</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr className="text-slate-500">
+                      <th className="text-left px-3 py-2 font-medium">Tham số</th>
+                      <th className="text-left px-3 py-2 font-medium">Mô tả</th>
+                      <th className="px-3 py-2 font-medium w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {editTarget.params.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-4 text-slate-400 text-center italic">Chưa có tham số nào</td>
+                      </tr>
+                    )}
+                    {editTarget.params.map(p => (
+                      <tr key={p.name} className="hover:bg-slate-50 group">
+                        <td className="px-3 py-2">
+                          <button
+                            onClick={() => handleCopyParam(p.name)}
+                            className="flex items-center gap-1 font-mono text-blue-600 hover:text-blue-800"
+                            title="Nhấn để copy cú pháp"
+                          >
+                            <span>{`{{${p.name}}}`}</span>
+                            {copiedParam === p.name
+                              ? <CheckCircle size={10} className="text-green-500" />
+                              : <Copy size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">{p.description}</td>
+                        <td className="px-3 py-2">
+                          <button
+                            onClick={() => handleDeleteParam(p.name)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500"
+                            title="Xóa tham số"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+                <Copy size={10} /> Nhấn vào tên tham số để copy cú pháp vào clipboard
+              </p>
+            </section>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2 border-t border-slate-100 mt-4">
+          <button
+            onClick={() => { setEditTarget(null); setAddParamOpen(false) }}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-3 py-1.5"
+          >
+            <X size={13} /> Đóng
+          </button>
+        </div>
+      </Dialog>
+
+      {/* ── Modal tạo trigger mới ── */}
+      <Dialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Thêm Trigger mới"
+        className="max-w-lg"
+      >
+        <div className="space-y-4 text-sm">
+          {/* Code */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Trigger Code <span className="text-red-400">*</span>
+              <span className="ml-1 text-slate-400 font-normal">(chữ hoa, số, dấu gạch dưới)</span>
+            </label>
+            <input
+              value={form.code}
+              onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+              placeholder="vd: SIM_ACTIVATED"
+              className={`w-full px-3 py-2 text-sm font-mono border rounded focus:outline-none focus:border-blue-400 ${formErrors.code ? 'border-red-400 bg-red-50' : 'border-slate-200'}`}
+            />
+            {formErrors.code && <p className="text-xs text-red-500 mt-0.5">{formErrors.code}</p>}
+          </div>
+
+          {/* Tên */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Tên <span className="text-red-400">*</span></label>
+            <input
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="vd: Kích hoạt SIM thành công"
+              className={`w-full px-3 py-2 text-sm border rounded focus:outline-none focus:border-blue-400 ${formErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200'}`}
+            />
+            {formErrors.name && <p className="text-xs text-red-500 mt-0.5">{formErrors.name}</p>}
+          </div>
+
+          {/* Kiểu chạy + Nguồn */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-600 mb-1">Kiểu chạy</label>
+              <select
+                value={form.type}
+                onChange={e => setForm(f => ({ ...f, type: e.target.value as TriggerType }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400"
+              >
+                {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-600 mb-1">Nguồn sự kiện</label>
+              <select
+                value={form.source}
+                onChange={e => setForm(f => ({ ...f, source: e.target.value as Trigger['source'] }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400"
+              >
+                {SOURCE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Kênh hỗ trợ */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">Kênh hỗ trợ</label>
+            <div className="flex flex-wrap gap-2">
+              {CHANNEL_OPTIONS.map(ch => (
+                <button
+                  key={ch}
+                  type="button"
+                  onClick={() => toggleChannel(ch)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    form.supportedChannels.includes(ch)
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                  }`}
+                >
+                  {CHANNEL_LABELS[ch]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <DialogActions>
+          <button
+            onClick={() => setCreateOpen(false)}
+            className="text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-3 py-1.5"
+          >
+            Hủy
+          </button>
+          <Button onClick={handleCreate}>Lưu trigger</Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  )
+}

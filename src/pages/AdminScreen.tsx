@@ -6,7 +6,7 @@ import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockCampaigns } from '../data/mock'
 import type { Campaign } from '../types'
-import { TriggerManagement } from './TriggerManagement'
+import { TriggerAdmin } from './TriggerAdmin'
 
 export function AdminScreen() {
   const navigate = useNavigate()
@@ -150,7 +150,7 @@ export function AdminScreen() {
         </div>
       )}
 
-      {activeTab === 1 && <TriggerManagement />}
+      {activeTab === 1 && <TriggerAdmin />}
 
       {/* Approve dialog */}
       <Dialog open={!!approveTarget} onClose={() => setApproveTarget(null)} title="Duyệt campaign?">

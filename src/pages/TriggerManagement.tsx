@@ -1,17 +1,8 @@
 import { useState } from 'react'
 import { Search, Info, Copy, X, CheckCircle } from 'lucide-react'
 import { Dialog } from '../components/ui/Dialog'
-import { mockTriggers, mockCampaigns } from '../data/mock'
-import type { Trigger, TriggerType, ChannelType } from '../types'
-
-const CHANNEL_LABELS: Record<ChannelType, string> = {
-  Push: 'Push Notification',
-  'Zalo OA': 'Zalo OA',
-  SMS: 'SMS',
-  Banner: 'Banner App',
-  Email: 'Email',
-  USSD: 'USSD',
-}
+import { mockTriggers } from '../data/mock'
+import type { Trigger, TriggerType } from '../types'
 
 const TYPE_BADGE: Record<TriggerType, string> = {
   Realtime: 'bg-green-100 text-green-700',
@@ -57,10 +48,6 @@ export function TriggerManagement() {
     const matchStatus = statusFilter === 'Tất cả' || t.status === statusFilter
     return matchSearch && matchStatus
   })
-
-  const campaignsUsingTrigger = viewTarget
-    ? mockCampaigns.filter(c => c.triggers.includes(viewTarget.code))
-    : []
 
   return (
     <div className="space-y-4">
@@ -276,50 +263,6 @@ export function TriggerManagement() {
               </p>
             </section>
 
-            {/* D — Thông tin vận hành */}
-            <section>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">C. Thông tin vận hành</h3>
-              <div className="bg-slate-50 rounded-lg p-3 space-y-3">
-                {viewTarget.supportedChannels && viewTarget.supportedChannels.length > 0 && (
-                  <div>
-                    <span className="text-xs text-slate-400 block mb-1.5">Kênh hỗ trợ</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {viewTarget.supportedChannels.map(ch => (
-                        <span key={ch} className="text-xs bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-                          {CHANNEL_LABELS[ch] ?? ch}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <span className="text-xs text-slate-400 block mb-1.5">
-                    Campaign đang dùng trigger này ({campaignsUsingTrigger.length})
-                  </span>
-                  {campaignsUsingTrigger.length > 0 ? (
-                    <div className="space-y-1">
-                      {campaignsUsingTrigger.map(c => (
-                        <div key={c.id} className="flex items-center gap-2 text-xs text-slate-600">
-                          <span>•</span>
-                          <span className="font-medium">{c.name}</span>
-                          <span className="text-slate-400 font-mono">{c.code}</span>
-                          <span className={`ml-auto px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                            c.status === 'Active' ? 'bg-green-100 text-green-700' :
-                            c.status === 'Paused' ? 'bg-orange-100 text-orange-700' :
-                            c.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-slate-100 text-slate-500'
-                          }`}>
-                            {c.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">Chưa có campaign nào dùng trigger này.</p>
-                  )}
-                </div>
-              </div>
-            </section>
           </div>
         )}
 
