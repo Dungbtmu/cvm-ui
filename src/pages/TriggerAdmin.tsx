@@ -4,18 +4,7 @@ import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/Toast'
 import { mockTriggers } from '../data/mock'
-import type { Trigger, TriggerType, TriggerParam, ChannelType } from '../types'
-
-const CHANNEL_OPTIONS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
-
-const CHANNEL_LABELS: Record<ChannelType, string> = {
-  Push: 'Push Notification',
-  'Zalo OA': 'Zalo OA',
-  SMS: 'SMS',
-  Banner: 'Banner App',
-  Email: 'Email',
-  USSD: 'USSD',
-}
+import type { Trigger, TriggerType, TriggerParam } from '../types'
 
 const TYPE_BADGE: Record<TriggerType, string> = {
   Realtime: 'bg-green-100 text-green-700',
@@ -31,7 +20,6 @@ const EMPTY_FORM = {
   name: '',
   type: 'Realtime' as TriggerType,
   source: 'BSS' as Trigger['source'],
-  supportedChannels: [] as ChannelType[],
 }
 
 export function TriggerAdmin() {
@@ -99,7 +87,6 @@ export function TriggerAdmin() {
       type: form.type,
       source: form.source,
       status: 'Active',
-      supportedChannels: form.supportedChannels,
       params: [],
     }
     setTriggers(prev => [...prev, newTrigger])
@@ -107,15 +94,6 @@ export function TriggerAdmin() {
     setCreateOpen(false)
     setForm(EMPTY_FORM)
     setFormErrors({})
-  }
-
-  const toggleChannel = (ch: ChannelType) => {
-    setForm(prev => ({
-      ...prev,
-      supportedChannels: prev.supportedChannels.includes(ch)
-        ? prev.supportedChannels.filter(c => c !== ch)
-        : [...prev.supportedChannels, ch],
-    }))
   }
 
   // Thêm param vào trigger đang xem
@@ -302,18 +280,6 @@ export function TriggerAdmin() {
                   <span className="text-xs text-slate-400">Tên</span>
                   <div className="text-sm font-medium text-slate-800 mt-0.5">{editTarget.name}</div>
                 </div>
-                {editTarget.supportedChannels && editTarget.supportedChannels.length > 0 && (
-                  <div>
-                    <span className="text-xs text-slate-400">Kênh hỗ trợ</span>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {editTarget.supportedChannels.map(ch => (
-                        <span key={ch} className="text-xs bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-                          {CHANNEL_LABELS[ch] ?? ch}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </section>
 
@@ -481,26 +447,6 @@ export function TriggerAdmin() {
             </div>
           </div>
 
-          {/* Kênh hỗ trợ */}
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-2">Kênh hỗ trợ</label>
-            <div className="flex flex-wrap gap-2">
-              {CHANNEL_OPTIONS.map(ch => (
-                <button
-                  key={ch}
-                  type="button"
-                  onClick={() => toggleChannel(ch)}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                    form.supportedChannels.includes(ch)
-                      ? 'bg-blue-500 text-white border-blue-500'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                  }`}
-                >
-                  {CHANNEL_LABELS[ch]}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <DialogActions>
