@@ -295,10 +295,10 @@ export const mockBlacklist: BlacklistEntry[] = [
 ]
 
 export const mockCustomers: Customer[] = [
-  { phone: '0987 xxx 001', simType: 'eSIM', status: 'Active', hasApp: true, hasDnc: false },
-  { phone: '0912 xxx 002', simType: 'SIM vật lý', status: 'Active', hasApp: false, hasDnc: false },
-  { phone: '0965 xxx 003', simType: 'eSIM', status: 'Inactive', hasApp: true, hasDnc: true },
-  { phone: '0976 xxx 004', simType: 'SIM vật lý', status: 'Active', hasApp: false, hasDnc: false },
+  { phone: '0987 xxx 001', name: 'Nguyễn Văn An', simType: 'eSIM', status: 'Active', hasApp: true, hasDnc: false },
+  { phone: '0912 xxx 002', name: 'Trần Thị Bình', simType: 'SIM vật lý', status: 'Active', hasApp: false, hasDnc: false },
+  { phone: '0965 xxx 003', name: 'Lê Văn Cường', simType: 'eSIM', status: 'Inactive', hasApp: true, hasDnc: true },
+  { phone: '0976 xxx 004', name: 'Phạm Thị Dung', simType: 'SIM vật lý', status: 'Active', hasApp: false, hasDnc: false },
 ]
 
 export const mockSegments: Segment[] = [

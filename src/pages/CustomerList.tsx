@@ -13,7 +13,7 @@ export function CustomerList() {
   const [pageSize, setPageSize] = useState(20)
 
   const filtered = mockCustomers.filter(c => {
-    const matchSearch = !search || c.phone.includes(search)
+    const matchSearch = !search || c.phone.includes(search) || c.name.toLowerCase().includes(search.toLowerCase())
     const matchSim = simFilter === 'Tất cả' || (simFilter === 'Tạm khóa' ? c.status === 'Suspended' : c.status === simFilter)
     const matchApp = appFilter === 'Tất cả' || (appFilter === 'Có' ? c.hasApp : !c.hasApp)
     return matchSearch && matchSim && matchApp
@@ -59,6 +59,7 @@ export function CustomerList() {
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr className="text-xs text-slate-500">
               <th className="text-left px-4 py-3 font-medium">Số điện thoại</th>
+              <th className="text-left px-4 py-3 font-medium">Tên khách hàng</th>
               <th className="text-left px-4 py-3 font-medium">Loại SIM</th>
               <th className="text-left px-4 py-3 font-medium">Trạng thái</th>
               <th className="text-left px-4 py-3 font-medium">Cài app</th>
@@ -69,6 +70,7 @@ export function CustomerList() {
             {paged.map((c, i) => (
               <tr key={i} className="hover:bg-slate-50">
                 <td className="px-4 py-2.5 font-mono text-sm">{c.phone}</td>
+                <td className="px-4 py-2.5 text-slate-700">{c.name}</td>
                 <td className="px-4 py-2.5 text-slate-600">{c.simType}</td>
                 <td className="px-4 py-2.5">
                   <span className={`text-xs font-medium ${c.status === 'Active' ? 'text-green-600' : 'text-slate-400'}`}>
@@ -88,7 +90,7 @@ export function CustomerList() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">Không tìm thấy khách hàng</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">Không tìm thấy khách hàng</td></tr>
             )}
           </tbody>
         </table>

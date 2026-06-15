@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, X } from 'lucide-react'
+import { mockCustomers } from '../data/mock'
 
 const historyItems = [
   { date: '10/05 09:32', campaign: 'Chào mừng SIM', channel: 'Zalo OA', result: '✓ Delivered', ok: true },
@@ -21,6 +22,7 @@ const CAMPAIGNS_FILTER = ['Tất cả', 'Chào mừng SIM', 'Hết data', 'Nhắ
 export function Customer360() {
   const { phone } = useParams()
   const navigate = useNavigate()
+  const customer = mockCustomers.find(c => c.phone.replace(/\s/g, '') === phone)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [channelFilter, setChannelFilter] = useState('Tất cả')
   const [campaignFilter, setCampaignFilter] = useState('Tất cả')
@@ -43,7 +45,8 @@ export function Customer360() {
         <ArrowLeft size={14} /> Danh sách khách hàng
       </button>
 
-      <h1 className="text-lg font-bold text-slate-800 mb-4">Khách hàng / {phone}</h1>
+      <h1 className="text-lg font-bold text-slate-800 mb-1">{customer?.name ?? phone}</h1>
+      <p className="text-sm text-slate-500 font-mono mb-4">{phone}</p>
 
       <div className="grid grid-cols-2 gap-4">
         {/* LEFT */}
@@ -52,6 +55,7 @@ export function Customer360() {
             <div className="text-sm font-semibold text-slate-700">Thông tin khách hàng</div>
             <dl className="space-y-1.5 text-sm">
               {[
+                ['Tên khách hàng', customer?.name ?? '—'],
                 ['Số điện thoại', phone],
                 ['Loại SIM', 'eSIM'],
                 ['Trạng thái', 'Hoạt động'],

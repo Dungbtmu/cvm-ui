@@ -66,6 +66,7 @@ export interface BlacklistEntry {
 
 export interface Customer {
   phone: string
+  name: string
   simType: 'eSIM' | 'SIM vật lý'
   status: 'Active' | 'Inactive' | 'Suspended'
   hasApp: boolean
