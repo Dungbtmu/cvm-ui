@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, Info, Copy, X, CheckCircle } from 'lucide-react'
+import { Search, Copy, X, CheckCircle } from 'lucide-react'
 import { Dialog } from '../components/ui/Dialog'
 import { mockTriggers } from '../data/mock'
 import type { Trigger, TriggerType } from '../types'
@@ -8,14 +8,6 @@ const TYPE_BADGE: Record<TriggerType, string> = {
   Realtime: 'bg-green-100 text-green-700',
   'Near Realtime': 'bg-blue-100 text-blue-700',
   Offline: 'bg-slate-100 text-slate-600',
-}
-
-const FORMAT_LABEL: Record<string, string> = {
-  text: 'Văn bản',
-  date: 'Ngày (DD/MM/YYYY)',
-  number: 'Số',
-  boolean: 'Boolean',
-  currency: 'Tiền (VND)',
 }
 
 export function TriggerManagement() {
@@ -53,15 +45,6 @@ export function TriggerManagement() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-800">Trigger Management</h1>
-      </div>
-
-      {/* Banner catalog */}
-      <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
-        <Info size={15} className="mt-0.5 shrink-0" />
-        <span>
-          Danh sách sự kiện kích hoạt do hệ thống cung cấp.{' '}
-          <span className="font-medium">Liên hệ Team Kỹ thuật để thêm hoặc điều chỉnh trigger.</span>
-        </span>
       </div>
 
       {/* Search + filter */}
@@ -227,18 +210,20 @@ export function TriggerManagement() {
                     <tr className="text-slate-500">
                       <th className="text-left px-3 py-2 font-medium">Tham số</th>
                       <th className="text-left px-3 py-2 font-medium">Mô tả</th>
-                      <th className="text-left px-3 py-2 font-medium">Định dạng</th>
-                      <th className="text-left px-3 py-2 font-medium">Nguồn</th>
-                      <th className="text-left px-3 py-2 font-medium">Ví dụ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
+                    {viewTarget.params.length === 0 && (
+                      <tr>
+                        <td colSpan={2} className="px-3 py-4 text-slate-400 text-center italic">Chưa có tham số nào</td>
+                      </tr>
+                    )}
                     {viewTarget.params.map(p => (
-                      <tr key={p.name} className="hover:bg-slate-50">
+                      <tr key={p.name} className="hover:bg-slate-50 group">
                         <td className="px-3 py-2">
                           <button
                             onClick={() => handleCopyParam(p.name)}
-                            className="flex items-center gap-1 font-mono text-blue-600 hover:text-blue-800 group"
+                            className="flex items-center gap-1 font-mono text-blue-600 hover:text-blue-800"
                             title="Nhấn để copy cú pháp"
                           >
                             <span>{`{{${p.name}}}`}</span>
@@ -249,9 +234,6 @@ export function TriggerManagement() {
                           </button>
                         </td>
                         <td className="px-3 py-2 text-slate-600">{p.description}</td>
-                        <td className="px-3 py-2 text-slate-500">{FORMAT_LABEL[p.format] ?? p.format}</td>
-                        <td className="px-3 py-2 text-slate-500">{p.source}</td>
-                        <td className="px-3 py-2 text-slate-400 font-mono">{p.example ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
