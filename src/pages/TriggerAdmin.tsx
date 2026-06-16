@@ -43,6 +43,11 @@ export function TriggerAdmin() {
   const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState<{ code?: string; name?: string }>({})
+  const [createParams, setCreateParams] = useState<TriggerParam[]>([])
+  const [createParamName, setCreateParamName] = useState('')
+  const [createParamDesc, setCreateParamDesc] = useState('')
+  const [createParamErrors, setCreateParamErrors] = useState<{ name?: string; desc?: string }>({})
+  const [createParamFormOpen, setCreateParamFormOpen] = useState(false)
 
   const groups: TriggerType[] = ['Realtime', 'Near Realtime', 'Offline']
 
@@ -78,6 +83,25 @@ export function TriggerAdmin() {
     return Object.keys(errors).length === 0
   }
 
+  const validateCreateParam = () => {
+    const errors: { name?: string; desc?: string } = {}
+    if (!createParamName.trim()) errors.name = 'Bắt buộc'
+    else if (!/^[a-z0-9_]+$/.test(createParamName.trim())) errors.name = 'Chỉ dùng chữ thường, số, dấu gạch dưới'
+    else if (createParams.some(p => p.name === createParamName.trim())) errors.name = 'Tham số đã tồn tại'
+    if (!createParamDesc.trim()) errors.desc = 'Bắt buộc'
+    setCreateParamErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleAddCreateParam = () => {
+    if (!validateCreateParam()) return
+    setCreateParams(prev => [...prev, { name: createParamName.trim(), description: createParamDesc.trim(), format: 'text', source: form.source }])
+    setCreateParamName('')
+    setCreateParamDesc('')
+    setCreateParamErrors({})
+    setCreateParamFormOpen(false)
+  }
+
   const handleCreate = () => {
     if (!validateForm()) return
     const newTrigger: Trigger = {
@@ -87,13 +111,17 @@ export function TriggerAdmin() {
       type: form.type,
       source: form.source,
       status: 'Active',
-      params: [],
+      params: createParams,
     }
     setTriggers(prev => [...prev, newTrigger])
     toast('Đã thêm trigger ✓', 'success')
     setCreateOpen(false)
     setForm(EMPTY_FORM)
     setFormErrors({})
+    setCreateParams([])
+    setCreateParamName('')
+    setCreateParamDesc('')
+    setCreateParamFormOpen(false)
   }
 
   // Thêm param vào trigger đang xem
@@ -445,6 +473,84 @@ export function TriggerAdmin() {
                 {SOURCE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* Tham số đầu ra */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium text-slate-600">Tham số đầu ra</label>
+              <button
+                type="button"
+                onClick={() => { setCreateParamFormOpen(true); setCreateParamName(''); setCreateParamDesc(''); setCreateParamErrors({}) }}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                <Plus size={12} /> Thêm tham số
+              </button>
+            </div>
+
+            {createParamFormOpen && (
+              <div className="mb-2 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs text-slate-500 mb-0.5 block">Tên tham số <span className="text-red-400">*</span></label>
+                    <input
+                      value={createParamName}
+                      onChange={e => setCreateParamName(e.target.value)}
+                      placeholder="vd: ten_kh"
+                      className={`w-full px-2.5 py-1.5 text-xs font-mono border rounded focus:outline-none focus:border-blue-400 ${createParamErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}
+                    />
+                    {createParamErrors.name && <p className="text-xs text-red-500 mt-0.5">{createParamErrors.name}</p>}
+                  </div>
+                  <div className="flex-[2]">
+                    <label className="text-xs text-slate-500 mb-0.5 block">Mô tả <span className="text-red-400">*</span></label>
+                    <input
+                      value={createParamDesc}
+                      onChange={e => setCreateParamDesc(e.target.value)}
+                      placeholder="vd: Họ tên đầy đủ của khách hàng"
+                      className={`w-full px-2.5 py-1.5 text-xs border rounded focus:outline-none focus:border-blue-400 ${createParamErrors.desc ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}
+                    />
+                    {createParamErrors.desc && <p className="text-xs text-red-500 mt-0.5">{createParamErrors.desc}</p>}
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button type="button" onClick={() => setCreateParamFormOpen(false)} className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1">Hủy</button>
+                  <button type="button" onClick={handleAddCreateParam} className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Lưu</button>
+                </div>
+              </div>
+            )}
+
+            {createParams.length > 0 ? (
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr className="text-slate-500">
+                      <th className="text-left px-3 py-2 font-medium">Tham số</th>
+                      <th className="text-left px-3 py-2 font-medium">Mô tả</th>
+                      <th className="px-3 py-2 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {createParams.map(p => (
+                      <tr key={p.name} className="hover:bg-slate-50 group">
+                        <td className="px-3 py-2 font-mono text-blue-600">{`{{${p.name}}}`}</td>
+                        <td className="px-3 py-2 text-slate-600">{p.description}</td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => setCreateParams(prev => prev.filter(x => x.name !== p.name))}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic">Chưa có tham số — có thể thêm sau khi tạo</p>
+            )}
           </div>
 
         </div>
