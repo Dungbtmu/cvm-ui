@@ -1509,10 +1509,10 @@ export function CampaignBuilder() {
           {/* Summary */}
           <Card className="space-y-2">
             <div className="text-sm font-semibold text-slate-700">Tóm tắt Campaign</div>
-            {issues.length > 0 ? (
+            {!touched ? null : issues.length > 0 ? (
               <div className="space-y-1">
                 {issues.map((issue, i) => (
-                  <div key={i} className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${touched ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-slate-50'}`}>
+                  <div key={i} className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded px-2 py-1">
                     <AlertCircle size={10} /> {issue}
                   </div>
                 ))}
