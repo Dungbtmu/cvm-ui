@@ -962,6 +962,7 @@ export function CampaignBuilder() {
 
   // Dialogs
   const [submitConfirm, setSubmitConfirm] = useState(false)
+  const [touched, setTouched] = useState(false)
 
   // Derived
   const hasVariants = Object.values(channelCards).some(byTrig =>
@@ -984,6 +985,7 @@ export function CampaignBuilder() {
     setSelectedTriggers(prev => [...prev, { id: t.id, code: t.code, name: t.name }])
     setTriggerDropdown(false)
     setTriggerSearch('')
+    setTouched(true)
   }
   const removeTrigger = (code: string) => {
     setSelectedTriggers(prev => prev.filter(t => t.code !== code))
@@ -1010,6 +1012,7 @@ export function CampaignBuilder() {
     if (activeChannels.includes(ch)) return
     setActiveChannels(prev => [...prev, ch])
     setActiveChannelTab(ch)
+    setTouched(true)
   }
 
   const tryRemoveChannel = (ch: ChannelType) => {
@@ -1162,7 +1165,7 @@ export function CampaignBuilder() {
               <div className="mt-4 space-y-4">
                 <div>
                   <label className="text-xs font-medium text-slate-600 mb-1 block">Tên campaign *</label>
-                  <input value={name} onChange={e => setName(e.target.value)} placeholder="Nhập tên campaign..."
+                  <input value={name} onChange={e => { setName(e.target.value); setTouched(true) }} placeholder="Nhập tên campaign..."
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
                 </div>
                 <div>
@@ -1191,12 +1194,12 @@ export function CampaignBuilder() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-slate-600 mb-1 block">Ngày bắt đầu</label>
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                    <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setTouched(true) }}
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-slate-600 mb-1 block">Ngày kết thúc</label>
-                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                    <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setTouched(true) }}
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
                   </div>
                 </div>
@@ -1509,7 +1512,7 @@ export function CampaignBuilder() {
             {issues.length > 0 ? (
               <div className="space-y-1">
                 {issues.map((issue, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded px-2 py-1">
+                  <div key={i} className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${touched ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-slate-50'}`}>
                     <AlertCircle size={10} /> {issue}
                   </div>
                 ))}
