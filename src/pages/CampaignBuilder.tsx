@@ -131,9 +131,10 @@ interface TriggerCardProps {
   onChange: (d: TriggerCardData) => void
   guideOpen: boolean
   onGuideToggle: () => void
+  canShowVariant: boolean
 }
 
-function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpen, onGuideToggle }: TriggerCardProps) {
+function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpen, onGuideToggle, canShowVariant }: TriggerCardProps) {
   const trigData = mockTriggers.find(x => x.code === trig.code)
   const [activeVariant, setActiveVariant] = useState(0)
   const [showPreview, setShowPreview] = useState(false)
@@ -250,12 +251,14 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
               )}
             </div>
           ))}
-          <button
-            onClick={addVariant}
-            className="text-xs px-2 py-1 border border-dashed border-slate-300 rounded-full text-slate-400 hover:border-blue-400 hover:text-blue-500"
-          >
-            + Biến thể đối tượng
-          </button>
+          {canShowVariant && (
+            <button
+              onClick={addVariant}
+              className="text-xs px-2 py-1 border border-dashed border-slate-300 rounded-full text-slate-400 hover:border-blue-400 hover:text-blue-500"
+            >
+              + Biến thể đối tượng
+            </button>
+          )}
         </div>
       )}
 
@@ -917,6 +920,7 @@ export function CampaignBuilder() {
   const [triggerDropdown, setTriggerDropdown] = useState(false)
   const [triggerSearch, setTriggerSearch] = useState('')
   const [andConfirm, setAndConfirm] = useState(false)
+  const [segmentAndConfirm, setSegmentAndConfirm] = useState(false)
   const [s2Collapsed, setS2Collapsed] = useState(false)
 
   // S3 (right col)
@@ -1058,6 +1062,29 @@ export function CampaignBuilder() {
       return next
     })
     setAndConfirm(false)
+  }
+
+  const handleSegmentAndSwitch = () => {
+    if (hasVariants) {
+      setSegmentAndConfirm(true)
+    } else {
+      setSegmentLogic('AND')
+    }
+  }
+
+  const confirmSegmentAndSwitch = () => {
+    setSegmentLogic('AND')
+    setChannelCards(prev => {
+      const next: ChannelCards = {}
+      Object.entries(prev).forEach(([ch, byTrig]) => {
+        next[ch] = {}
+        Object.entries(byTrig).forEach(([code, card]) => {
+          next[ch][code] = { variants: [card.variants[0] ?? defaultVariant()] }
+        })
+      })
+      return next
+    })
+    setSegmentAndConfirm(false)
   }
 
   // ---- Schedule ----
@@ -1421,6 +1448,7 @@ export function CampaignBuilder() {
                               onChange={d => setCardData(activeChannelTab, trig.code, d)}
                               guideOpen={!!guideOpen[guideKey]}
                               onGuideToggle={() => setGuideOpen(prev => ({ ...prev, [guideKey]: !prev[guideKey] }))}
+                              canShowVariant={triggerLogic === 'OR' && segmentLogic === 'OR'}
                             />
                           )
                         })}
@@ -1584,7 +1612,7 @@ export function CampaignBuilder() {
                   Bất kỳ phân khúc nào (OR)
                 </label>
                 <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="radio" checked={segmentLogic === 'AND'} onChange={() => setSegmentLogic('AND')} />
+                  <input type="radio" checked={segmentLogic === 'AND'} onChange={handleSegmentAndSwitch} />
                   Tất cả phân khúc (AND)
                 </label>
               </div>
@@ -1700,6 +1728,16 @@ export function CampaignBuilder() {
         <DialogActions>
           <Button variant="outline" onClick={() => setAndConfirm(false)}>Hủy</Button>
           <Button variant="primary" onClick={confirmAndSwitch}>Xác nhận</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={segmentAndConfirm} onClose={() => setSegmentAndConfirm(false)} title="Chuyển sang Tất cả phân khúc (AND)?">
+        <p className="text-sm text-slate-600">
+          Chuyển sang logic AND sẽ xóa toàn bộ Biến thể đối tượng đã thiết lập. Hành động này không thể hoàn tác. Xác nhận chuyển đổi?
+        </p>
+        <DialogActions>
+          <Button variant="outline" onClick={() => setSegmentAndConfirm(false)}>Hủy</Button>
+          <Button variant="primary" onClick={confirmSegmentAndSwitch}>Xác nhận</Button>
         </DialogActions>
       </Dialog>
 
