@@ -10,14 +10,6 @@ import type { ChannelType, CampaignStatus } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
-const CHANNEL_MESSAGES: Record<ChannelType, { title?: string; body: string }> = {
-  Push: { title: 'Chào mừng bạn!', body: 'SIM eSIM đã kích hoạt thành công. Khám phá VietnamPost App ngay.' },
-  'Zalo OA': { title: undefined, body: 'Chào mừng {{ten_kh}}! SIM {{loai_sim}} đã được kích hoạt thành công.' },
-  SMS: { body: 'Chao {{ten_kh}}! SIM {{loai_sim}} da kich hoat thanh cong. Cam on ban da su dung dich vu.' },
-  Banner: { title: 'Chào mừng bạn!', body: 'SIM eSIM đã kích hoạt.' },
-  Email: { title: 'Chào mừng đến VietnamPost', body: 'Kính gửi {{ten_kh}},\n\nSIM {{loai_sim}} của bạn đã được kích hoạt thành công.' },
-  USSD: { body: 'Chao {{ten_kh}}! SIM kich hoat thanh cong. Bam 1 de xem them.' },
-}
 
 type ScheduleConfig = {
   perChannel: boolean
@@ -83,6 +75,35 @@ const WL_PHONES = [
   '0938 xxx 202',
 ]
 
+type VariantContent = { segmentName: string; title?: string; body: string }
+
+const MOCK_VARIANTS: Record<ChannelType, VariantContent[]> = {
+  Push: [
+    { segmentName: 'Tất cả (dự phòng)', title: 'Ưu đãi dành cho bạn', body: 'Bạn có gói ưu đãi đang chờ. Mở app để xem ngay!' },
+    { segmentName: 'Nguy cơ rời mạng', title: 'Chúng tôi nhớ bạn!', body: 'Bạn chưa sử dụng dịch vụ một thời gian. Nhận ưu đãi giữ chân ngay hôm nay.' },
+  ],
+  'Zalo OA': [
+    { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! Bạn có ưu đãi mới đang chờ.' },
+    { segmentName: 'Nguy cơ rời mạng', body: 'Chào {{ten_kh}}! Chúng tôi có ưu đãi đặc biệt dành riêng cho bạn.' },
+  ],
+  SMS: [
+    { segmentName: 'Tất cả (dự phòng)', body: 'UU DAI MOI cho {{ten_kh}}. Kiem tra ngay!' },
+    { segmentName: 'Nguy cơ rời mạng', body: 'GIAM GIA 50% cho {{ten_kh}}. Han dung hom nay.' },
+  ],
+  Banner: [
+    { segmentName: 'Tất cả (dự phòng)', title: 'Ưu đãi hôm nay', body: 'Khám phá ngay!' },
+    { segmentName: 'Nguy cơ rời mạng', title: 'Giữ chân ưu đãi', body: 'Dành riêng cho bạn.' },
+  ],
+  Email: [
+    { segmentName: 'Tất cả (dự phòng)', title: 'Ưu đãi mới từ VietnamPost', body: 'Kính gửi {{ten_kh}}, bạn có ưu đãi mới.' },
+    { segmentName: 'Nguy cơ rời mạng', title: 'Chúng tôi nhớ bạn, {{ten_kh}}', body: 'Hãy quay lại và nhận ưu đãi đặc biệt.' },
+  ],
+  USSD: [
+    { segmentName: 'Tất cả (dự phòng)', body: 'Chao {{ten_kh}}! Co uu dai cho ban. Bam 1 de xem.' },
+    { segmentName: 'Nguy cơ rời mạng', body: 'Chao {{ten_kh}}! Uu dai giu chan. Bam 1 de nhan.' },
+  ],
+}
+
 export function CampaignDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -92,6 +113,7 @@ export function CampaignDetail() {
   const campaign = campaigns.find(c => c.id === id) ?? campaigns[0]
 
   const [activeTab, setActiveTab] = useState<ChannelType>('Push')
+  const [activeVariant, setActiveVariant] = useState(0)
   const [stopConfirm, setStopConfirm] = useState(false)
   const [blPreviewOpen, setBlPreviewOpen] = useState(false)
   const [wlPreviewOpen, setWlPreviewOpen] = useState(false)
@@ -106,8 +128,6 @@ export function CampaignDetail() {
     setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: 'Active' as CampaignStatus } : c))
     toast('Campaign đã kích hoạt lại', 'success')
   }
-
-  const msg = CHANNEL_MESSAGES[activeTab]
 
   return (
     <div className="space-y-0 max-w-4xl">
@@ -235,14 +255,47 @@ export function CampaignDetail() {
           </div>
 
           {/* Messages for active tab */}
-          <div className="space-y-2">
-            {campaign.triggers.map((t, i) => (
-              <div key={t} className="border border-slate-200 rounded-lg p-3 text-sm space-y-1">
-                <div className="font-medium text-slate-700">T{i + 1} · {t} · {activeTab}</div>
-                {msg.title && <div><span className="text-slate-500">Title: </span>{msg.title}</div>}
-                <div><span className="text-slate-500">Body: </span>{msg.body}</div>
-              </div>
-            ))}
+          <div className="space-y-3">
+            {campaign.triggers.map((t, i) => {
+              const variants = MOCK_VARIANTS[activeTab]
+              const hasVariants = variants.length > 1
+              const currentVariant = variants[activeVariant] ?? variants[0]
+              return (
+                <div key={t} className="border border-slate-200 rounded-lg text-sm overflow-hidden">
+                  {/* Trigger header */}
+                  <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 font-medium text-slate-700">
+                    T{i + 1} · {t}
+                  </div>
+
+                  {/* Variant tabs — chỉ hiển thị khi có >1 biến thể */}
+                  {hasVariants && (
+                    <div className="flex gap-0 border-b border-slate-200 bg-white px-3 pt-2">
+                      {variants.map((v, vi) => (
+                        <button
+                          key={vi}
+                          onClick={() => setActiveVariant(vi)}
+                          className={`text-xs px-3 py-1.5 border-b-2 transition-colors mr-1 ${
+                            activeVariant === vi
+                              ? 'border-amber-400 text-amber-700 font-medium'
+                              : 'border-transparent text-slate-400 hover:text-slate-600'
+                          }`}
+                        >
+                          {v.segmentName}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Nội dung biến thể hiện tại */}
+                  <div className="px-3 py-2.5 space-y-1">
+                    {currentVariant.title && (
+                      <div><span className="text-slate-500">Title: </span>{currentVariant.title}</div>
+                    )}
+                    <div><span className="text-slate-500">Body: </span>{currentVariant.body}</div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
           <div className="text-xs text-slate-400">(Nhấn tab kênh để xem nội dung từng kênh)</div>
         </section>
