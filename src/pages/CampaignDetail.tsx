@@ -77,30 +77,33 @@ const WL_PHONES = [
 
 type VariantContent = { segmentName: string; title?: string; body: string }
 
+// Mỗi kênh có số biến thể độc lập — Push/Zalo 3 biến thể, Email 2, SMS/Banner/USSD chỉ 1 (không hiển thị tab)
 const MOCK_VARIANTS: Record<ChannelType, VariantContent[]> = {
   Push: [
     { segmentName: 'Tất cả (dự phòng)', title: 'Ưu đãi dành cho bạn', body: 'Bạn có gói ưu đãi đang chờ. Mở app để xem ngay!' },
     { segmentName: 'Nguy cơ rời mạng', title: 'Chúng tôi nhớ bạn!', body: 'Bạn chưa sử dụng dịch vụ một thời gian. Nhận ưu đãi giữ chân ngay hôm nay.' },
+    { segmentName: 'Gen Z User', title: 'Deal hot hôm nay!', body: 'Ưu đãi giới hạn dành riêng cho bạn. Mở ngay!' },
   ],
   'Zalo OA': [
     { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! Bạn có ưu đãi mới đang chờ.' },
     { segmentName: 'Nguy cơ rời mạng', body: 'Chào {{ten_kh}}! Chúng tôi có ưu đãi đặc biệt dành riêng cho bạn.' },
+    { segmentName: 'Gen Z User', body: 'Hey {{ten_kh}}! Deal xịn đang chờ bạn — xem ngay nhé 🔥' },
   ],
+  // SMS chỉ có 1 biến thể → không hiển thị hàng tab
   SMS: [
     { segmentName: 'Tất cả (dự phòng)', body: 'UU DAI MOI cho {{ten_kh}}. Kiem tra ngay!' },
-    { segmentName: 'Nguy cơ rời mạng', body: 'GIAM GIA 50% cho {{ten_kh}}. Han dung hom nay.' },
   ],
+  // Banner chỉ có 1 biến thể → không hiển thị hàng tab
   Banner: [
     { segmentName: 'Tất cả (dự phòng)', title: 'Ưu đãi hôm nay', body: 'Khám phá ngay!' },
-    { segmentName: 'Nguy cơ rời mạng', title: 'Giữ chân ưu đãi', body: 'Dành riêng cho bạn.' },
   ],
   Email: [
     { segmentName: 'Tất cả (dự phòng)', title: 'Ưu đãi mới từ VietnamPost', body: 'Kính gửi {{ten_kh}}, bạn có ưu đãi mới.' },
     { segmentName: 'Nguy cơ rời mạng', title: 'Chúng tôi nhớ bạn, {{ten_kh}}', body: 'Hãy quay lại và nhận ưu đãi đặc biệt.' },
   ],
+  // USSD chỉ có 1 biến thể → không hiển thị hàng tab
   USSD: [
     { segmentName: 'Tất cả (dự phòng)', body: 'Chao {{ten_kh}}! Co uu dai cho ban. Bam 1 de xem.' },
-    { segmentName: 'Nguy cơ rời mạng', body: 'Chao {{ten_kh}}! Uu dai giu chan. Bam 1 de nhan.' },
   ],
 }
 
@@ -241,7 +244,7 @@ export function CampaignDetail() {
             {CHANNELS.map(ch => (
               <button
                 key={ch}
-                onClick={() => setActiveTab(ch)}
+                onClick={() => { setActiveTab(ch); setActiveVariant(0) }}
                 className={`px-3 py-1.5 text-xs border-b-2 transition-colors ${
                   activeTab === ch
                     ? 'border-blue-500 text-blue-700 font-medium'
@@ -249,7 +252,7 @@ export function CampaignDetail() {
                 }`}
               >
                 {ch}
-                {['Push', 'Zalo OA'].includes(ch) ? ' ●●' : ch === 'SMS' ? ' ●○' : ' ○○'}
+                {['Push', 'Zalo OA'].includes(ch) ? ' ●●●' : ch === 'Email' ? ' ●●' : ' ●'}
               </button>
             ))}
           </div>
