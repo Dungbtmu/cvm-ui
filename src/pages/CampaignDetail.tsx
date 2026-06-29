@@ -77,34 +77,58 @@ const WL_PHONES = [
 
 type VariantContent = { segmentName: string; title?: string; body: string }
 
-// Mỗi kênh có số biến thể độc lập — Push/Zalo 3 biến thể, Email 2, SMS/Banner/USSD chỉ 1 (không hiển thị tab)
-const MOCK_VARIANTS: Record<ChannelType, VariantContent[]> = {
-  Push: [
-    { segmentName: 'Tất cả (dự phòng)', title: 'Ưu đãi dành cho bạn', body: 'Bạn có gói ưu đãi đang chờ. Mở app để xem ngay!' },
-    { segmentName: 'Nguy cơ rời mạng', title: 'Chúng tôi nhớ bạn!', body: 'Bạn chưa sử dụng dịch vụ một thời gian. Nhận ưu đãi giữ chân ngay hôm nay.' },
-    { segmentName: 'Gen Z User', title: 'Deal hot hôm nay!', body: 'Ưu đãi giới hạn dành riêng cho bạn. Mở ngay!' },
-  ],
-  'Zalo OA': [
-    { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! Bạn có ưu đãi mới đang chờ.' },
-    { segmentName: 'Nguy cơ rời mạng', body: 'Chào {{ten_kh}}! Chúng tôi có ưu đãi đặc biệt dành riêng cho bạn.' },
-    { segmentName: 'Gen Z User', body: 'Hey {{ten_kh}}! Deal xịn đang chờ bạn — xem ngay nhé 🔥' },
-  ],
-  // SMS chỉ có 1 biến thể → không hiển thị hàng tab
-  SMS: [
-    { segmentName: 'Tất cả (dự phòng)', body: 'UU DAI MOI cho {{ten_kh}}. Kiem tra ngay!' },
-  ],
-  // Banner chỉ có 1 biến thể → không hiển thị hàng tab
-  Banner: [
-    { segmentName: 'Tất cả (dự phòng)', title: 'Ưu đãi hôm nay', body: 'Khám phá ngay!' },
-  ],
-  Email: [
-    { segmentName: 'Tất cả (dự phòng)', title: 'Ưu đãi mới từ VietnamPost', body: 'Kính gửi {{ten_kh}}, bạn có ưu đãi mới.' },
-    { segmentName: 'Nguy cơ rời mạng', title: 'Chúng tôi nhớ bạn, {{ten_kh}}', body: 'Hãy quay lại và nhận ưu đãi đặc biệt.' },
-  ],
-  // USSD chỉ có 1 biến thể → không hiển thị hàng tab
-  USSD: [
-    { segmentName: 'Tất cả (dự phòng)', body: 'Chao {{ten_kh}}! Co uu dai cho ban. Bam 1 de xem.' },
-  ],
+// Mock variant per trigger per channel — mỗi trigger có số biến thể độc lập per kênh
+// Key: triggerCode → ChannelType → VariantContent[]
+// Trigger T1 (EVT_DATA_LOW): Push/Zalo 3 biến thể, Email 2, SMS/Banner/USSD chỉ 1
+// Trigger T2 (EVT_ROAM_START): Push/Zalo 2 biến thể, các kênh còn lại 1
+const MOCK_VARIANTS: Record<string, Record<ChannelType, VariantContent[]>> = {
+  EVT_DATA_LOW: {
+    Push: [
+      { segmentName: 'Tất cả (dự phòng)', title: 'Sắp hết data rồi!', body: 'Bạn chỉ còn 10% data. Nạp thêm ngay để không bị gián đoạn.' },
+      { segmentName: 'Nguy cơ rời mạng', title: 'Ưu đãi đặc biệt cho bạn', body: 'Hết data + ưu đãi giữ chân 50% — nhận ngay trước khi hết hạn!' },
+      { segmentName: 'Gen Z User', title: 'Data sắp cạn 😱', body: 'Còn 10% thôi! Nạp deal 5GB chỉ 19k — xịn không?' },
+    ],
+    'Zalo OA': [
+      { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! Data của bạn sắp hết. Nạp thêm ngay tại app.' },
+      { segmentName: 'Nguy cơ rời mạng', body: 'Chào {{ten_kh}}! Chúng tôi có gói ưu đãi đặc biệt dành riêng cho bạn — đừng bỏ lỡ!' },
+      { segmentName: 'Gen Z User', body: 'Hey {{ten_kh}}! Data gần hết rồi, có deal xịn đang chờ bạn 👀' },
+    ],
+    SMS: [
+      { segmentName: 'Tất cả (dự phòng)', body: 'DATA SAP HET: {{ten_kh}} con 10% data. Nap them tai *100# hoac app.' },
+    ],
+    Banner: [
+      { segmentName: 'Tất cả (dự phòng)', title: 'Data sắp hết', body: 'Nạp thêm ngay!' },
+    ],
+    Email: [
+      { segmentName: 'Tất cả (dự phòng)', title: 'Thông báo: Data của bạn sắp hết', body: 'Kính gửi {{ten_kh}}, tài khoản data của bạn chỉ còn 10%.' },
+      { segmentName: 'Nguy cơ rời mạng', title: 'Ưu đãi đặc biệt — chỉ dành cho bạn', body: 'Kính gửi {{ten_kh}}, chúng tôi có gói ưu đãi giữ chân dành riêng.' },
+    ],
+    USSD: [
+      { segmentName: 'Tất cả (dự phòng)', body: 'DATA SAP HET. Bam 1 de nap them. Bam 2 de xem goi cuoc.' },
+    ],
+  },
+  EVT_ROAM_START: {
+    Push: [
+      { segmentName: 'Tất cả (dự phòng)', title: 'Bạn đang roaming', body: 'Kích hoạt gói roaming ngay để tiết kiệm chi phí.' },
+      { segmentName: 'Nguy cơ rời mạng', title: 'Ưu đãi roaming cho bạn', body: 'Tặng thêm 20% data roaming — áp dụng ngay hôm nay!' },
+    ],
+    'Zalo OA': [
+      { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! Bạn đang ở nước ngoài. Kích hoạt gói roaming để dùng data giá tốt hơn.' },
+      { segmentName: 'Nguy cơ rời mạng', body: 'Chào {{ten_kh}}! Ưu đãi roaming đặc biệt — tiết kiệm 30% cước quốc tế.' },
+    ],
+    SMS: [
+      { segmentName: 'Tất cả (dự phòng)', body: 'ROAMING: {{ten_kh}} dang o nuoc ngoai. Kich hoat goi roaming tai *100# de tiet kiem.' },
+    ],
+    Banner: [
+      { segmentName: 'Tất cả (dự phòng)', title: 'Đang roaming', body: 'Kích hoạt gói ngay!' },
+    ],
+    Email: [
+      { segmentName: 'Tất cả (dự phòng)', title: 'Thông báo roaming quốc tế', body: 'Kính gửi {{ten_kh}}, chúng tôi nhận thấy bạn đang sử dụng dịch vụ tại nước ngoài.' },
+    ],
+    USSD: [
+      { segmentName: 'Tất cả (dự phòng)', body: 'ROAMING QUOC TE. Bam 1 kich hoat goi. Bam 2 xem cuoc phi.' },
+    ],
+  },
 }
 
 export function CampaignDetail() {
@@ -116,7 +140,8 @@ export function CampaignDetail() {
   const campaign = campaigns.find(c => c.id === id) ?? campaigns[0]
 
   const [activeTab, setActiveTab] = useState<ChannelType>('Push')
-  const [activeVariant, setActiveVariant] = useState(0)
+  // key = triggerCode, value = index biến thể đang active — mỗi trigger độc lập
+  const [activeVariantMap, setActiveVariantMap] = useState<Record<string, number>>({})
   const [stopConfirm, setStopConfirm] = useState(false)
   const [blPreviewOpen, setBlPreviewOpen] = useState(false)
   const [wlPreviewOpen, setWlPreviewOpen] = useState(false)
@@ -244,7 +269,7 @@ export function CampaignDetail() {
             {CHANNELS.map(ch => (
               <button
                 key={ch}
-                onClick={() => { setActiveTab(ch); setActiveVariant(0) }}
+                onClick={() => { setActiveTab(ch); setActiveVariantMap({}) }}
                 className={`px-3 py-1.5 text-xs border-b-2 transition-colors ${
                   activeTab === ch
                     ? 'border-blue-500 text-blue-700 font-medium'
@@ -260,9 +285,10 @@ export function CampaignDetail() {
           {/* Messages for active tab */}
           <div className="space-y-3">
             {campaign.triggers.map((t, i) => {
-              const variants = MOCK_VARIANTS[activeTab]
+              const variants = MOCK_VARIANTS[t]?.[activeTab] ?? []
               const hasVariants = variants.length > 1
-              const currentVariant = variants[activeVariant] ?? variants[0]
+              const activeIdx = activeVariantMap[t] ?? 0
+              const currentVariant = variants[activeIdx] ?? variants[0]
               return (
                 <div key={t} className="border border-slate-200 rounded-lg text-sm overflow-hidden">
                   {/* Trigger header */}
@@ -270,15 +296,15 @@ export function CampaignDetail() {
                     T{i + 1} · {t}
                   </div>
 
-                  {/* Variant tabs — chỉ hiển thị khi có >1 biến thể */}
+                  {/* Variant tabs — mỗi trigger độc lập, chỉ hiển thị khi có >1 biến thể */}
                   {hasVariants && (
                     <div className="flex gap-0 border-b border-slate-200 bg-white px-3 pt-2">
                       {variants.map((v, vi) => (
                         <button
                           key={vi}
-                          onClick={() => setActiveVariant(vi)}
+                          onClick={() => setActiveVariantMap(prev => ({ ...prev, [t]: vi }))}
                           className={`text-xs px-3 py-1.5 border-b-2 transition-colors mr-1 ${
-                            activeVariant === vi
+                            activeIdx === vi
                               ? 'border-amber-400 text-amber-700 font-medium'
                               : 'border-transparent text-slate-400 hover:text-slate-600'
                           }`}
@@ -291,10 +317,10 @@ export function CampaignDetail() {
 
                   {/* Nội dung biến thể hiện tại */}
                   <div className="px-3 py-2.5 space-y-1">
-                    {currentVariant.title && (
-                      <div><span className="text-slate-500">Title: </span>{currentVariant.title}</div>
+                    {currentVariant?.title && (
+                      <div><span className="text-slate-500">Tiêu đề: </span>{currentVariant.title}</div>
                     )}
-                    <div><span className="text-slate-500">Body: </span>{currentVariant.body}</div>
+                    <div><span className="text-slate-500">Nội dung: </span>{currentVariant?.body}</div>
                   </div>
                 </div>
               )
