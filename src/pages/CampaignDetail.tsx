@@ -77,56 +77,55 @@ const WL_PHONES = [
 
 type VariantContent = { segmentName: string; title?: string; body: string }
 
-// Mock variant per trigger per channel — mỗi trigger có số biến thể độc lập per kênh
-// Key: triggerCode → ChannelType → VariantContent[]
-// Trigger T1 (EVT_DATA_LOW): Push/Zalo 3 biến thể, Email 2, SMS/Banner/USSD chỉ 1
-// Trigger T2 (EVT_ROAM_START): Push/Zalo 2 biến thể, các kênh còn lại 1
+// Mock variant per trigger per channel — key phải khớp trigger code trong mockCampaigns
+// SIM_ACTIVATED: Push/Zalo 3 biến thể, Email 2, SMS/Banner/USSD chỉ 1 (không có tab)
+// NO_APP_INSTALL_24H: Push/Zalo 2 biến thể, các kênh còn lại 1
 const MOCK_VARIANTS: Record<string, Record<ChannelType, VariantContent[]>> = {
-  EVT_DATA_LOW: {
+  SIM_ACTIVATED: {
     Push: [
-      { segmentName: 'Tất cả (dự phòng)', title: 'Sắp hết data rồi!', body: 'Bạn chỉ còn 10% data. Nạp thêm ngay để không bị gián đoạn.' },
-      { segmentName: 'Nguy cơ rời mạng', title: 'Ưu đãi đặc biệt cho bạn', body: 'Hết data + ưu đãi giữ chân 50% — nhận ngay trước khi hết hạn!' },
-      { segmentName: 'Gen Z User', title: 'Data sắp cạn 😱', body: 'Còn 10% thôi! Nạp deal 5GB chỉ 19k — xịn không?' },
+      { segmentName: 'Tất cả (dự phòng)', title: 'Chào mừng bạn đến với mạng!', body: 'SIM đã kích hoạt thành công. Khám phá các gói cước ngay.' },
+      { segmentName: 'Nguy cơ rời mạng', title: 'Ưu đãi đặc biệt cho bạn', body: 'Kích hoạt SIM mới — nhận ngay ưu đãi giữ chân 50% tháng đầu!' },
+      { segmentName: 'Gen Z User', title: 'Sim mới — deal ngay!', body: 'Kích hoạt xong rồi, giờ đăng ký gói 5GB/ngày chỉ 9k thôi nào!' },
     ],
     'Zalo OA': [
-      { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! Data của bạn sắp hết. Nạp thêm ngay tại app.' },
-      { segmentName: 'Nguy cơ rời mạng', body: 'Chào {{ten_kh}}! Chúng tôi có gói ưu đãi đặc biệt dành riêng cho bạn — đừng bỏ lỡ!' },
-      { segmentName: 'Gen Z User', body: 'Hey {{ten_kh}}! Data gần hết rồi, có deal xịn đang chờ bạn 👀' },
+      { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! SIM của bạn đã kích hoạt thành công. Xem các gói cước phù hợp tại app.' },
+      { segmentName: 'Nguy cơ rời mạng', body: 'Chào {{ten_kh}}! Chúng tôi có ưu đãi đặc biệt dành riêng cho bạn ngay hôm nay!' },
+      { segmentName: 'Gen Z User', body: 'Hey {{ten_kh}}! SIM mới kích hoạt rồi — có deal xịn đang chờ bạn 🔥' },
     ],
     SMS: [
-      { segmentName: 'Tất cả (dự phòng)', body: 'DATA SAP HET: {{ten_kh}} con 10% data. Nap them tai *100# hoac app.' },
+      { segmentName: 'Tất cả (dự phòng)', body: 'Chao mung {{ten_kh}} da kich hoat SIM. Xem goi cuoc tai *100# hoac tai app.' },
     ],
     Banner: [
-      { segmentName: 'Tất cả (dự phòng)', title: 'Data sắp hết', body: 'Nạp thêm ngay!' },
+      { segmentName: 'Tất cả (dự phòng)', title: 'Chào mừng!', body: 'SIM đã kích hoạt — khám phá ưu đãi ngay.' },
     ],
     Email: [
-      { segmentName: 'Tất cả (dự phòng)', title: 'Thông báo: Data của bạn sắp hết', body: 'Kính gửi {{ten_kh}}, tài khoản data của bạn chỉ còn 10%.' },
+      { segmentName: 'Tất cả (dự phòng)', title: 'Chào mừng bạn đến với mạng VietnamPost', body: 'Kính gửi {{ten_kh}}, SIM của bạn đã được kích hoạt thành công.' },
       { segmentName: 'Nguy cơ rời mạng', title: 'Ưu đãi đặc biệt — chỉ dành cho bạn', body: 'Kính gửi {{ten_kh}}, chúng tôi có gói ưu đãi giữ chân dành riêng.' },
     ],
     USSD: [
-      { segmentName: 'Tất cả (dự phòng)', body: 'DATA SAP HET. Bam 1 de nap them. Bam 2 de xem goi cuoc.' },
+      { segmentName: 'Tất cả (dự phòng)', body: 'SIM DA KICH HOAT. Bam 1 xem goi cuoc. Bam 2 nap tien.' },
     ],
   },
-  EVT_ROAM_START: {
+  NO_APP_INSTALL_24H: {
     Push: [
-      { segmentName: 'Tất cả (dự phòng)', title: 'Bạn đang roaming', body: 'Kích hoạt gói roaming ngay để tiết kiệm chi phí.' },
-      { segmentName: 'Nguy cơ rời mạng', title: 'Ưu đãi roaming cho bạn', body: 'Tặng thêm 20% data roaming — áp dụng ngay hôm nay!' },
+      { segmentName: 'Tất cả (dự phòng)', title: 'Bạn chưa cài app!', body: 'Cài MyVNPost để quản lý tài khoản, nạp tiền và xem cước dễ dàng hơn.' },
+      { segmentName: 'Gen Z User', title: 'App xịn lắm đó!', body: 'MyVNPost có giao diện mới — tải ngay, dùng thử miễn phí tháng đầu!' },
     ],
     'Zalo OA': [
-      { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! Bạn đang ở nước ngoài. Kích hoạt gói roaming để dùng data giá tốt hơn.' },
-      { segmentName: 'Nguy cơ rời mạng', body: 'Chào {{ten_kh}}! Ưu đãi roaming đặc biệt — tiết kiệm 30% cước quốc tế.' },
+      { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! Bạn chưa cài ứng dụng MyVNPost. Tải ngay để tiện quản lý tài khoản.' },
+      { segmentName: 'Gen Z User', body: 'Hey {{ten_kh}}! App mới của bọn mình xịn lắm, tải về dùng thử đi nào 📱' },
     ],
     SMS: [
-      { segmentName: 'Tất cả (dự phòng)', body: 'ROAMING: {{ten_kh}} dang o nuoc ngoai. Kich hoat goi roaming tai *100# de tiet kiem.' },
+      { segmentName: 'Tất cả (dự phòng)', body: 'Tai app MyVNPost de quan ly tai khoan de dang hon. Link: vnpost.vn/app' },
     ],
     Banner: [
-      { segmentName: 'Tất cả (dự phòng)', title: 'Đang roaming', body: 'Kích hoạt gói ngay!' },
+      { segmentName: 'Tất cả (dự phòng)', title: 'Tải app ngay', body: 'Quản lý tài khoản dễ dàng hơn.' },
     ],
     Email: [
-      { segmentName: 'Tất cả (dự phòng)', title: 'Thông báo roaming quốc tế', body: 'Kính gửi {{ten_kh}}, chúng tôi nhận thấy bạn đang sử dụng dịch vụ tại nước ngoài.' },
+      { segmentName: 'Tất cả (dự phòng)', title: 'Bạn chưa cài ứng dụng MyVNPost', body: 'Kính gửi {{ten_kh}}, hãy tải ứng dụng để quản lý tài khoản thuận tiện hơn.' },
     ],
     USSD: [
-      { segmentName: 'Tất cả (dự phòng)', body: 'ROAMING QUOC TE. Bam 1 kich hoat goi. Bam 2 xem cuoc phi.' },
+      { segmentName: 'Tất cả (dự phòng)', body: 'TAI APP MYVNPOST. Bam 1 nhan link tai. Bam 2 de sau.' },
     ],
   },
 }
