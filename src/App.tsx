@@ -15,6 +15,8 @@ import { Customer360 } from './pages/Customer360'
 import { Report } from './pages/Report'
 import { AdminScreen } from './pages/AdminScreen'
 import { Settings } from './pages/Settings'
+import { Error403 } from './pages/Error403'
+import { Error401 } from './pages/Error401'
 
 export default function App() {
   return (
@@ -41,6 +43,8 @@ export default function App() {
             <Route path="admin" element={<AdminScreen />} />
             <Route path="settings" element={<Settings />} />
           </Route>
+          <Route path="/403" element={<Error403 />} />
+          <Route path="/401" element={<Error401 />} />
         </Routes>
       </ToastProvider>
       </RoleProvider>
