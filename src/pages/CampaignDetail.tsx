@@ -11,56 +11,87 @@ import type { ChannelType, CampaignStatus } from '../types'
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
 
+type SendTime =
+  | { type: 'immediate' }
+  | { type: 'delay'; value: number; unit: 'phút' | 'giờ' | 'ngày' }
+  | { type: 'scheduled'; time: string; dayOffset: number }
+
+type ChannelSchedule = {
+  sendTime: SendTime
+  blackout: { enabled: boolean; from: string; to: string; action: string }
+}
+
 type ScheduleConfig = {
   perChannel: boolean
-  common: { blackout: { enabled: boolean; from: string; to: string; action: string } }
-  channels: Record<string, { blackout: { enabled: boolean; from: string; to: string; action: string } }>
+  common: ChannelSchedule
+  channels: Record<string, ChannelSchedule>
+}
+
+function formatSendTime(s: SendTime): string {
+  if (s.type === 'immediate') return 'Gửi ngay sau khi trigger kích hoạt'
+  if (s.type === 'delay') return `Sau ${s.value} ${s.unit} kể từ T`
+  return `Vào lúc ${s.time} ngày T+${s.dayOffset}`
 }
 
 const MOCK_SCHEDULES: Record<string, ScheduleConfig> = {
   // Lịch chung, blackout bật
   '1': {
     perChannel: false,
-    common: { blackout: { enabled: true, from: '22:00', to: '08:00', action: 'Hủy luôn' } },
+    common: {
+      sendTime: { type: 'immediate' },
+      blackout: { enabled: true, from: '22:00', to: '08:00', action: 'Hủy luôn' },
+    },
     channels: {},
   },
   // Lịch chung, không blackout
   '2': {
     perChannel: false,
-    common: { blackout: { enabled: false, from: '', to: '', action: '' } },
+    common: {
+      sendTime: { type: 'scheduled', time: '09:00', dayOffset: 1 },
+      blackout: { enabled: false, from: '', to: '', action: '' },
+    },
     channels: {},
   },
-  // Lịch riêng per kênh, mỗi kênh blackout khác nhau
+  // Lịch riêng per kênh, mỗi kênh sendTime + blackout khác nhau
   '3': {
     perChannel: true,
-    common: { blackout: { enabled: false, from: '', to: '', action: '' } },
+    common: {
+      sendTime: { type: 'immediate' },
+      blackout: { enabled: false, from: '', to: '', action: '' },
+    },
     channels: {
-      Push:      { blackout: { enabled: true,  from: '22:00', to: '08:00', action: 'Hủy luôn' } },
-      'Zalo OA': { blackout: { enabled: false, from: '',      to: '',      action: '' } },
-      SMS:       { blackout: { enabled: true,  from: '21:00', to: '07:00', action: 'Hoãn đến đầu khung giờ' } },
-      Banner:    { blackout: { enabled: false, from: '',      to: '',      action: '' } },
-      Email:     { blackout: { enabled: false, from: '',      to: '',      action: '' } },
-      USSD:      { blackout: { enabled: true,  from: '22:00', to: '06:00', action: 'Hủy luôn' } },
+      Push:      { sendTime: { type: 'immediate' },                              blackout: { enabled: true,  from: '11:00', to: '08:00', action: 'Hủy luôn' } },
+      'Zalo OA': { sendTime: { type: 'delay', value: 35, unit: 'phút' },        blackout: { enabled: true,  from: '02:00', to: '08:00', action: 'Hủy luôn' } },
+      SMS:       { sendTime: { type: 'delay', value: 2, unit: 'giờ' },          blackout: { enabled: true,  from: '21:00', to: '07:00', action: 'Hoãn đến đầu khung giờ' } },
+      Banner:    { sendTime: { type: 'immediate' },                              blackout: { enabled: false, from: '',      to: '',      action: '' } },
+      Email:     { sendTime: { type: 'scheduled', time: '08:00', dayOffset: 1 },blackout: { enabled: false, from: '',      to: '',      action: '' } },
+      USSD:      { sendTime: { type: 'delay', value: 1, unit: 'ngày' },         blackout: { enabled: true,  from: '22:00', to: '06:00', action: 'Hủy luôn' } },
     },
   },
   // Lịch riêng per kênh, tất cả blackout bật
   '4': {
     perChannel: true,
-    common: { blackout: { enabled: false, from: '', to: '', action: '' } },
+    common: {
+      sendTime: { type: 'immediate' },
+      blackout: { enabled: false, from: '', to: '', action: '' },
+    },
     channels: {
-      Push:      { blackout: { enabled: true, from: '23:00', to: '07:00', action: 'Hoãn đến đầu khung giờ' } },
-      'Zalo OA': { blackout: { enabled: true, from: '22:00', to: '08:00', action: 'Hủy luôn' } },
-      SMS:       { blackout: { enabled: true, from: '21:00', to: '07:00', action: 'Hủy luôn' } },
-      Banner:    { blackout: { enabled: true, from: '22:00', to: '08:00', action: 'Hoãn đến đầu khung giờ' } },
-      Email:     { blackout: { enabled: true, from: '20:00', to: '06:00', action: 'Hủy luôn' } },
-      USSD:      { blackout: { enabled: true, from: '22:00', to: '06:00', action: 'Hủy luôn' } },
+      Push:      { sendTime: { type: 'immediate' },                               blackout: { enabled: true, from: '23:00', to: '07:00', action: 'Hoãn đến đầu khung giờ' } },
+      'Zalo OA': { sendTime: { type: 'delay', value: 30, unit: 'phút' },         blackout: { enabled: true, from: '22:00', to: '08:00', action: 'Hủy luôn' } },
+      SMS:       { sendTime: { type: 'scheduled', time: '10:00', dayOffset: 0 }, blackout: { enabled: true, from: '21:00', to: '07:00', action: 'Hủy luôn' } },
+      Banner:    { sendTime: { type: 'immediate' },                               blackout: { enabled: true, from: '22:00', to: '08:00', action: 'Hoãn đến đầu khung giờ' } },
+      Email:     { sendTime: { type: 'scheduled', time: '08:30', dayOffset: 1 }, blackout: { enabled: true, from: '20:00', to: '06:00', action: 'Hủy luôn' } },
+      USSD:      { sendTime: { type: 'delay', value: 1, unit: 'ngày' },          blackout: { enabled: true, from: '22:00', to: '06:00', action: 'Hủy luôn' } },
     },
   },
 }
 
 const DEFAULT_SCHEDULE: ScheduleConfig = {
   perChannel: false,
-  common: { blackout: { enabled: false, from: '', to: '', action: '' } },
+  common: {
+    sendTime: { type: 'immediate' },
+    blackout: { enabled: false, from: '', to: '', action: '' },
+  },
   channels: {},
 }
 
@@ -339,19 +370,26 @@ export function CampaignDetail() {
                 <span className="font-medium text-slate-700">{schedule.perChannel ? 'Có — lịch riêng per kênh' : 'Không — tất cả theo thời gian gửi message'}</span>
               </div>
               {!schedule.perChannel ? (
-                <div className="flex gap-2 text-sm">
-                  <span className="text-slate-500 w-40 flex-shrink-0">Blackout chung:</span>
-                  <span className="font-medium text-slate-700">
-                    {schedule.common.blackout.enabled
-                      ? `Bật · ${schedule.common.blackout.from} – ${schedule.common.blackout.to} · ${schedule.common.blackout.action}`
-                      : 'Tắt'}
-                  </span>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex gap-2">
+                    <span className="text-slate-500 w-40 flex-shrink-0">Thời gian gửi:</span>
+                    <span className="font-medium text-slate-700">{formatSendTime(schedule.common.sendTime)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-slate-500 w-40 flex-shrink-0">Blackout chung:</span>
+                    <span className="font-medium text-slate-700">
+                      {schedule.common.blackout.enabled
+                        ? `Bật · ${schedule.common.blackout.from} – ${schedule.common.blackout.to} · ${schedule.common.blackout.action}`
+                        : 'Tắt'}
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <table className="w-full text-sm border border-slate-100 rounded-lg overflow-hidden">
                   <thead className="bg-slate-50">
                     <tr className="text-xs text-slate-500">
                       <th className="text-left px-3 py-2 font-medium">Kênh</th>
+                      <th className="text-left px-3 py-2 font-medium">Thời gian gửi</th>
                       <th className="text-left px-3 py-2 font-medium">Blackout</th>
                     </tr>
                   </thead>
@@ -361,7 +399,8 @@ export function CampaignDetail() {
                       if (!s) return null
                       return (
                         <tr key={ch} className="text-slate-700">
-                          <td className="px-3 py-2 font-medium">{ch}</td>
+                          <td className="px-3 py-2 font-medium w-24">{ch}</td>
+                          <td className="px-3 py-2 text-slate-600">{formatSendTime(s.sendTime)}</td>
                           <td className="px-3 py-2">
                             {s.blackout.enabled
                               ? `Bật · ${s.blackout.from} – ${s.blackout.to} · ${s.blackout.action}`
