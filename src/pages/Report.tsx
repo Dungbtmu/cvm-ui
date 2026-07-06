@@ -42,17 +42,17 @@ const channelPerf = [
   { ch: 'Email',   open: 21,   ctr: 9,   conv: 4 },
 ]
 
-const campaignStats: Record<string, { sent: number; delivered: number; open: number; conv: number; cost: number }> = {
-  'Welcome eSIM Q2/2026':             { sent: 20600, delivered: 19400, open: 42.1, conv: 8.3,  cost: 240000 },
-  'Nhắc nạp tiền':                    { sent: 32100, delivered: 30980, open: 38.4, conv: 9.1,  cost: 480000 },
-  'Hết hạn gói data':                 { sent: 28400, delivered: 27100, open: 35.2, conv: 7.8,  cost: 360000 },
-  'Chào mừng du lịch':               { sent: 15200, delivered: 14600, open: 31.0, conv: 5.4,  cost: 180000 },
-  'Giữ chân KH có nguy cơ rời mạng': { sent: 24800, delivered: 23900, open: 29.6, conv: 6.2,  cost: 720000 },
-  'Tết Nguyên Đán 2026':             { sent: 41000, delivered: 39500, open: 44.8, conv: 10.2, cost: 620000 },
-  'Ưu đãi gói data sinh viên':       { sent: 18500, delivered: 17800, open: 36.7, conv: 7.1,  cost: 210000 },
-  'Nhắc gia hạn gói cước tháng 6':   { sent: 22300, delivered: 21400, open: 33.5, conv: 8.0,  cost: 310000 },
-  'Khuyến mãi nạp tiền đầu tháng':   { sent: 19800, delivered: 18900, open: 30.2, conv: 6.8,  cost: 290000 },
-  'Cài app nhận quà':                 { sent: 16700, delivered: 16100, open: 28.4, conv: 5.9,  cost: 0 },
+const campaignStats: Record<string, { sent: number; delivered: number; open: number; conv: number }> = {
+  'Welcome eSIM Q2/2026':             { sent: 20600, delivered: 19400, open: 42.1, conv: 8.3 },
+  'Nhắc nạp tiền':                    { sent: 32100, delivered: 30980, open: 38.4, conv: 9.1 },
+  'Hết hạn gói data':                 { sent: 28400, delivered: 27100, open: 35.2, conv: 7.8 },
+  'Chào mừng du lịch':               { sent: 15200, delivered: 14600, open: 31.0, conv: 5.4 },
+  'Giữ chân KH có nguy cơ rời mạng': { sent: 24800, delivered: 23900, open: 29.6, conv: 6.2 },
+  'Tết Nguyên Đán 2026':             { sent: 41000, delivered: 39500, open: 44.8, conv: 10.2 },
+  'Ưu đãi gói data sinh viên':       { sent: 18500, delivered: 17800, open: 36.7, conv: 7.1 },
+  'Nhắc gia hạn gói cước tháng 6':   { sent: 22300, delivered: 21400, open: 33.5, conv: 8.0 },
+  'Khuyến mãi nạp tiền đầu tháng':   { sent: 19800, delivered: 18900, open: 30.2, conv: 6.8 },
+  'Cài app nhận quà':                 { sent: 16700, delivered: 16100, open: 28.4, conv: 5.9 },
 }
 
 const funnelSteps = [
@@ -530,7 +530,6 @@ export function Report() {
                       <th className="text-right pb-2 font-medium">Đã tới đích</th>
                       <th className="text-right pb-2 font-medium">Tỉ lệ mở</th>
                       <th className="text-right pb-2 font-medium">Chuyển đổi</th>
-                      <th className="text-right pb-2 font-medium">Chi phí SMS</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -543,7 +542,6 @@ export function Report() {
                         <td className="py-2 text-right">{formatNumber(c.delivered)}</td>
                         <td className="py-2 text-right text-blue-600">{c.open}%</td>
                         <td className="py-2 text-right text-green-600">{c.conv}%</td>
-                        <td className="py-2 text-right text-slate-500">{formatNumber(c.cost)} VND</td>
                       </tr>
                     ))}
                   </tbody>
@@ -669,7 +667,7 @@ export function Report() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip formatter={(v: number) => `${v}%`} />
+                <Tooltip formatter={(v) => `${v}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <ReferenceLine y={3} stroke="#f97316" strokeDasharray="4 4" label={{ value: 'Cảnh báo 3%', position: 'insideTopRight', fontSize: 10, fill: '#f97316' }} />
                 <ReferenceLine y={5} stroke="#ef4444" strokeDasharray="4 4" label={{ value: 'Nguy hiểm 5%', position: 'insideTopRight', fontSize: 10, fill: '#ef4444' }} />
