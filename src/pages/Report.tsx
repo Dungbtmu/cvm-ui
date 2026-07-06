@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  PieChart, Pie, Cell
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts'
 import { Download } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -115,13 +114,13 @@ const segmentData = [
 ]
 
 const optOutData = [
-  { day: '07', optout: 210, bl: 80 },
-  { day: '08', optout: 240, bl: 90 },
-  { day: '09', optout: 280, bl: 100 },
-  { day: '10', optout: 320, bl: 110 },
-  { day: '11', optout: 420, bl: 130 },
-  { day: '12', optout: 380, bl: 120 },
-  { day: '13', optout: 310, bl: 105 },
+  { day: '07', delivered: 42000, optout: 210, bl: 80, optoutRate: 0.5, blRate: 0.19 },
+  { day: '08', delivered: 43500, optout: 240, bl: 90, optoutRate: 0.55, blRate: 0.21 },
+  { day: '09', delivered: 44800, optout: 280, bl: 100, optoutRate: 0.63, blRate: 0.22 },
+  { day: '10', delivered: 45200, optout: 320, bl: 110, optoutRate: 0.71, blRate: 0.24 },
+  { day: '11', delivered: 46100, optout: 2350, bl: 2400, optoutRate: 5.1, blRate: 5.2 },
+  { day: '12', delivered: 45900, optout: 1930, bl: 1560, optoutRate: 4.2, blRate: 3.4 },
+  { day: '13', delivered: 45300, optout: 310, bl: 105, optoutRate: 0.68, blRate: 0.23 },
 ]
 
 const freqDist = [
@@ -602,43 +601,6 @@ export function Report() {
               </BarChart>
             </ResponsiveContainer>
           </Card>
-          <Card>
-            <div className="text-sm font-semibold text-slate-700 mb-3">Phân bổ thiết bị — dựa trên push token</div>
-            {(() => {
-              const data = [
-                { label: 'Android', pct: 62, color: '#22c55e' },
-                { label: 'iOS',     pct: 28, color: '#3b82f6' },
-                { label: 'Khác',   pct: 10, color: '#cbd5e1' },
-              ]
-              return (
-                <div className="flex items-center gap-6">
-                  <div className="relative flex-shrink-0">
-                    <ResponsiveContainer width={140} height={140}>
-                      <PieChart>
-                        <Pie data={data} dataKey="pct" innerRadius={42} outerRadius={62} startAngle={90} endAngle={-270} paddingAngle={2} stroke="none">
-                          {data.map(d => <Cell key={d.label} fill={d.color} />)}
-                        </Pie>
-                        <Tooltip formatter={(v) => `${v}%`} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-lg font-bold text-slate-700">100%</span>
-                      <span className="text-[10px] text-slate-400">tổng</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2.5 flex-1">
-                    {data.map(d => (
-                      <div key={d.label} className="flex items-center gap-2 text-sm">
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                        <span className="text-slate-600 flex-1">{d.label}</span>
-                        <span className="font-medium text-slate-700">{d.pct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })()}
-          </Card>
         </div>
       )}
 
@@ -698,76 +660,57 @@ export function Report() {
       {activeTab === 5 && (
         <div className="space-y-4">
           <Card>
-            <div className="text-sm font-semibold text-slate-700 mb-1">Xu hướng opt-out & bị chặn theo ngày</div>
-            <div className="text-xs text-slate-400 mb-3">Tỉ lệ opt-out = Số KH opt-out / Đã tới đích × 100%</div>
-            <ResponsiveContainer width="100%" height={200}>
+            <div className="text-sm font-semibold text-slate-700 mb-1">Xu hướng tỉ lệ opt-out & Blacklist mới theo ngày</div>
+            <div className="text-xs text-slate-400 mb-3">
+              Tỉ lệ opt-out = Số KH opt-out / Đã tới đích × 100% · Ngưỡng: &lt; 3% bình thường, 3–4,9% cảnh báo, ≥ 5% nguy hiểm
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
               <LineChart data={optOutData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
+                <YAxis tick={{ fontSize: 11 }} unit="%" />
+                <Tooltip formatter={(v: number) => `${v}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="optout" name="Opt-out" stroke="#ef4444" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="bl" name="Bị chặn Blacklist mới" stroke="#f97316" strokeWidth={2} dot={false} />
+                <ReferenceLine y={3} stroke="#f97316" strokeDasharray="4 4" label={{ value: 'Cảnh báo 3%', position: 'insideTopRight', fontSize: 10, fill: '#f97316' }} />
+                <ReferenceLine y={5} stroke="#ef4444" strokeDasharray="4 4" label={{ value: 'Nguy hiểm 5%', position: 'insideTopRight', fontSize: 10, fill: '#ef4444' }} />
+                <Line type="monotone" dataKey="optoutRate" name="Opt-out Rate" stroke="#ef4444" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="blRate" name="Blacklist mới Rate" stroke="#f97316" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
-            <div className="text-xs text-orange-600 mt-2 bg-orange-50 rounded px-2 py-1">
-              ↑ Spike ngày 11: cần điều tra — opt-out tăng 420 (+34% so với ngày trước)
+            <div className="text-xs text-red-600 mt-2 bg-red-50 rounded px-2 py-1">
+              ⚠ Ngày 11: Opt-out Rate 5,1% và Blacklist mới Rate 5,2% — vượt ngưỡng nguy hiểm, cần điều tra
             </div>
           </Card>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Card>
-              <div className="text-sm font-semibold text-slate-700 mb-1">Chỉ số tần suất</div>
-              <div className="text-xs text-slate-400 mb-3">TB tin/người = Tổng tin đã gửi / Số KH unique nhận tin</div>
-              <dl className="space-y-2 text-sm">
-                {[
-                  ['TB tin/người/ngày', '1.8'],
-                  ['TB tin/người/tuần', '4.2'],
-                  ['Tối đa tin/người/ngày', '5'],
-                  ['Người nhận > 3 tin', '8.4%'],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between">
-                    <dt className="text-slate-500">{k}</dt>
-                    <dd className="font-medium">{v}</dd>
+          <Card>
+            <div className="text-sm font-semibold text-slate-700 mb-1">Chỉ số tần suất</div>
+            <div className="text-xs text-slate-400 mb-3">TB tin/người = Tổng tin đã gửi / Số KH unique nhận tin</div>
+            <dl className="grid grid-cols-4 gap-4 text-sm mb-3">
+              {[
+                ['TB tin/người/ngày', '1.8'],
+                ['TB tin/người/tuần', '4.2'],
+                ['Tối đa tin/người/ngày', '5'],
+                ['Người nhận > 3 tin', '8.4%'],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-slate-500 text-xs">{k}</dt>
+                  <dd className="font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="space-y-1">
+              <div className="text-xs text-slate-500 font-medium">Phân phối số tin/người (trục x = số tin, trục y = số KH):</div>
+              {freqDist.map(f => (
+                <div key={f.label} className="flex items-center gap-2 text-xs">
+                  <span className="text-slate-500 w-12">{f.label}</span>
+                  <div className="flex-1 bg-slate-100 rounded h-3">
+                    <div className={`${f.color} h-3 rounded`} style={{ width: `${f.pct * 2}%` }} />
                   </div>
-                ))}
-              </dl>
-              <div className="mt-3 space-y-1">
-                <div className="text-xs text-slate-500 font-medium">Phân phối số tin/người (trục x = số tin, trục y = số KH):</div>
-                {freqDist.map(f => (
-                  <div key={f.label} className="flex items-center gap-2 text-xs">
-                    <span className="text-slate-500 w-12">{f.label}</span>
-                    <div className="flex-1 bg-slate-100 rounded h-3">
-                      <div className={`${f.color} h-3 rounded`} style={{ width: `${f.pct * 2}%` }} />
-                    </div>
-                    <span className="text-slate-500 w-8 text-right">{f.pct}%</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card>
-              <div className="text-sm font-semibold text-slate-700 mb-1">Điểm rủi ro spam (0–100)</div>
-              <div className="text-xs text-slate-400 mb-2">Opt-out (40%) + Blacklist mới (30%) + CTR giảm (30%)</div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-green-600 font-medium text-sm">● LOW RISK</span>
-                <span className="text-xs text-slate-500">(score 24/100)</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-4 mb-1">
-                <div className="bg-green-500 h-4 rounded-full transition-all" style={{ width: '24%' }} />
-              </div>
-              <div className="flex justify-between text-xs text-slate-400 mb-3">
-                <span>0</span>
-                <span>60 (cảnh báo)</span>
-                <span>100</span>
-              </div>
-              <dl className="space-y-1.5 text-xs text-slate-500">
-                <div>Cảnh báo khi điểm &gt; 60 → thanh gauge chuyển cam/đỏ</div>
-              </dl>
-              <button className="mt-3 text-xs text-blue-500 hover:text-blue-700">Xem chi tiết chỉ số →</button>
-            </Card>
-          </div>
+                  <span className="text-slate-500 w-8 text-right">{f.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       )}
     </div>

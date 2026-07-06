@@ -10,15 +10,17 @@ const TYPE_BADGE: Record<TriggerType, string> = {
   Offline: 'bg-slate-100 text-slate-600',
 }
 
+const TYPE_OPTIONS: TriggerType[] = ['Realtime', 'Near Realtime', 'Offline']
+
 export function TriggerManagement() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('Tất cả')
-  const [expandedGroups, setExpandedGroups] = useState<TriggerType[]>(['Realtime', 'Near Realtime', 'Offline'])
+  const [typeFilter, setTypeFilter] = useState<TriggerType[]>([])
   const [viewTarget, setViewTarget] = useState<Trigger | null>(null)
   const [copiedParam, setCopiedParam] = useState<string | null>(null)
 
-  const toggleGroup = (type: TriggerType) => {
-    setExpandedGroups(prev =>
+  const toggleTypeFilter = (type: TriggerType) => {
+    setTypeFilter(prev =>
       prev.includes(type) ? prev.filter(x => x !== type) : [...prev, type]
     )
   }
@@ -30,15 +32,14 @@ export function TriggerManagement() {
     setTimeout(() => setCopiedParam(null), 1800)
   }
 
-  const groups: TriggerType[] = ['Realtime', 'Near Realtime', 'Offline']
-
   const filtered = mockTriggers.filter(t => {
     const matchSearch =
       !search ||
       t.code.toLowerCase().includes(search.toLowerCase()) ||
       t.name.toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'Tất cả' || t.status === statusFilter
-    return matchSearch && matchStatus
+    const matchType = typeFilter.length === 0 || typeFilter.includes(t.type)
+    return matchSearch && matchStatus && matchType
   })
 
   return (
@@ -48,106 +49,110 @@ export function TriggerManagement() {
       </div>
 
       {/* Search + filter */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 flex items-center gap-3">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Tìm trigger code hoặc tên..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400"
-          />
+      <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Tìm trigger code hoặc tên..."
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none"
+          >
+            {['Tất cả', 'Active', 'Inactive'].map(s => <option key={s}>{s}</option>)}
+          </select>
         </div>
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none"
-        >
-          {['Tất cả', 'Active', 'Inactive'].map(s => <option key={s}>{s}</option>)}
-        </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-slate-400">Kiểu chạy:</span>
+          {TYPE_OPTIONS.map(type => (
+            <button
+              key={type}
+              onClick={() => toggleTypeFilter(type)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                typeFilter.includes(type)
+                  ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium'
+                  : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+          {typeFilter.length > 0 && (
+            <button
+              onClick={() => setTypeFilter([])}
+              className="text-xs text-blue-600 hover:underline ml-1"
+            >
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Groups */}
-      <div className="space-y-4">
-        {groups.map(group => {
-          const groupTriggers = filtered.filter(t => t.type === group)
-          if (groupTriggers.length === 0 && search) return null
-          const expanded = search ? true : expandedGroups.includes(group)
-
-          return (
-            <div key={group} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-              <button
-                onClick={() => !search && toggleGroup(group)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 hover:bg-slate-100 transition-colors"
+      {/* Bảng trigger */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="border-b border-slate-100">
+            <tr className="text-xs text-slate-500">
+              <th className="text-left px-4 py-2 font-medium">Code</th>
+              <th className="text-left px-4 py-2 font-medium">Tên</th>
+              <th className="text-left px-4 py-2 font-medium">Kiểu chạy</th>
+              <th className="text-left px-4 py-2 font-medium">Nguồn sự kiện</th>
+              <th className="text-left px-4 py-2 font-medium">Trạng thái</th>
+              <th className="text-right px-4 py-2 font-medium">Hành động</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {filtered.map(t => (
+              <tr
+                key={t.id}
+                className={`hover:bg-slate-50 ${t.status === 'Inactive' ? 'opacity-60' : ''}`}
               >
-                <span className="text-sm font-semibold text-slate-700">
-                  {expanded ? '▼' : '▶'} {group.toUpperCase()}
-                  <span className="ml-2 text-xs font-normal text-slate-500">({groupTriggers.length} trigger)</span>
-                </span>
-              </button>
-
-              {expanded && (
-                <table className="w-full text-sm">
-                  <thead className="border-b border-slate-100">
-                    <tr className="text-xs text-slate-500">
-                      <th className="text-left px-4 py-2 font-medium">Code</th>
-                      <th className="text-left px-4 py-2 font-medium">Tên</th>
-                      <th className="text-left px-4 py-2 font-medium">Source</th>
-                      <th className="text-left px-4 py-2 font-medium">Trạng thái</th>
-                      <th className="text-right px-4 py-2 font-medium">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {groupTriggers.map(t => (
-                      <tr
-                        key={t.id}
-                        className={`hover:bg-slate-50 ${t.status === 'Inactive' ? 'opacity-60' : ''}`}
-                      >
-                        <td className="px-4 py-2.5">
-                          <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${search && t.code.toLowerCase().includes(search.toLowerCase()) ? 'bg-yellow-100 text-yellow-800' : 'bg-amber-50 text-amber-700'}`}>
-                            {t.code}
-                          </span>
-                        </td>
-                        <td className={`px-4 py-2.5 text-slate-700 ${search && t.name.toLowerCase().includes(search.toLowerCase()) ? 'bg-yellow-50' : ''}`}>
-                          {t.name}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-500 text-xs">{t.source}</td>
-                        <td className="px-4 py-2.5">
-                          {t.status === 'Active' ? (
-                            <span className="text-xs font-medium text-green-600">● Active</span>
-                          ) : (
-                            <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <button
-                            onClick={() => setViewTarget(t)}
-                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                          >
-                            Xem
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {groupTriggers.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-4 text-sm text-slate-400 text-center">
-                          Không có trigger
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )
-        })}
-
-        {filtered.length === 0 && (
-          <div className="bg-white border border-slate-200 rounded-lg px-4 py-8 text-center text-slate-400 text-sm">
-            Không tìm thấy trigger nào
-          </div>
-        )}
+                <td className="px-4 py-2.5">
+                  <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${search && t.code.toLowerCase().includes(search.toLowerCase()) ? 'bg-yellow-100 text-yellow-800' : 'bg-amber-50 text-amber-700'}`}>
+                    {t.code}
+                  </span>
+                </td>
+                <td className={`px-4 py-2.5 text-slate-700 ${search && t.name.toLowerCase().includes(search.toLowerCase()) ? 'bg-yellow-50' : ''}`}>
+                  {t.name}
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_BADGE[t.type]}`}>
+                    {t.type}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-slate-500 text-xs">{t.source}</td>
+                <td className="px-4 py-2.5">
+                  {t.status === 'Active' ? (
+                    <span className="text-xs font-medium text-green-600">● Active</span>
+                  ) : (
+                    <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <button
+                    onClick={() => setViewTarget(t)}
+                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                  >
+                    Xem
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-sm text-slate-400 text-center">
+                  Không tìm thấy trigger nào
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Modal xem chi tiết */}
