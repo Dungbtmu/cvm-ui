@@ -10,6 +10,11 @@ import type { ChannelType, CampaignStatus } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
+const SEGMENT_FILTERS: { segment: string; conditions: string[] }[] = [
+  { segment: 'ARPU cao', conditions: ['Loại thiết bị = Android', 'Gói cước = D200'] },
+  { segment: 'Gen Z User', conditions: ['Trạng thái SIM ≠ Tạm khóa', 'Số ngày không giao dịch > 14'] },
+]
+
 
 type SendTime =
   | { type: 'immediate' }
@@ -282,7 +287,17 @@ export function CampaignDetail() {
           <dl className="text-sm space-y-1.5 text-slate-600">
             <div className="flex gap-2"><dt className="text-slate-500 w-32">Phân khúc:</dt><dd>Gen Z User (18–25) · Sắp hết data</dd></div>
             <div className="flex gap-2"><dt className="text-slate-500 w-32">Logic:</dt><dd>Bất kỳ phân khúc nào (OR)</dd></div>
-            <div className="flex gap-2"><dt className="text-slate-500 w-32">Điều kiện lọc:</dt><dd>Loại thiết bị = Android</dd></div>
+            <div className="flex gap-2 items-start">
+              <dt className="text-slate-500 w-32 pt-0.5">Điều kiện lọc:</dt>
+              <dd className="flex-1 space-y-1">
+                {SEGMENT_FILTERS.map(sf => (
+                  <div key={sf.segment}>
+                    <span className="font-medium text-slate-700">[{sf.segment}]</span>{' '}
+                    <span>{sf.conditions.join(' • ')}</span>
+                  </div>
+                ))}
+              </dd>
+            </div>
             <div className="flex gap-2">
               <dt className="text-slate-500 w-32">Reach ước tính:</dt>
               <dd className="font-semibold text-blue-600">~6,800 KH</dd>

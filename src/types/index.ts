@@ -18,6 +18,7 @@ export interface Campaign {
   createdAt: string
   submittedAt?: string
   goal?: string
+  paramInvalid?: { triggerName: string; paramName: string }
 }
 
 export interface Trigger {

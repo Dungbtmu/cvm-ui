@@ -427,7 +427,16 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
 }
 
 // ── SegmentCard: hiển thị phân khúc + nhiều điều kiện lọc ──
-const FILTER_FIELDS = ['Loại thiết bị', 'ARPU', 'Gói cước', 'Trạng thái SIM', 'Số ngày không GD']
+// Thuộc tính điều kiện lọc con — riêng theo từng trigger (nguồn: trigger-sub-conditions.md)
+const TRIGGER_FILTER_FIELDS: Record<string, string[]> = {
+  SIM_ACTIVATED: ['Loại SIM', 'Gói cước hiện tại', 'Phân khúc tuổi', 'Nguồn kích hoạt'],
+  LOC_TRAVEL_PROV: ['Tỉnh/thành hiện tại', 'Loại thiết bị', 'Gói cước hiện tại'],
+  NO_APP_INSTALL_24H: ['Loại SIM', 'Phân khúc tuổi', 'Loại thiết bị'],
+  LOW_DATA_BALANCE: ['% data ngày đã dùng', 'Gói cước', 'Loại quota data', 'Số ngày còn lại chu kỳ'],
+  USAGE_DROP_40PCT: ['Data bình quân tháng', 'Gói hiện tại', 'Chu kỳ gói'],
+  SIM_NO_TXN_30D: ['Trạng thái thuê bao', 'Số ngày không giao dịch', 'Gói đăng ký gần nhất', 'Số dư tài khoản'],
+}
+const DEFAULT_FILTER_FIELDS = ['Loại thiết bị', 'ARPU', 'Gói cước', 'Trạng thái SIM', 'Số ngày không GD']
 const FILTER_OPS = ['=', '≠', '>', '<', '>=', '<=']
 const FILTER_VALUES: Record<string, string[]> = {
   'Loại thiết bị': ['Android', 'iOS', 'Khác'],
@@ -435,19 +444,36 @@ const FILTER_VALUES: Record<string, string[]> = {
   'Gói cước': ['D50', 'D100', 'D200', 'Không có gói'],
   'Trạng thái SIM': ['Active', 'Inactive', 'Tạm khóa'],
   'Số ngày không GD': ['7', '14', '30', '60', '90'],
+  'Loại SIM': ['SIM vật lý', 'eSIM'],
+  'Gói cước hiện tại': ['D50', 'D100', 'D200', 'Không có gói'],
+  'Phân khúc tuổi': ['15-18', '19-24', '25-34', '35-49', '50+'],
+  'Nguồn kích hoạt': ['Đại lý', 'Online', 'eSIM'],
+  'Tỉnh/thành hiện tại': ['Hà Nội', 'TP.HCM', 'Đà Nẵng', 'Khác'],
+  '% data ngày đã dùng': ['≥ 80%', '≥ 90%', '= 100%'],
+  'Loại quota data': ['Theo ngày', 'Theo tháng'],
+  'Số ngày còn lại chu kỳ': ['1', '3', '7', '15'],
+  'Data bình quân tháng': ['< 5GB', '5–20GB', '> 20GB'],
+  'Gói hiện tại': ['D50', 'D100', 'D200', 'Không có gói'],
+  'Chu kỳ gói': ['Theo ngày', 'Theo tuần', 'Theo tháng'],
+  'Trạng thái thuê bao': ['Active', 'Inactive', 'Tạm khóa'],
+  'Số ngày không giao dịch': ['7', '14', '30', '60', '90'],
+  'Gói đăng ký gần nhất': ['D50', 'D100', 'D200', 'Không có gói'],
+  'Số dư tài khoản': ['< 10.000đ', '10.000–50.000đ', '> 50.000đ'],
 }
 
 interface SegmentCardProps {
   seg: SegmentEntry
   onChange: (updated: SegmentEntry) => void
   onRemove: () => void
+  availableFields: string[]
 }
 
-function SegmentCard({ seg, onChange, onRemove }: SegmentCardProps) {
+function SegmentCard({ seg, onChange, onRemove, availableFields }: SegmentCardProps) {
   const filters = seg.filters ?? []
+  const noTriggerSelected = availableFields.length === 0
 
   const addFilter = () => {
-    onChange({ ...seg, filters: [...filters, { field: 'Loại thiết bị', op: '=', value: 'Android' }], filterExpanded: true })
+    onChange({ ...seg, filters: [...filters, { field: availableFields[0], op: '=', value: FILTER_VALUES[availableFields[0]]?.[0] ?? '' }], filterExpanded: true })
   }
 
   const updateFilter = (i: number, patch: Partial<FilterCondition>) => {
@@ -510,20 +536,24 @@ function SegmentCard({ seg, onChange, onRemove }: SegmentCardProps) {
                 </span>
               ))}
             </div>
+          ) : noTriggerSelected ? (
+            <span className="text-slate-400 italic">Chọn trigger ở mục 2 để xem điều kiện lọc khả dụng</span>
           ) : (
             <span className="text-slate-400">(chưa có)</span>
           )}
-          <button
-            onClick={() => onChange({ ...seg, filterExpanded: !seg.filterExpanded })}
-            className="text-blue-500 hover:text-blue-700 ml-1"
-          >
-            {seg.filterExpanded ? '▸ Thu gọn' : (filterSummary ? '▸ Sửa' : '+ Thêm lọc')}
-          </button>
+          {!noTriggerSelected && (
+            <button
+              onClick={() => onChange({ ...seg, filterExpanded: !seg.filterExpanded })}
+              className="text-blue-500 hover:text-blue-700 ml-1"
+            >
+              {seg.filterExpanded ? '▸ Thu gọn' : (filterSummary ? '▸ Sửa' : '+ Thêm lọc')}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Expanded filter editor */}
-      {seg.filterExpanded && (
+      {seg.filterExpanded && !noTriggerSelected && (
         <div className="border-t border-slate-100 bg-slate-50 p-3 space-y-2">
           {/* Filter rows */}
           {filters.map((f, i) => (
@@ -539,7 +569,7 @@ function SegmentCard({ seg, onChange, onRemove }: SegmentCardProps) {
                 onChange={e => updateFilter(i, { field: e.target.value })}
                 className="flex-1 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
               >
-                {FILTER_FIELDS.map(opt => <option key={opt}>{opt}</option>)}
+                {availableFields.map(opt => <option key={opt}>{opt}</option>)}
               </select>
 
               <select
@@ -1180,6 +1210,18 @@ export function CampaignBuilder() {
         </div>
       </div>
 
+      {/* Banner cảnh báo PARAM_INVALID */}
+      {existing?.paramInvalid && (
+        <div className="mt-6 -mb-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-start gap-2">
+          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+          <span>
+            Campaign đang có tham số không hợp lệ do trigger <strong>{existing.paramInvalid.triggerName}</strong> đã
+            thay đổi tham số <strong>{existing.paramInvalid.paramName}</strong> — vui lòng cập nhật nội dung message
+            trước khi gửi duyệt lại.
+          </span>
+        </div>
+      )}
+
       {/* 2-col body */}
       <div className="flex flex-1 overflow-hidden mt-6">
         {/* ─── LEFT ─── */}
@@ -1599,6 +1641,11 @@ export function CampaignBuilder() {
                     seg={seg}
                     onChange={updated => setSegments(prev => prev.map(x => x.id === seg.id ? updated : x))}
                     onRemove={() => setSegments(prev => prev.filter(x => x.id !== seg.id))}
+                    availableFields={
+                      selectedTriggers.length === 0
+                        ? []
+                        : Array.from(new Set(selectedTriggers.flatMap(t => TRIGGER_FILTER_FIELDS[t.code] ?? DEFAULT_FILTER_FIELDS)))
+                    }
                   />
                 ))}
               </div>

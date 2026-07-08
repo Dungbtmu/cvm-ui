@@ -41,6 +41,7 @@ export const mockCampaigns: Campaign[] = [
     priority: 3,
     owner: 'QTV Marketing',
     createdAt: '28/04/2026 11:00',
+    paramInvalid: { triggerName: 'PKG_EXPIRED', paramName: 'ten_goi' },
   },
   {
     id: '4',
