@@ -4,7 +4,7 @@ import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/Toast'
 import { mockTriggers } from '../data/mock'
-import type { Trigger, TriggerType, TriggerParam } from '../types'
+import type { Trigger, TriggerType, TriggerParam, TriggerFilterField, FilterFieldDataType } from '../types'
 
 const TYPE_BADGE: Record<TriggerType, string> = {
   Realtime: 'bg-green-100 text-green-700',
@@ -14,6 +14,227 @@ const TYPE_BADGE: Record<TriggerType, string> = {
 
 const SOURCE_OPTIONS = ['BSS', 'OCS', 'SuperApp'] as const
 const TYPE_OPTIONS: TriggerType[] = ['Realtime', 'Near Realtime', 'Offline']
+
+// Kiểu dữ liệu điều kiện lọc — đồng bộ danh mục gốc trigger-sub-conditions.md
+const DATA_TYPE_OPTIONS: { value: FilterFieldDataType; label: string }[] = [
+  { value: 'enum', label: 'Danh mục (enum)' },
+  { value: 'string', label: 'Chuỗi (string)' },
+  { value: 'integer', label: 'Số nguyên (integer)' },
+  { value: 'decimal', label: 'Số thập phân (decimal)' },
+  { value: 'float', label: 'Số thực (float)' },
+  { value: 'boolean', label: 'Đúng/Sai (boolean)' },
+  { value: 'date', label: 'Ngày (date)' },
+  { value: 'datetime', label: 'Ngày giờ (datetime)' },
+]
+const DATA_TYPE_LABEL: Record<FilterFieldDataType, string> = {
+  enum: 'enum', string: 'string', integer: 'integer', decimal: 'decimal',
+  float: 'float', boolean: 'boolean', date: 'date', datetime: 'datetime',
+}
+
+// Toán tử khai báo được cho mỗi điều kiện lọc — Admin tick những cái áp dụng.
+// Hiển thị nhãn tiếng Việt dễ hiểu, lưu vẫn là ký hiệu gốc (op) để khớp danh mục + dev đối chiếu.
+const OPERATOR_OPTIONS: { op: string; label: string }[] = [
+  { op: '=', label: 'Bằng' },
+  { op: '!=', label: 'Khác' },
+  { op: '>', label: 'Lớn hơn' },
+  { op: '<', label: 'Nhỏ hơn' },
+  { op: '>=', label: 'Lớn hơn hoặc bằng' },
+  { op: '<=', label: 'Nhỏ hơn hoặc bằng' },
+  { op: 'BETWEEN', label: 'Trong khoảng' },
+  { op: 'IN', label: 'Thuộc danh sách' },
+  { op: 'NOT IN', label: 'Không thuộc danh sách' },
+  { op: 'CONTAINS', label: 'Có chứa' },
+  { op: 'AFTER', label: 'Sau ngày' },
+  { op: 'BEFORE', label: 'Trước ngày' },
+  { op: 'IS NULL', label: 'Bỏ trống' },
+  { op: 'IS NOT NULL', label: 'Có giá trị' },
+]
+const OP_LABEL: Record<string, string> = Object.fromEntries(OPERATOR_OPTIONS.map(o => [o.op, o.label]))
+const opLabel = (op: string) => OP_LABEL[op] ?? op
+
+// Bản nháp form khai báo điều kiện lọc — dùng chung cho cả tạo mới lẫn xem/sửa
+// Admin chỉ nhập tên nghiệp vụ; techName (mã kỹ thuật để trao đổi với dev) hệ thống tự sinh.
+type FilterFieldDraft = {
+  name: string
+  dataType: FilterFieldDataType
+  operators: string[]
+  required: boolean
+  values: string   // enum: danh sách cách nhau bằng dấu phẩy
+}
+type FfErrors = { name?: string; operators?: string; values?: string }
+
+function emptyFfDraft(): FilterFieldDraft {
+  return { name: '', dataType: 'enum', operators: [], required: false, values: '' }
+}
+
+// slug tên nghiệp vụ → snake_case không dấu, làm techName tự sinh cho dev tham chiếu
+function slugTechName(name: string): string {
+  return name.trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    || 'field'
+}
+
+// validate + build 1 TriggerFilterField từ draft; `existing` để check trùng theo tên nghiệp vụ
+function validateFf(d: FilterFieldDraft, existing: TriggerFilterField[]): FfErrors {
+  const e: FfErrors = {}
+  if (!d.name.trim()) e.name = 'Bắt buộc'
+  else if (existing.some(f => f.name.trim().toLowerCase() === d.name.trim().toLowerCase())) e.name = 'Thuộc tính đã tồn tại'
+  if (d.operators.length === 0) e.operators = 'Chọn ít nhất 1 toán tử'
+  if (d.dataType === 'enum' && !d.values.trim()) e.values = 'Kiểu danh mục cần danh sách giá trị'
+  return e
+}
+function buildFf(d: FilterFieldDraft, existing: TriggerFilterField[]): TriggerFilterField {
+  // đảm bảo techName không trùng: thêm hậu tố _2, _3... nếu cần
+  let base = slugTechName(d.name)
+  let techName = base
+  let n = 2
+  while (existing.some(f => f.techName === techName)) techName = `${base}_${n++}`
+  return {
+    techName,
+    name: d.name.trim(),
+    dataType: d.dataType,
+    operators: d.operators,
+    required: d.required,
+    values: d.dataType === 'enum' ? d.values.split(',').map(v => v.trim()).filter(Boolean) : [],
+  }
+}
+
+// Form khai báo 1 điều kiện lọc — dùng chung cho modal Tạo mới và Xem/Sửa
+function FilterFieldForm({ draft, errors, onChange, onSave, onCancel }: {
+  draft: FilterFieldDraft
+  errors: FfErrors
+  onChange: (d: FilterFieldDraft) => void
+  onSave: () => void
+  onCancel: () => void
+}) {
+  const toggleOp = (op: string) =>
+    onChange({ ...draft, operators: draft.operators.includes(op) ? draft.operators.filter(o => o !== op) : [...draft.operators, op] })
+  return (
+    <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+      <div className="flex gap-2 items-end">
+        <div className="flex-1">
+          <label className="text-xs text-slate-500 mb-0.5 block">Tên thuộc tính <span className="text-red-400">*</span></label>
+          <input
+            value={draft.name}
+            onChange={e => onChange({ ...draft, name: e.target.value })}
+            placeholder="vd: Phân khúc tuổi"
+            className={`w-full px-2.5 py-1.5 text-xs border rounded focus:outline-none focus:border-blue-400 ${errors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}
+          />
+          {errors.name && <p className="text-xs text-red-500 mt-0.5">{errors.name}</p>}
+        </div>
+        <div className="w-44">
+          <label className="text-xs text-slate-500 mb-0.5 block">Kiểu dữ liệu</label>
+          <select
+            value={draft.dataType}
+            onChange={e => onChange({ ...draft, dataType: e.target.value as FilterFieldDataType })}
+            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-blue-400"
+          >
+            {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-slate-600 pb-1.5 cursor-pointer">
+          <input type="checkbox" checked={draft.required} onChange={e => onChange({ ...draft, required: e.target.checked })} className="accent-blue-500" />
+          Bắt buộc
+        </label>
+      </div>
+      {/* Toán tử hỗ trợ — tick nhiều */}
+      <div>
+        <label className="text-xs text-slate-500 mb-1 block">Toán tử hỗ trợ <span className="text-red-400">*</span> <span className="text-slate-400 font-normal">(tick những toán tử áp dụng)</span></label>
+        <div className="flex flex-wrap gap-1.5">
+          {OPERATOR_OPTIONS.map(({ op, label }) => {
+            const on = draft.operators.includes(op)
+            return (
+              <button
+                key={op}
+                type="button"
+                onClick={() => toggleOp(op)}
+                className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors ${on ? 'bg-blue-500 border-blue-500 text-white' : 'border-slate-200 text-slate-600 hover:bg-white'}`}
+              >
+                {label}
+                <span className={`font-mono text-[10px] ${on ? 'text-blue-100' : 'text-slate-400'}`}>{op}</span>
+              </button>
+            )
+          })}
+        </div>
+        {errors.operators && <p className="text-xs text-red-500 mt-0.5">{errors.operators}</p>}
+      </div>
+      {/* Danh sách giá trị — chỉ với enum */}
+      {draft.dataType === 'enum' && (
+        <div>
+          <label className="text-xs text-slate-500 mb-0.5 block">Danh sách giá trị <span className="text-red-400">*</span> <span className="text-slate-400 font-normal">(cách nhau bằng dấu phẩy)</span></label>
+          <input
+            value={draft.values}
+            onChange={e => onChange({ ...draft, values: e.target.value })}
+            placeholder="vd: 15-18, 19-24, 25-34, 35-49, 50+"
+            className={`w-full px-2.5 py-1.5 text-xs border rounded focus:outline-none focus:border-blue-400 ${errors.values ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}
+          />
+          {errors.values && <p className="text-xs text-red-500 mt-0.5">{errors.values}</p>}
+        </div>
+      )}
+      {draft.dataType !== 'enum' && (
+        <p className="text-xs text-slate-500">Kiểu này QTV nhập giá trị trực tiếp khi lọc — không cần khai báo danh sách sẵn.</p>
+      )}
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onCancel} className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1">Hủy</button>
+        <button type="button" onClick={onSave} className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Lưu</button>
+      </div>
+    </div>
+  )
+}
+
+// Bảng liệt kê điều kiện lọc đã khai báo — dùng chung
+function FilterFieldTable({ fields, onDelete }: { fields: TriggerFilterField[]; onDelete?: (techName: string) => void }) {
+  return (
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
+      <table className="w-full text-xs">
+        <thead className="bg-slate-50 border-b border-slate-200">
+          <tr className="text-slate-500">
+            <th className="text-left px-3 py-2 font-medium">Thuộc tính</th>
+            <th className="text-left px-3 py-2 font-medium">Kiểu</th>
+            <th className="text-left px-3 py-2 font-medium">Toán tử</th>
+            <th className="text-left px-3 py-2 font-medium">Giá trị / Bắt buộc</th>
+            <th className="px-3 py-2 font-medium w-8"></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {fields.length === 0 && (
+            <tr><td colSpan={5} className="px-3 py-4 text-slate-400 text-center italic">Chưa có điều kiện lọc nào</td></tr>
+          )}
+          {fields.map(f => (
+            <tr key={f.techName} className="hover:bg-slate-50 group align-top">
+              <td className="px-3 py-2">
+                <div className="font-medium text-slate-700">{f.name}</div>
+                <div className="font-mono text-slate-400">{f.techName}</div>
+              </td>
+              <td className="px-3 py-2"><span className="text-slate-500 bg-slate-100 rounded px-1.5 py-0.5 font-mono">{DATA_TYPE_LABEL[f.dataType]}</span></td>
+              <td className="px-3 py-2">
+                <div className="flex flex-wrap gap-1">
+                  {f.operators.map(op => (
+                    <span key={op} className="bg-slate-100 text-slate-600 rounded px-1.5 py-0.5" title={op}>{opLabel(op)}</span>
+                  ))}
+                </div>
+              </td>
+              <td className="px-3 py-2 text-slate-600">
+                {f.dataType === 'enum' ? f.values.join(', ') : <span className="text-slate-400 italic">nhập tay</span>}
+                {f.required && <span className="ml-1 text-amber-600 text-[10px] font-medium">· Bắt buộc</span>}
+              </td>
+              <td className="px-3 py-2">
+                {onDelete && (
+                  <button onClick={() => onDelete(f.techName)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500" title="Xóa điều kiện lọc">
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 const EMPTY_FORM = {
   code: '',
@@ -39,6 +260,11 @@ export function TriggerAdmin() {
   const [newParamDesc, setNewParamDesc] = useState('')
   const [paramErrors, setParamErrors] = useState<{ name?: string; desc?: string }>({})
 
+  // Form thêm điều kiện lọc phân khúc (trigger đang xem)
+  const [addFilterFieldOpen, setAddFilterFieldOpen] = useState(false)
+  const [ffDraft, setFfDraft] = useState<FilterFieldDraft>(emptyFfDraft())
+  const [filterFieldErrors, setFilterFieldErrors] = useState<FfErrors>({})
+
   // Modal tạo trigger mới
   const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -48,6 +274,12 @@ export function TriggerAdmin() {
   const [createParamDesc, setCreateParamDesc] = useState('')
   const [createParamErrors, setCreateParamErrors] = useState<{ name?: string; desc?: string }>({})
   const [createParamFormOpen, setCreateParamFormOpen] = useState(false)
+
+  // Điều kiện lọc phân khúc trong modal tạo trigger mới
+  const [createFilterFields, setCreateFilterFields] = useState<TriggerFilterField[]>([])
+  const [createFfDraft, setCreateFfDraft] = useState<FilterFieldDraft>(emptyFfDraft())
+  const [createFilterFieldErrors, setCreateFilterFieldErrors] = useState<FfErrors>({})
+  const [createFilterFieldFormOpen, setCreateFilterFieldFormOpen] = useState(false)
 
   const filtered = triggers.filter(t => {
     const matchSearch =
@@ -111,6 +343,7 @@ export function TriggerAdmin() {
       source: form.source,
       status: 'Active',
       params: createParams,
+      filterFields: createFilterFields,
     }
     setTriggers(prev => [...prev, newTrigger])
     toast('Đã thêm trigger ✓', 'success')
@@ -121,6 +354,19 @@ export function TriggerAdmin() {
     setCreateParamName('')
     setCreateParamDesc('')
     setCreateParamFormOpen(false)
+    setCreateFilterFields([])
+    setCreateFfDraft(emptyFfDraft())
+    setCreateFilterFieldFormOpen(false)
+  }
+
+  // Điều kiện lọc phân khúc — modal tạo trigger mới
+  const handleAddCreateFilterField = () => {
+    const errs = validateFf(createFfDraft, createFilterFields)
+    if (Object.keys(errs).length > 0) { setCreateFilterFieldErrors(errs); return }
+    setCreateFilterFields(prev => [...prev, buildFf(createFfDraft, prev)])
+    setCreateFfDraft(emptyFfDraft())
+    setCreateFilterFieldErrors({})
+    setCreateFilterFieldFormOpen(false)
   }
 
   // Thêm param vào trigger đang xem
@@ -158,6 +404,28 @@ export function TriggerAdmin() {
     setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditTarget(updated)
     toast('Đã xóa tham số', 'warning')
+  }
+
+  // Điều kiện lọc phân khúc vào trigger đang xem
+  const handleAddFilterField = () => {
+    if (!editTarget) return
+    const errs = validateFf(ffDraft, editTarget.filterFields)
+    if (Object.keys(errs).length > 0) { setFilterFieldErrors(errs); return }
+    const updated = { ...editTarget, filterFields: [...editTarget.filterFields, buildFf(ffDraft, editTarget.filterFields)] }
+    setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
+    setEditTarget(updated)
+    toast('Đã thêm điều kiện lọc ✓', 'success')
+    setAddFilterFieldOpen(false)
+    setFfDraft(emptyFfDraft())
+    setFilterFieldErrors({})
+  }
+
+  const handleDeleteFilterField = (techName: string) => {
+    if (!editTarget) return
+    const updated = { ...editTarget, filterFields: editTarget.filterFields.filter(f => f.techName !== techName) }
+    setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
+    setEditTarget(updated)
+    toast('Đã xóa điều kiện lọc', 'warning')
   }
 
   return (
@@ -406,6 +674,32 @@ export function TriggerAdmin() {
                 <Copy size={10} /> Nhấn vào tên tham số để copy cú pháp vào clipboard
               </p>
             </section>
+
+            {/* C — Điều kiện lọc phân khúc */}
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">C. Điều kiện lọc phân khúc</h3>
+                <button
+                  onClick={() => { setAddFilterFieldOpen(true); setFfDraft(emptyFfDraft()); setFilterFieldErrors({}) }}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  <Plus size={12} /> Thêm điều kiện lọc
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mb-2">Thuộc tính dùng để lọc phân khúc khách hàng khi tạo campaign — không dùng để chèn vào nội dung tin nhắn. Toán tử hỗ trợ khai báo riêng cho từng thuộc tính.</p>
+
+              {addFilterFieldOpen && (
+                <FilterFieldForm
+                  draft={ffDraft}
+                  errors={filterFieldErrors}
+                  onChange={setFfDraft}
+                  onSave={handleAddFilterField}
+                  onCancel={() => setAddFilterFieldOpen(false)}
+                />
+              )}
+
+              <FilterFieldTable fields={editTarget.filterFields} onDelete={handleDeleteFilterField} />
+            </section>
           </div>
         )}
 
@@ -553,6 +847,40 @@ export function TriggerAdmin() {
               </div>
             ) : (
               <p className="text-xs text-slate-400 italic">Chưa có tham số — có thể thêm sau khi tạo</p>
+            )}
+          </div>
+
+          {/* Điều kiện lọc phân khúc */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium text-slate-600">Điều kiện lọc phân khúc</label>
+              <button
+                type="button"
+                onClick={() => { setCreateFilterFieldFormOpen(true); setCreateFfDraft(emptyFfDraft()); setCreateFilterFieldErrors({}) }}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                <Plus size={12} /> Thêm điều kiện lọc
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mb-1.5">Thuộc tính dùng để lọc phân khúc khách hàng khi tạo campaign — không dùng để chèn vào nội dung tin nhắn. Toán tử hỗ trợ khai báo riêng cho từng thuộc tính.</p>
+
+            {createFilterFieldFormOpen && (
+              <FilterFieldForm
+                draft={createFfDraft}
+                errors={createFilterFieldErrors}
+                onChange={setCreateFfDraft}
+                onSave={handleAddCreateFilterField}
+                onCancel={() => setCreateFilterFieldFormOpen(false)}
+              />
+            )}
+
+            {createFilterFields.length > 0 ? (
+              <FilterFieldTable
+                fields={createFilterFields}
+                onDelete={techName => setCreateFilterFields(prev => prev.filter(x => x.techName !== techName))}
+              />
+            ) : (
+              <p className="text-xs text-slate-400 italic">Chưa có điều kiện lọc — có thể thêm sau khi tạo</p>
             )}
           </div>
 

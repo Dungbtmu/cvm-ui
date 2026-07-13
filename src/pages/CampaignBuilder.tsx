@@ -8,7 +8,7 @@ import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockTriggers, mockSegments, mockCampaigns, mockTemplates } from '../data/mock'
 import { removeVietnameseTones } from '../lib/utils'
-import type { ChannelType, TriggerLogic, BlackoutAction } from '../types'
+import type { ChannelType, TriggerLogic, BlackoutAction, TriggerFilterField, FilterFieldDataType } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
@@ -41,9 +41,12 @@ const CHANNEL_GUIDES: Record<ChannelType, string[]> = {
 
 interface TriggerEntry { id: string; code: string; name: string }
 interface FilterCondition {
-  field: string
+  field: string       // techName — định danh duy nhất trong 1 trigger
+  fieldLabel: string  // tên nghiệp vụ để hiển thị
+  triggerCode?: string
   op: string
   value: string
+  value2?: string     // vế thứ 2 cho toán tử BETWEEN
 }
 
 interface SegmentEntry {
@@ -427,61 +430,88 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
 }
 
 // ── SegmentCard: hiển thị phân khúc + nhiều điều kiện lọc ──
-// Thuộc tính điều kiện lọc con — riêng theo từng trigger (nguồn: trigger-sub-conditions.md)
-const TRIGGER_FILTER_FIELDS: Record<string, string[]> = {
-  SIM_ACTIVATED: ['Loại SIM', 'Gói cước hiện tại', 'Phân khúc tuổi', 'Nguồn kích hoạt'],
-  LOC_TRAVEL_PROV: ['Tỉnh/thành hiện tại', 'Loại thiết bị', 'Gói cước hiện tại'],
-  NO_APP_INSTALL_24H: ['Loại SIM', 'Phân khúc tuổi', 'Loại thiết bị'],
-  LOW_DATA_BALANCE: ['% data ngày đã dùng', 'Gói cước', 'Loại quota data', 'Số ngày còn lại chu kỳ'],
-  USAGE_DROP_40PCT: ['Data bình quân tháng', 'Gói hiện tại', 'Chu kỳ gói'],
-  SIM_NO_TXN_30D: ['Trạng thái thuê bao', 'Số ngày không giao dịch', 'Gói đăng ký gần nhất', 'Số dư tài khoản'],
+// Thuộc tính điều kiện lọc con lấy trực tiếp từ trigger.filterFields (khai báo tại màn Trigger Admin).
+// Toán tử khả dụng KHAI BÁO THẲNG per field (field.operators) — không suy từ kiểu dữ liệu.
+// Nhãn hiển thị tiếng Việt cho toán tử, nhưng giá trị lưu vẫn là ký hiệu gốc để khớp danh mục.
+const OP_LABEL: Record<string, string> = {
+  '=': '=', '!=': '≠', '>=': '≥', '<=': '≤', 'BETWEEN': 'trong khoảng',
+  'IN': 'thuộc', 'NOT IN': 'không thuộc', 'CONTAINS': 'chứa',
+  'AFTER': 'sau', 'BEFORE': 'trước', 'IS NULL': 'trống', 'IS NOT NULL': 'có giá trị',
 }
-const DEFAULT_FILTER_FIELDS = ['Loại thiết bị', 'ARPU', 'Gói cước', 'Trạng thái SIM', 'Số ngày không GD']
-const FILTER_OPS = ['=', '≠', '>', '<', '>=', '<=']
-const FILTER_VALUES: Record<string, string[]> = {
-  'Loại thiết bị': ['Android', 'iOS', 'Khác'],
-  'ARPU': ['Thấp (<50k)', 'Trung bình (50–200k)', 'Cao (>200k)'],
-  'Gói cước': ['D50', 'D100', 'D200', 'Không có gói'],
-  'Trạng thái SIM': ['Active', 'Inactive', 'Tạm khóa'],
-  'Số ngày không GD': ['7', '14', '30', '60', '90'],
-  'Loại SIM': ['SIM vật lý', 'eSIM'],
-  'Gói cước hiện tại': ['D50', 'D100', 'D200', 'Không có gói'],
-  'Phân khúc tuổi': ['15-18', '19-24', '25-34', '35-49', '50+'],
-  'Nguồn kích hoạt': ['Đại lý', 'Online', 'eSIM'],
-  'Tỉnh/thành hiện tại': ['Hà Nội', 'TP.HCM', 'Đà Nẵng', 'Khác'],
-  '% data ngày đã dùng': ['≥ 80%', '≥ 90%', '= 100%'],
-  'Loại quota data': ['Theo ngày', 'Theo tháng'],
-  'Số ngày còn lại chu kỳ': ['1', '3', '7', '15'],
-  'Data bình quân tháng': ['< 5GB', '5–20GB', '> 20GB'],
-  'Gói hiện tại': ['D50', 'D100', 'D200', 'Không có gói'],
-  'Chu kỳ gói': ['Theo ngày', 'Theo tuần', 'Theo tháng'],
-  'Trạng thái thuê bao': ['Active', 'Inactive', 'Tạm khóa'],
-  'Số ngày không giao dịch': ['7', '14', '30', '60', '90'],
-  'Gói đăng ký gần nhất': ['D50', 'D100', 'D200', 'Không có gói'],
-  'Số dư tài khoản': ['< 10.000đ', '10.000–50.000đ', '> 50.000đ'],
+const opLabel = (op: string) => OP_LABEL[op] ?? op
+// Toán tử không cần nhập giá trị (chỉ kiểm tra tồn tại)
+const NO_VALUE_OPS = new Set(['IS NULL', 'IS NOT NULL'])
+
+interface FilterFieldGroup {
+  triggerCode: string
+  fields: TriggerFilterField[]
 }
 
 interface SegmentCardProps {
   seg: SegmentEntry
   onChange: (updated: SegmentEntry) => void
   onRemove: () => void
-  availableFields: string[]
+  fieldGroups: FilterFieldGroup[]
 }
 
-function SegmentCard({ seg, onChange, onRemove, availableFields }: SegmentCardProps) {
+function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps) {
   const filters = seg.filters ?? []
-  const noTriggerSelected = availableFields.length === 0
+  const noTriggerSelected = fieldGroups.length === 0
+  const firstGroup = fieldGroups[0]
+  const firstField = firstGroup?.fields[0]
+
+  // tra 1 field theo đúng trigger + techName (định danh duy nhất)
+  const fieldOf = (triggerCode: string | undefined, techName: string) =>
+    fieldGroups.find(g => g.triggerCode === triggerCode)?.fields.find(f => f.techName === techName)
+  const opsOf = (triggerCode: string | undefined, techName: string) =>
+    fieldOf(triggerCode, techName)?.operators ?? ['=']
+  const valuesOf = (triggerCode: string | undefined, techName: string) =>
+    fieldOf(triggerCode, techName)?.values ?? []
+  const typeOf = (triggerCode: string | undefined, techName: string): FilterFieldDataType =>
+    fieldOf(triggerCode, techName)?.dataType ?? 'string'
+
+  // giá trị mặc định khi chọn field/toán tử mới: enum → phần tử đầu; kiểu khác → rỗng để nhập tay
+  const defaultValue = (triggerCode: string | undefined, techName: string) => {
+    const vals = valuesOf(triggerCode, techName)
+    return vals[0] ?? ''
+  }
 
   const addFilter = () => {
-    onChange({ ...seg, filters: [...filters, { field: availableFields[0], op: '=', value: FILTER_VALUES[availableFields[0]]?.[0] ?? '' }], filterExpanded: true })
+    if (!firstField) return
+    onChange({
+      ...seg,
+      filters: [...filters, {
+        field: firstField.techName,
+        fieldLabel: firstField.name,
+        triggerCode: firstGroup?.triggerCode,
+        op: firstField.operators[0] ?? '=',
+        value: defaultValue(firstGroup?.triggerCode, firstField.techName),
+      }],
+      filterExpanded: true,
+    })
+  }
+
+  // select value = "triggerCode::techName" để phân biệt field trùng tên giữa các trigger
+  // đổi thuộc tính → reset toán tử (theo field mới) + giá trị hợp lệ
+  const updateFilterField = (i: number, selectValue: string) => {
+    const sep = selectValue.indexOf('::')
+    const triggerCode = selectValue.slice(0, sep)
+    const techName = selectValue.slice(sep + 2)
+    const fld = fieldOf(triggerCode, techName)
+    const next = filters.map((f, idx) => idx === i ? {
+      ...f,
+      field: techName,
+      fieldLabel: fld?.name ?? techName,
+      triggerCode,
+      op: fld?.operators[0] ?? '=',
+      value: defaultValue(triggerCode, techName),
+      value2: undefined,
+    } : f)
+    onChange({ ...seg, filters: next })
   }
 
   const updateFilter = (i: number, patch: Partial<FilterCondition>) => {
     const next = filters.map((f, idx) => idx === i ? { ...f, ...patch } : f)
-    // reset value khi đổi field
-    if (patch.field && patch.field !== filters[i].field) {
-      next[i].value = FILTER_VALUES[patch.field]?.[0] ?? ''
-    }
     onChange({ ...seg, filters: next })
   }
 
@@ -497,8 +527,10 @@ function SegmentCard({ seg, onChange, onRemove, availableFields }: SegmentCardPr
     onChange({ ...seg, filterExpanded: false })
   }
 
+  const summaryValue = (f: FilterCondition) =>
+    NO_VALUE_OPS.has(f.op) ? '' : f.op === 'BETWEEN' ? `${f.value} – ${f.value2 ?? ''}` : f.value
   const filterSummary = filters.length > 0
-    ? filters.map(f => `${f.field} ${f.op} ${f.value}`).join(' · ')
+    ? filters.map(f => `${f.fieldLabel} ${opLabel(f.op)} ${summaryValue(f)}`.trim()).join(' · ')
     : null
 
   // reach sau lọc — giả lập giảm ~20% mỗi điều kiện
@@ -532,7 +564,10 @@ function SegmentCard({ seg, onChange, onRemove, availableFields }: SegmentCardPr
             <div className="flex flex-wrap gap-1">
               {filters.map((f, i) => (
                 <span key={i} className="bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">
-                  {f.field} {f.op} {f.value}
+                  {f.fieldLabel} {opLabel(f.op)} {summaryValue(f)}
+                  {fieldGroups.length > 1 && f.triggerCode && (
+                    <span className="ml-1 text-blue-400 font-mono">[{f.triggerCode}]</span>
+                  )}
                 </span>
               ))}
             </div>
@@ -565,28 +600,71 @@ function SegmentCard({ seg, onChange, onRemove, availableFields }: SegmentCardPr
               {i === 0 && <div className="w-8 flex-shrink-0" />}
 
               <select
-                value={f.field}
-                onChange={e => updateFilter(i, { field: e.target.value })}
-                className="flex-1 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
+                value={`${f.triggerCode}::${f.field}`}
+                onChange={e => updateFilterField(i, e.target.value)}
+                className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
               >
-                {availableFields.map(opt => <option key={opt}>{opt}</option>)}
+                {fieldGroups.map(g => (
+                  <optgroup key={g.triggerCode} label={g.triggerCode}>
+                    {g.fields.map(opt => (
+                      <option key={`${g.triggerCode}::${opt.techName}`} value={`${g.triggerCode}::${opt.techName}`}>{opt.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
+
+              {/* Badge nguồn trigger — luôn hiển thị để phân biệt field trùng tên giữa các trigger */}
+              {fieldGroups.length > 1 && f.triggerCode && (
+                <span
+                  className="flex-shrink-0 text-xs font-mono bg-slate-200 text-slate-600 rounded px-1.5 py-0.5 max-w-[6rem] truncate"
+                  title={`Thuộc tính này thuộc trigger ${f.triggerCode}`}
+                >
+                  {f.triggerCode}
+                </span>
+              )}
 
               <select
                 value={f.op}
-                onChange={e => updateFilter(i, { op: e.target.value })}
-                className="w-12 border border-slate-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white text-center"
+                onChange={e => updateFilter(i, { op: e.target.value, value2: e.target.value === 'BETWEEN' ? (f.value2 ?? '') : undefined })}
+                className="flex-shrink-0 border border-slate-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
               >
-                {FILTER_OPS.map(op => <option key={op}>{op}</option>)}
+                {opsOf(f.triggerCode, f.field).map(op => <option key={op} value={op}>{opLabel(op)}</option>)}
               </select>
 
-              <select
-                value={f.value}
-                onChange={e => updateFilter(i, { value: e.target.value })}
-                className="flex-1 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
-              >
-                {(FILTER_VALUES[f.field] ?? []).map(v => <option key={v}>{v}</option>)}
-              </select>
+              {/* Ô giá trị — render theo kiểu: enum → dropdown; kiểu khác → nhập tay; BETWEEN → 2 ô; IS NULL → không ô */}
+              {NO_VALUE_OPS.has(f.op) ? (
+                <div className="flex-1 min-w-0" />
+              ) : valuesOf(f.triggerCode, f.field).length > 0 ? (
+                <select
+                  value={f.value}
+                  onChange={e => updateFilter(i, { value: e.target.value })}
+                  className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
+                >
+                  {valuesOf(f.triggerCode, f.field).map(v => <option key={v}>{v}</option>)}
+                </select>
+              ) : (
+                <div className="flex-1 min-w-0 flex items-center gap-1">
+                  <input
+                    type={['integer', 'decimal', 'float'].includes(typeOf(f.triggerCode, f.field)) ? 'number' : typeOf(f.triggerCode, f.field) === 'date' ? 'date' : 'text'}
+                    value={f.value}
+                    onChange={e => updateFilter(i, { value: e.target.value })}
+                    placeholder="Nhập giá trị"
+                    className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
+                  />
+                  {f.op === 'BETWEEN' && (
+                    <>
+                      <span className="text-slate-400 text-xs">–</span>
+                      <input
+                        type={['integer', 'decimal', 'float'].includes(typeOf(f.triggerCode, f.field)) ? 'number' : typeOf(f.triggerCode, f.field) === 'date' ? 'date' : 'text'}
+                        value={f.value2 ?? ''}
+                        onChange={e => updateFilter(i, { value2: e.target.value })}
+                        placeholder="đến"
+                        className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
+                      />
+                    </>
+                  )}
+                </div>
+              )}
 
               <button
                 onClick={() => removeFilter(i)}
@@ -606,7 +684,7 @@ function SegmentCard({ seg, onChange, onRemove, availableFields }: SegmentCardPr
           </button>
 
           <div className="text-xs text-slate-400">
-            ⓘ Giá trị được cấu hình sẵn — chỉ chọn, không nhập tự do
+            ⓘ Thuộc tính danh mục (enum) chọn từ danh sách; thuộc tính số/ngày nhập trực tiếp. Toán tử khả dụng theo khai báo của từng thuộc tính.
           </div>
 
           {/* Actions */}
@@ -1641,11 +1719,10 @@ export function CampaignBuilder() {
                     seg={seg}
                     onChange={updated => setSegments(prev => prev.map(x => x.id === seg.id ? updated : x))}
                     onRemove={() => setSegments(prev => prev.filter(x => x.id !== seg.id))}
-                    availableFields={
-                      selectedTriggers.length === 0
-                        ? []
-                        : Array.from(new Set(selectedTriggers.flatMap(t => TRIGGER_FILTER_FIELDS[t.code] ?? DEFAULT_FILTER_FIELDS)))
-                    }
+                    fieldGroups={selectedTriggers.map(t => ({
+                      triggerCode: t.code,
+                      fields: mockTriggers.find(mt => mt.code === t.code)?.filterFields ?? [],
+                    }))}
                   />
                 ))}
               </div>

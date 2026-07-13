@@ -114,10 +114,10 @@ const WL_PHONES = [
 type VariantContent = { segmentName: string; title?: string; body: string }
 
 // Mock variant per trigger per channel — key phải khớp trigger code trong mockCampaigns
-// SIM_ACTIVATED: Push/Zalo 3 biến thể, Email 2, SMS/Banner/USSD chỉ 1 (không có tab)
-// NO_APP_INSTALL_24H: Push/Zalo 2 biến thể, các kênh còn lại 1
+// E01: Push/Zalo 3 biến thể, Email 2, SMS/Banner/USSD chỉ 1 (không có tab)
+// E02: Push/Zalo 2 biến thể, các kênh còn lại 1
 const MOCK_VARIANTS: Record<string, Record<ChannelType, VariantContent[]>> = {
-  SIM_ACTIVATED: {
+  E01: {
     Push: [
       { segmentName: 'Tất cả (dự phòng)', title: 'Chào mừng bạn đến với mạng!', body: 'SIM đã kích hoạt thành công. Khám phá các gói cước ngay.' },
       { segmentName: 'Nguy cơ rời mạng', title: 'Ưu đãi đặc biệt cho bạn', body: 'Kích hoạt SIM mới — nhận ngay ưu đãi giữ chân 50% tháng đầu!' },
@@ -142,7 +142,7 @@ const MOCK_VARIANTS: Record<string, Record<ChannelType, VariantContent[]>> = {
       { segmentName: 'Tất cả (dự phòng)', body: 'SIM DA KICH HOAT. Bam 1 xem goi cuoc. Bam 2 nap tien.' },
     ],
   },
-  NO_APP_INSTALL_24H: {
+  E02: {
     Push: [
       { segmentName: 'Tất cả (dự phòng)', title: 'Bạn chưa cài app!', body: 'Cài MyVNPost để quản lý tài khoản, nạp tiền và xem cước dễ dàng hơn.' },
       { segmentName: 'Gen Z User', title: 'App xịn lắm đó!', body: 'MyVNPost có giao diện mới — tải ngay, dùng thử miễn phí tháng đầu!' },
