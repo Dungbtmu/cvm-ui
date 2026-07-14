@@ -18,7 +18,9 @@ export interface Campaign {
   createdAt: string
   submittedAt?: string
   goal?: string
+  // Cờ campaign bị vô hiệu do trigger thay đổi — xem policy PARAM_INVALID / FILTER_INVALID (URD Khối 3)
   paramInvalid?: { triggerName: string; paramName: string }
+  filterInvalid?: { triggerName: string; filterFieldName: string }
 }
 
 export interface Trigger {

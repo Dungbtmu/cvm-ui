@@ -1087,6 +1087,9 @@ export function CampaignBuilder() {
   if (selectedTriggers.length === 0) issues.push('Chưa chọn trigger')
   if (activeChannels.length === 0) issues.push('Chưa chọn kênh gửi')
   if (blMode !== 'none' && activeChannels.length === 0) issues.push('Blacklist: chưa có kênh nào được chọn')
+  // Cờ vô hiệu là blocking issue độc lập — chặn Gửi duyệt cho đến khi QTV sửa (URD Khối 3)
+  if (existing?.paramInvalid) issues.push('Còn tham số không hợp lệ do trigger đã thay đổi — sửa nội dung message')
+  if (existing?.filterInvalid) issues.push('Còn điều kiện lọc không hợp lệ do trigger đã thay đổi — sửa điều kiện lọc ở mục 3')
 
   // ---- Trigger helpers ----
   const canAddTrigger = triggerMode === 'advanced' || selectedTriggers.length === 0
@@ -1296,6 +1299,18 @@ export function CampaignBuilder() {
             Campaign đang có tham số không hợp lệ do trigger <strong>{existing.paramInvalid.triggerName}</strong> đã
             thay đổi tham số <strong>{existing.paramInvalid.paramName}</strong> — vui lòng cập nhật nội dung message
             trước khi gửi duyệt lại.
+          </span>
+        </div>
+      )}
+
+      {/* Banner cảnh báo FILTER_INVALID */}
+      {existing?.filterInvalid && (
+        <div className="mt-6 -mb-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-start gap-2">
+          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+          <span>
+            Campaign đang có điều kiện lọc không hợp lệ do trigger <strong>{existing.filterInvalid.triggerName}</strong> đã
+            thay đổi thuộc tính lọc <strong>{existing.filterInvalid.filterFieldName}</strong> — vui lòng cập nhật điều kiện lọc
+            ở mục 3 (Phân khúc) trước khi gửi duyệt lại.
           </span>
         </div>
       )}

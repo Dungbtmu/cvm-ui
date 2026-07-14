@@ -6,13 +6,22 @@ import { StatusBadge, TriggerChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockCampaigns } from '../data/mock'
+import { reactivateBlockReason } from '../lib/utils'
 import type { ChannelType, CampaignStatus } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
-const SEGMENT_FILTERS: { segment: string; conditions: string[] }[] = [
-  { segment: 'ARPU cao', conditions: ['Loại thiết bị = Android', 'Gói cước = D200'] },
-  { segment: 'Gen Z User', conditions: ['Trạng thái SIM ≠ Tạm khóa', 'Số ngày không giao dịch > 14'] },
+// Điều kiện lọc per phân khúc — mỗi điều kiện kèm trigger nguồn (đồng bộ với Campaign Builder Section 3:
+// thuộc tính lọc lấy theo trigger đã chọn; Advanced mode nhiều trigger cần badge để biết điều kiện thuộc trigger nào)
+const SEGMENT_FILTERS: { segment: string; conditions: { text: string; trigger: string }[] }[] = [
+  { segment: 'ARPU cao', conditions: [
+    { text: 'Phân khúc tuổi thuộc 25-34', trigger: 'E01' },
+    { text: 'Gói cước hiện tại thuộc D200', trigger: 'E01' },
+  ] },
+  { segment: 'Gen Z User', conditions: [
+    { text: 'Loại SIM thuộc eSIM', trigger: 'E02' },
+    { text: 'Loại thiết bị thuộc ANDROID', trigger: 'E02' },
+  ] },
 ]
 
 
@@ -188,9 +197,11 @@ export function CampaignDetail() {
   }
 
   const handleActivate = () => {
+    if (reactivateBlockReason(campaign)) return   // chặn bật thẳng khi còn cờ vô hiệu
     setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: 'Active' as CampaignStatus } : c))
     toast('Campaign đã kích hoạt lại', 'success')
   }
+  const activateBlock = reactivateBlockReason(campaign)
 
   return (
     <div className="space-y-0 max-w-4xl">
@@ -220,9 +231,16 @@ export function CampaignDetail() {
               </Button>
             )}
             {campaign.status === 'Paused' && (
-              <Button variant="success" onClick={handleActivate}>
-                Bật
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}>
+                  Sửa
+                </Button>
+                <span title={activateBlock ?? undefined} className="inline-flex">
+                  <Button variant="success" disabled={!!activateBlock} onClick={handleActivate}>
+                    Bật
+                  </Button>
+                </span>
+              </>
             )}
             <Button variant="outline" onClick={() => navigate('/campaigns')}>
               Đóng
@@ -289,11 +307,16 @@ export function CampaignDetail() {
             <div className="flex gap-2"><dt className="text-slate-500 w-32">Logic:</dt><dd>Bất kỳ phân khúc nào (OR)</dd></div>
             <div className="flex gap-2 items-start">
               <dt className="text-slate-500 w-32 pt-0.5">Điều kiện lọc:</dt>
-              <dd className="flex-1 space-y-1">
+              <dd className="flex-1 space-y-1.5">
                 {SEGMENT_FILTERS.map(sf => (
-                  <div key={sf.segment}>
-                    <span className="font-medium text-slate-700">[{sf.segment}]</span>{' '}
-                    <span>{sf.conditions.join(' • ')}</span>
+                  <div key={sf.segment} className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-medium text-slate-700">[{sf.segment}]</span>
+                    {sf.conditions.map((c, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-xs">
+                        {c.text}
+                        <span className="font-mono text-slate-400" title={`Thuộc tính của trigger ${c.trigger}`}>· {c.trigger}</span>
+                      </span>
+                    ))}
                   </div>
                 ))}
               </dd>

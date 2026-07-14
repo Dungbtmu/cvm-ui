@@ -47,7 +47,7 @@ export const mockCampaigns: Campaign[] = [
     id: '4',
     name: 'Chào mừng du lịch',
     code: 'CVM-TRAVEL-PROMO-Q2',
-    status: 'Pending',
+    status: 'Paused',
     triggers: ['U09'],
     templateIds: ['1', '4'],
     startDate: '15/05/2026',
@@ -55,7 +55,7 @@ export const mockCampaigns: Campaign[] = [
     priority: 4,
     owner: 'QTV Marketing',
     createdAt: '14/05/2026 08:00',
-    submittedAt: '14/05/2026 09:30',
+    filterInvalid: { triggerName: 'U09', filterFieldName: 'Số ngày gắn bó' },
   },
   {
     id: '7',

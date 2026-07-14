@@ -6,6 +6,7 @@ import { StatusBadge, TriggerChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockCampaigns, mockTriggers } from '../data/mock'
+import { reactivateBlockReason } from '../lib/utils'
 import type { Campaign, CampaignStatus } from '../types'
 
 const statusFilters: CampaignStatus[] = ['Active', 'Draft', 'Pending', 'Paused', 'Ended']
@@ -44,6 +45,7 @@ export function CampaignList() {
     setConfirmStop(null)
   }
   const handleActivate = (c: Campaign) => {
+    if (reactivateBlockReason(c)) return   // chặn bật thẳng khi còn cờ vô hiệu
     setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: 'Active' as CampaignStatus } : x))
     toast('Campaign đã kích hoạt lại', 'success')
   }
@@ -169,7 +171,14 @@ export function CampaignList() {
                     {c.status === 'Paused' && (
                       <>
                         <Button size="sm" variant="outline" onClick={() => navigate(`/campaigns/${c.id}/edit`)}>Sửa</Button>
-                        <Button size="sm" variant="success" onClick={() => handleActivate(c)}>Bật</Button>
+                        {(() => {
+                          const blockReason = reactivateBlockReason(c)
+                          return (
+                            <span title={blockReason ?? undefined} className="inline-flex">
+                              <Button size="sm" variant="success" disabled={!!blockReason} onClick={() => handleActivate(c)}>Bật</Button>
+                            </span>
+                          )
+                        })()}
                       </>
                     )}
                     {c.status === 'Ended' && (
