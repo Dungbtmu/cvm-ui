@@ -9,6 +9,13 @@ export function reactivateBlockReason(c: Campaign): string | null {
   return null
 }
 
+// Danh sách campaign đang dùng 1 trigger (theo mã trigger) — phục vụ cảnh báo khi Admin
+// sửa/xóa điều kiện lọc của trigger đó. Không lọc theo trạng thái: mọi campaign dùng trigger
+// đều liệt kê để Admin nắm phạm vi ảnh hưởng trước khi xác nhận.
+export function campaignsUsingTrigger(campaigns: Campaign[], triggerCode: string): Campaign[] {
+  return campaigns.filter(c => c.triggers.includes(triggerCode))
+}
+
 export function cn(...inputs: ClassValue[]) {
   return clsx(inputs)
 }

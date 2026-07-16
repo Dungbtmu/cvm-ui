@@ -3,7 +3,8 @@ import { Search, Plus, X, CheckCircle, Copy, Trash2 } from 'lucide-react'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/Toast'
-import { mockTriggers } from '../data/mock'
+import { mockTriggers, mockCampaigns } from '../data/mock'
+import { campaignsUsingTrigger } from '../lib/utils'
 import type { Trigger, TriggerType, TriggerParam, TriggerFilterField, FilterFieldDataType } from '../types'
 
 const TYPE_BADGE: Record<TriggerType, string> = {
@@ -264,6 +265,8 @@ export function TriggerAdmin() {
   const [addFilterFieldOpen, setAddFilterFieldOpen] = useState(false)
   const [ffDraft, setFfDraft] = useState<FilterFieldDraft>(emptyFfDraft())
   const [filterFieldErrors, setFilterFieldErrors] = useState<FfErrors>({})
+  // Xác nhận trước khi xóa điều kiện lọc của trigger đang tồn tại — cảnh báo campaign bị ảnh hưởng
+  const [confirmDeleteFf, setConfirmDeleteFf] = useState<TriggerFilterField | null>(null)
 
   // Modal tạo trigger mới
   const [createOpen, setCreateOpen] = useState(false)
@@ -420,12 +423,21 @@ export function TriggerAdmin() {
     setFilterFieldErrors({})
   }
 
+  // Click [Xóa] một điều kiện lọc → mở dialog xác nhận (cảnh báo campaign bị ảnh hưởng) thay vì xóa ngay
   const handleDeleteFilterField = (techName: string) => {
     if (!editTarget) return
-    const updated = { ...editTarget, filterFields: editTarget.filterFields.filter(f => f.techName !== techName) }
+    const ff = editTarget.filterFields.find(f => f.techName === techName)
+    if (ff) setConfirmDeleteFf(ff)
+  }
+
+  // Người dùng xác nhận trong dialog → thực sự xóa
+  const confirmDeleteFilterField = () => {
+    if (!editTarget || !confirmDeleteFf) return
+    const updated = { ...editTarget, filterFields: editTarget.filterFields.filter(f => f.techName !== confirmDeleteFf.techName) }
     setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditTarget(updated)
     toast('Đã xóa điều kiện lọc', 'warning')
+    setConfirmDeleteFf(null)
   }
 
   return (
@@ -711,6 +723,55 @@ export function TriggerAdmin() {
             <X size={13} /> Đóng
           </button>
         </div>
+      </Dialog>
+
+      {/* ── Dialog xác nhận xóa điều kiện lọc — cảnh báo campaign bị ảnh hưởng ── */}
+      <Dialog
+        open={!!confirmDeleteFf}
+        onClose={() => setConfirmDeleteFf(null)}
+        title="Xóa điều kiện lọc?"
+      >
+        {confirmDeleteFf && editTarget && (() => {
+          const affected = campaignsUsingTrigger(mockCampaigns, editTarget.code)
+          return (
+            <div className="text-sm text-slate-600 space-y-3">
+              <p>
+                Bạn đang xóa điều kiện lọc <span className="font-medium text-slate-800">{confirmDeleteFf.name}</span> khỏi trigger{' '}
+                <span className="font-mono text-amber-700">{editTarget.code}</span>.
+              </p>
+              {affected.length > 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                  <p className="text-amber-800">
+                    <span className="font-medium">{affected.length} chiến dịch</span> đang dùng trigger này sẽ bị đánh dấu cần rà soát lại điều kiện lọc:
+                  </p>
+                  <ul className="space-y-1">
+                    {affected.map(c => (
+                      <li key={c.id} className="flex items-center gap-1.5 text-xs text-slate-700">
+                        <span className="w-1 h-1 rounded-full bg-amber-500" />
+                        <span className="font-medium">{c.name}</span>
+                        <span className="font-mono text-slate-400">{c.code}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-amber-700">
+                    Chiến dịch đang chạy sẽ tự chuyển <span className="font-medium">Tạm dừng</span> và phải cập nhật điều kiện lọc trước khi bật lại.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 italic">Chưa có chiến dịch nào dùng trigger này — xóa không ảnh hưởng chiến dịch đang chạy.</p>
+              )}
+            </div>
+          )
+        })()}
+        <DialogActions>
+          <button
+            onClick={() => setConfirmDeleteFf(null)}
+            className="text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-3 py-1.5"
+          >
+            Hủy
+          </button>
+          <Button variant="danger" onClick={confirmDeleteFilterField}>Xác nhận xóa</Button>
+        </DialogActions>
       </Dialog>
 
       {/* ── Modal tạo trigger mới ── */}
