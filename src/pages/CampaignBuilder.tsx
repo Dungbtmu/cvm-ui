@@ -457,7 +457,10 @@ interface SegmentCardProps {
 function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps) {
   const filters = seg.filters ?? []
   const noTriggerSelected = fieldGroups.length === 0
-  const firstGroup = fieldGroups[0]
+  // Trigger đã chọn nhưng không trigger nào khai báo điều kiện lọc → không có thuộc tính khả dụng để lọc
+  const hasAnyField = fieldGroups.some(g => g.fields.length > 0)
+  const filterDisabled = noTriggerSelected || !hasAnyField
+  const firstGroup = fieldGroups.find(g => g.fields.length > 0)
   const firstField = firstGroup?.fields[0]
 
   // tra 1 field theo đúng trigger + techName (định danh duy nhất)
@@ -573,10 +576,12 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
             </div>
           ) : noTriggerSelected ? (
             <span className="text-slate-400 italic">Chọn trigger ở mục 2 để xem điều kiện lọc khả dụng</span>
+          ) : !hasAnyField ? (
+            <span className="text-slate-400 italic">Trigger đã chọn chưa khai báo điều kiện lọc nào — phân khúc dùng toàn bộ audience của trigger</span>
           ) : (
             <span className="text-slate-400">(chưa có)</span>
           )}
-          {!noTriggerSelected && (
+          {!filterDisabled && (
             <button
               onClick={() => onChange({ ...seg, filterExpanded: !seg.filterExpanded })}
               className="text-blue-500 hover:text-blue-700 ml-1"
@@ -588,7 +593,7 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
       </div>
 
       {/* Expanded filter editor */}
-      {seg.filterExpanded && !noTriggerSelected && (
+      {seg.filterExpanded && !filterDisabled && (
         <div className="border-t border-slate-100 bg-slate-50 p-3 space-y-2">
           {/* Filter rows */}
           {filters.map((f, i) => (
@@ -604,7 +609,7 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
                 onChange={e => updateFilterField(i, e.target.value)}
                 className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
               >
-                {fieldGroups.map(g => (
+                {fieldGroups.filter(g => g.fields.length > 0).map(g => (
                   <optgroup key={g.triggerCode} label={g.triggerCode}>
                     {g.fields.map(opt => (
                       <option key={`${g.triggerCode}::${opt.techName}`} value={`${g.triggerCode}::${opt.techName}`}>{opt.name}</option>
