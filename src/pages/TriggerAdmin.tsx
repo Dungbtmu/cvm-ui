@@ -84,7 +84,17 @@ function validateFf(d: FilterFieldDraft, existing: TriggerFilterField[]): FfErro
   if (!d.name.trim()) e.name = 'Bắt buộc'
   else if (existing.some(f => f.name.trim().toLowerCase() === d.name.trim().toLowerCase())) e.name = 'Thuộc tính đã tồn tại'
   if (d.operators.length === 0) e.operators = 'Chọn ít nhất 1 toán tử'
-  if (d.dataType === 'enum' && !d.values.trim()) e.values = 'Kiểu danh mục cần danh sách giá trị'
+  if (d.dataType === 'enum') {
+    // Enum là giá trị nghiệp vụ tự do — KHÔNG ép định dạng (số/chữ/khoảng đều hợp lệ).
+    // Chỉ validate: có ít nhất 1 giá trị, và không trùng nhau.
+    const vals = d.values.split(',').map(v => v.trim()).filter(Boolean)
+    if (vals.length === 0) e.values = 'Kiểu danh mục cần danh sách giá trị'
+    else {
+      const seen = new Set<string>()
+      const dup = vals.find(v => { const k = v.toLowerCase(); if (seen.has(k)) return true; seen.add(k); return false })
+      if (dup) e.values = `Giá trị "${dup}" bị lặp — mỗi giá trị chỉ khai báo 1 lần`
+    }
+  }
   return e
 }
 function buildFf(d: FilterFieldDraft, existing: TriggerFilterField[]): TriggerFilterField {
@@ -169,7 +179,7 @@ function FilterFieldForm({ draft, errors, onChange, onSave, onCancel }: {
           <input
             value={draft.values}
             onChange={e => onChange({ ...draft, values: e.target.value })}
-            placeholder="vd: 15-18, 19-24, 25-34, 35-49, 50+"
+            placeholder="vd: eSIM, Vật lý — hoặc 12MB, 24MB — hoặc 15-18, 19-24"
             className={`w-full px-2.5 py-1.5 text-xs border rounded focus:outline-none focus:border-blue-400 ${errors.values ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}
           />
           {errors.values && <p className="text-xs text-red-500 mt-0.5">{errors.values}</p>}
