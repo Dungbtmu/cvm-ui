@@ -229,7 +229,11 @@ function FilterFieldTable({ fields, onDelete }: { fields: TriggerFilterField[]; 
                 </div>
               </td>
               <td className="px-3 py-2 text-slate-600">
-                {f.dataType === 'enum' ? f.values.join(', ') : <span className="text-slate-400 italic">nhập tay</span>}
+                {f.dataType === 'enum'
+                  ? f.values.join(', ')
+                  : f.dataType === 'boolean'
+                    ? <span className="text-slate-500">Đúng / Sai</span>
+                    : <span className="text-slate-400 italic">nhập tay</span>}
                 {f.required && <span className="ml-1 text-amber-600 text-[10px] font-medium">· Bắt buộc</span>}
               </td>
               <td className="px-3 py-2">

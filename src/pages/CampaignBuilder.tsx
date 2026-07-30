@@ -636,9 +636,19 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
                 {opsOf(f.triggerCode, f.field).map(op => <option key={op} value={op}>{opLabel(op)}</option>)}
               </select>
 
-              {/* Ô giá trị — render theo kiểu: enum → dropdown; kiểu khác → nhập tay; BETWEEN → 2 ô; IS NULL → không ô */}
+              {/* Ô giá trị — render theo kiểu: enum → dropdown; boolean → dropdown Đúng/Sai; số/chuỗi → nhập tay; ngày → picker; BETWEEN → 2 ô; IS NULL → không ô */}
               {NO_VALUE_OPS.has(f.op) ? (
                 <div className="flex-1 min-w-0" />
+              ) : typeOf(f.triggerCode, f.field) === 'boolean' ? (
+                <select
+                  value={f.value}
+                  onChange={e => updateFilter(i, { value: e.target.value })}
+                  className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
+                >
+                  <option value="">Chọn...</option>
+                  <option value="Đúng">Đúng</option>
+                  <option value="Sai">Sai</option>
+                </select>
               ) : valuesOf(f.triggerCode, f.field).length > 0 ? (
                 <select
                   value={f.value}
