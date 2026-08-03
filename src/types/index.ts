@@ -41,6 +41,7 @@ export interface TriggerParam {
   format: 'text' | 'date' | 'number' | 'boolean' | 'currency'
   source: string
   example?: string
+  locked?: boolean          // Đã khóa (vô hiệu hóa tạm thời) — thay cho xóa cứng; QTV không chèn được vào message mới
 }
 
 // Thuộc tính dùng để lọc phân khúc (Section 3 — Campaign Builder), khai báo cùng lúc với trigger.
@@ -62,6 +63,7 @@ export interface TriggerFilterField {
   operators: string[]       // danh sách toán tử khả dụng, khai báo thẳng
   required: boolean         // Bắt buộc / Tùy chọn
   values: string[]          // chỉ có với enum (danh sách chọn); kiểu khác để trống → nhập tự do
+  locked?: boolean          // Đã khóa (vô hiệu hóa tạm thời) — thay cho xóa cứng; QTV không chọn được khi cấu hình campaign mới
 }
 
 export interface TemplateChannelContent {

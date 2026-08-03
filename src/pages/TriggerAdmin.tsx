@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Search, Plus, X, CheckCircle, Copy, Trash2 } from 'lucide-react'
+import { Search, Plus, X, CheckCircle, Copy, Trash2, Pencil, Lock, Unlock } from 'lucide-react'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/Toast'
 import { mockTriggers, mockCampaigns } from '../data/mock'
 import { campaignsUsingTrigger } from '../lib/utils'
-import type { Trigger, TriggerType, TriggerParam, TriggerFilterField, FilterFieldDataType } from '../types'
+import type { Trigger, TriggerType, TriggerParam, TriggerFilterField, FilterFieldDataType, Campaign } from '../types'
+import type { ReactNode } from 'react'
 
 const TYPE_BADGE: Record<TriggerType, string> = {
   Realtime: 'bg-green-100 text-green-700',
@@ -78,11 +79,13 @@ function slugTechName(name: string): string {
     || 'field'
 }
 
-// validate + build 1 TriggerFilterField từ draft; `existing` để check trùng theo tên nghiệp vụ
-function validateFf(d: FilterFieldDraft, existing: TriggerFilterField[]): FfErrors {
+// validate + build 1 TriggerFilterField từ draft; `existing` để check trùng theo tên nghiệp vụ.
+// `editingTechName`: khi Sửa, bỏ chính field đang sửa khỏi phép check trùng tên.
+function validateFf(d: FilterFieldDraft, existing: TriggerFilterField[], editingTechName?: string): FfErrors {
   const e: FfErrors = {}
+  const others = editingTechName ? existing.filter(f => f.techName !== editingTechName) : existing
   if (!d.name.trim()) e.name = 'Bắt buộc'
-  else if (existing.some(f => f.name.trim().toLowerCase() === d.name.trim().toLowerCase())) e.name = 'Thuộc tính đã tồn tại'
+  else if (others.some(f => f.name.trim().toLowerCase() === d.name.trim().toLowerCase())) e.name = 'Thuộc tính đã tồn tại'
   if (d.operators.length === 0) e.operators = 'Chọn ít nhất 1 toán tử'
   if (d.dataType === 'enum') {
     // Enum là giá trị nghiệp vụ tự do — KHÔNG ép định dạng (số/chữ/khoảng đều hợp lệ).
@@ -97,12 +100,17 @@ function validateFf(d: FilterFieldDraft, existing: TriggerFilterField[]): FfErro
   }
   return e
 }
-function buildFf(d: FilterFieldDraft, existing: TriggerFilterField[]): TriggerFilterField {
-  // đảm bảo techName không trùng: thêm hậu tố _2, _3... nếu cần
-  let base = slugTechName(d.name)
-  let techName = base
-  let n = 2
-  while (existing.some(f => f.techName === techName)) techName = `${base}_${n++}`
+// `keep`: khi Sửa, truyền field gốc để GIỮ NGUYÊN techName (mã bất biến — không phá tham chiếu campaign)
+// và giữ trạng thái locked; chỉ Thêm mới mới sinh techName mới.
+function buildFf(d: FilterFieldDraft, existing: TriggerFilterField[], keep?: TriggerFilterField): TriggerFilterField {
+  let techName = keep?.techName
+  if (!techName) {
+    // Thêm mới: sinh techName, đảm bảo không trùng bằng hậu tố _2, _3...
+    const base = slugTechName(d.name)
+    techName = base
+    let n = 2
+    while (existing.some(f => f.techName === techName)) techName = `${base}_${n++}`
+  }
   return {
     techName,
     name: d.name.trim(),
@@ -110,6 +118,7 @@ function buildFf(d: FilterFieldDraft, existing: TriggerFilterField[]): TriggerFi
     operators: d.operators,
     required: d.required,
     values: d.dataType === 'enum' ? d.values.split(',').map(v => v.trim()).filter(Boolean) : [],
+    locked: keep?.locked,
   }
 }
 
@@ -196,8 +205,14 @@ function FilterFieldForm({ draft, errors, onChange, onSave, onCancel }: {
   )
 }
 
-// Bảng liệt kê điều kiện lọc đã khai báo — dùng chung
-function FilterFieldTable({ fields, onDelete }: { fields: TriggerFilterField[]; onDelete?: (techName: string) => void }) {
+// Bảng liệt kê điều kiện lọc đã khai báo — dùng chung.
+// onEdit / onToggleLock chỉ truyền ở modal Xem/Sửa (trigger đã tồn tại); modal tạo mới dùng onDelete (xóa dòng nháp).
+function FilterFieldTable({ fields, onEdit, onToggleLock, onDelete }: {
+  fields: TriggerFilterField[]
+  onEdit?: (techName: string) => void
+  onToggleLock?: (techName: string) => void
+  onDelete?: (techName: string) => void
+}) {
   return (
     <div className="border border-slate-200 rounded-lg overflow-hidden">
       <table className="w-full text-xs">
@@ -207,7 +222,7 @@ function FilterFieldTable({ fields, onDelete }: { fields: TriggerFilterField[]; 
             <th className="text-left px-3 py-2 font-medium">Kiểu</th>
             <th className="text-left px-3 py-2 font-medium">Toán tử</th>
             <th className="text-left px-3 py-2 font-medium">Giá trị / Bắt buộc</th>
-            <th className="px-3 py-2 font-medium w-8"></th>
+            <th className="px-3 py-2 font-medium w-16"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -215,9 +230,12 @@ function FilterFieldTable({ fields, onDelete }: { fields: TriggerFilterField[]; 
             <tr><td colSpan={5} className="px-3 py-4 text-slate-400 text-center italic">Chưa có điều kiện lọc nào</td></tr>
           )}
           {fields.map(f => (
-            <tr key={f.techName} className="hover:bg-slate-50 group align-top">
+            <tr key={f.techName} className={`hover:bg-slate-50 group align-top ${f.locked ? 'opacity-50' : ''}`}>
               <td className="px-3 py-2">
-                <div className="font-medium text-slate-700">{f.name}</div>
+                <div className="font-medium text-slate-700 flex items-center gap-1.5">
+                  {f.name}
+                  {f.locked && <span className="text-[10px] font-medium text-slate-500 bg-slate-200 rounded px-1.5 py-0.5">Đã khóa</span>}
+                </div>
                 <div className="font-mono text-slate-400">{f.techName}</div>
               </td>
               <td className="px-3 py-2"><span className="text-slate-500 bg-slate-100 rounded px-1.5 py-0.5 font-mono">{DATA_TYPE_LABEL[f.dataType]}</span></td>
@@ -237,17 +255,74 @@ function FilterFieldTable({ fields, onDelete }: { fields: TriggerFilterField[]; 
                 {f.required && <span className="ml-1 text-amber-600 text-[10px] font-medium">· Bắt buộc</span>}
               </td>
               <td className="px-3 py-2">
-                {onDelete && (
-                  <button onClick={() => onDelete(f.techName)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500" title="Xóa điều kiện lọc">
-                    <Trash2 size={12} />
-                  </button>
-                )}
+                <div className="flex items-center gap-1.5 justify-end">
+                  {onEdit && !f.locked && (
+                    <button onClick={() => onEdit(f.techName)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-blue-500" title="Sửa điều kiện lọc">
+                      <Pencil size={12} />
+                    </button>
+                  )}
+                  {onToggleLock && (
+                    <button
+                      onClick={() => onToggleLock(f.techName)}
+                      className={`transition-opacity ${f.locked ? 'text-slate-500 hover:text-green-600 opacity-100' : 'text-slate-400 hover:text-amber-600 opacity-0 group-hover:opacity-100'}`}
+                      title={f.locked ? 'Mở khóa điều kiện lọc' : 'Khóa điều kiện lọc'}
+                    >
+                      {f.locked ? <Unlock size={12} /> : <Lock size={12} />}
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button onClick={() => onDelete(f.techName)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500" title="Xóa dòng">
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  )
+}
+
+// Dialog xác nhận Khóa (dùng chung param + điều kiện lọc) — liệt kê campaign đang dùng trigger
+function LockConfirmDialog({ open, onClose, onConfirm, title, itemLabel, triggerCode, affected, effectNote }: {
+  open: boolean
+  onClose: () => void
+  onConfirm: () => void
+  title: string
+  itemLabel: ReactNode
+  triggerCode: string
+  affected: Campaign[]
+  effectNote: string
+}) {
+  return (
+    <Dialog open={open} onClose={onClose} title={title}>
+      <div className="text-sm text-slate-600 space-y-3">
+        <p>Bạn đang khóa {itemLabel} của trigger <span className="font-mono text-amber-700">{triggerCode}</span>.</p>
+        {affected.length > 0 ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+            <p className="text-amber-800"><span className="font-medium">{affected.length} chiến dịch</span> đang dùng trigger này:</p>
+            <ul className="space-y-1">
+              {affected.map(c => (
+                <li key={c.id} className="flex items-center gap-1.5 text-xs text-slate-700">
+                  <span className="w-1 h-1 rounded-full bg-amber-500" />
+                  <span className="font-medium">{c.name}</span>
+                  <span className="font-mono text-slate-400">{c.code}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-amber-700">{effectNote}</p>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500 italic">Chưa có chiến dịch nào dùng trigger này — khóa không ảnh hưởng chiến dịch đang chạy.</p>
+        )}
+      </div>
+      <DialogActions>
+        <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-3 py-1.5">Hủy</button>
+        <Button variant="primary" onClick={onConfirm}>Xác nhận khóa</Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 
@@ -269,18 +344,22 @@ export function TriggerAdmin() {
   const [editTarget, setEditTarget] = useState<Trigger | null>(null)
   const [copiedParam, setCopiedParam] = useState<string | null>(null)
 
-  // Form thêm param
+  // Form thêm/sửa param
   const [addParamOpen, setAddParamOpen] = useState(false)
   const [newParamName, setNewParamName] = useState('')
   const [newParamDesc, setNewParamDesc] = useState('')
   const [paramErrors, setParamErrors] = useState<{ name?: string; desc?: string }>({})
+  const [editingParamName, setEditingParamName] = useState<string | null>(null)   // param đang sửa (null = thêm mới)
+  // Xác nhận trước khi Khóa param của trigger đang tồn tại — cảnh báo campaign bị ảnh hưởng
+  const [confirmLockParam, setConfirmLockParam] = useState<TriggerParam | null>(null)
 
-  // Form thêm điều kiện lọc phân khúc (trigger đang xem)
+  // Form thêm/sửa điều kiện lọc phân khúc (trigger đang xem)
   const [addFilterFieldOpen, setAddFilterFieldOpen] = useState(false)
   const [ffDraft, setFfDraft] = useState<FilterFieldDraft>(emptyFfDraft())
   const [filterFieldErrors, setFilterFieldErrors] = useState<FfErrors>({})
-  // Xác nhận trước khi xóa điều kiện lọc của trigger đang tồn tại — cảnh báo campaign bị ảnh hưởng
-  const [confirmDeleteFf, setConfirmDeleteFf] = useState<TriggerFilterField | null>(null)
+  const [editingFfTechName, setEditingFfTechName] = useState<string | null>(null)   // field đang sửa (null = thêm mới)
+  // Xác nhận trước khi Khóa điều kiện lọc của trigger đang tồn tại — cảnh báo campaign bị ảnh hưởng
+  const [confirmLockFf, setConfirmLockFf] = useState<TriggerFilterField | null>(null)
 
   // Modal tạo trigger mới
   const [createOpen, setCreateOpen] = useState(false)
@@ -386,72 +465,124 @@ export function TriggerAdmin() {
     setCreateFilterFieldFormOpen(false)
   }
 
-  // Thêm param vào trigger đang xem
+  // ── Tham số (trigger đang xem): Thêm / Sửa / Khóa-Mở ──
   const validateParam = () => {
     const errors: { name?: string; desc?: string } = {}
     if (!newParamName.trim()) errors.name = 'Bắt buộc'
     else if (!/^[a-z0-9_]+$/.test(newParamName.trim())) errors.name = 'Chỉ dùng chữ thường, số, dấu gạch dưới'
-    else if (editTarget?.params.some(p => p.name === newParamName.trim())) errors.name = 'Tham số đã tồn tại'
+    // khi Sửa, bỏ chính param đang sửa khỏi check trùng
+    else if (editTarget?.params.some(p => p.name === newParamName.trim() && p.name !== editingParamName)) errors.name = 'Tham số đã tồn tại'
     if (!newParamDesc.trim()) errors.desc = 'Bắt buộc'
     setParamErrors(errors)
     return Object.keys(errors).length === 0
   }
 
-  const handleAddParam = () => {
+  // Mở form Sửa param — pre-fill dữ liệu dòng đang sửa
+  const openEditParam = (p: TriggerParam) => {
+    setEditingParamName(p.name)
+    setNewParamName(p.name)
+    setNewParamDesc(p.description)
+    setParamErrors({})
+    setAddParamOpen(true)
+  }
+
+  // Lưu param (thêm mới hoặc cập nhật). Sửa tên KHÔNG đổi cú pháp tham chiếu ở đây (mô hình mock) — giữ nguyên bản ghi, chỉ đổi name/desc.
+  const handleSaveParam = () => {
     if (!validateParam() || !editTarget) return
-    const newParam: TriggerParam = {
-      name: newParamName.trim(),
-      description: newParamDesc.trim(),
-      format: 'text',
-      source: editTarget.source,
+    let updatedParams: TriggerParam[]
+    if (editingParamName) {
+      updatedParams = editTarget.params.map(p => p.name === editingParamName
+        ? { ...p, name: newParamName.trim(), description: newParamDesc.trim() }
+        : p)
+      toast('Đã cập nhật tham số ✓', 'success')
+    } else {
+      updatedParams = [...editTarget.params, { name: newParamName.trim(), description: newParamDesc.trim(), format: 'text' as const, source: editTarget.source }]
+      toast('Đã thêm tham số ✓', 'success')
     }
-    const updated = { ...editTarget, params: [...editTarget.params, newParam] }
+    const updated = { ...editTarget, params: updatedParams }
     setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditTarget(updated)
-    toast('Đã thêm tham số ✓', 'success')
     setAddParamOpen(false)
+    setEditingParamName(null)
     setNewParamName('')
     setNewParamDesc('')
     setParamErrors({})
   }
 
-  const handleDeleteParam = (paramName: string) => {
+  // Toggle Khóa/Mở param. Khóa (đang mở) → mở dialog xác nhận; Mở (đang khóa) → mở ngay.
+  const handleToggleLockParam = (paramName: string) => {
     if (!editTarget) return
-    const updated = { ...editTarget, params: editTarget.params.filter(p => p.name !== paramName) }
+    const p = editTarget.params.find(x => x.name === paramName)
+    if (!p) return
+    if (p.locked) applyLockParam(paramName, false)
+    else setConfirmLockParam(p)
+  }
+  const applyLockParam = (paramName: string, locked: boolean) => {
+    if (!editTarget) return
+    const updated = { ...editTarget, params: editTarget.params.map(p => p.name === paramName ? { ...p, locked } : p) }
     setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditTarget(updated)
-    toast('Đã xóa tham số', 'warning')
+    toast(locked ? 'Đã khóa tham số' : 'Đã mở khóa tham số', locked ? 'warning' : 'success')
+    setConfirmLockParam(null)
   }
 
-  // Điều kiện lọc phân khúc vào trigger đang xem
-  const handleAddFilterField = () => {
+  // ── Điều kiện lọc (trigger đang xem): Thêm / Sửa / Khóa-Mở ──
+  // Mở form Sửa điều kiện lọc — pre-fill toàn bộ dữ liệu
+  const openEditFilterField = (techName: string) => {
     if (!editTarget) return
-    const errs = validateFf(ffDraft, editTarget.filterFields)
+    const f = editTarget.filterFields.find(x => x.techName === techName)
+    if (!f) return
+    setEditingFfTechName(techName)
+    setFfDraft({
+      name: f.name,
+      dataType: f.dataType,
+      operators: f.operators,
+      required: f.required,
+      values: f.values.join(', '),
+    })
+    setFilterFieldErrors({})
+    setAddFilterFieldOpen(true)
+  }
+
+  // Lưu điều kiện lọc (thêm mới hoặc cập nhật). Khi Sửa: GIỮ NGUYÊN techName (buildFf nhận field gốc).
+  const handleSaveFilterField = () => {
+    if (!editTarget) return
+    const errs = validateFf(ffDraft, editTarget.filterFields, editingFfTechName ?? undefined)
     if (Object.keys(errs).length > 0) { setFilterFieldErrors(errs); return }
-    const updated = { ...editTarget, filterFields: [...editTarget.filterFields, buildFf(ffDraft, editTarget.filterFields)] }
+    let updatedFields: TriggerFilterField[]
+    if (editingFfTechName) {
+      const keep = editTarget.filterFields.find(f => f.techName === editingFfTechName)
+      const built = buildFf(ffDraft, editTarget.filterFields, keep)
+      updatedFields = editTarget.filterFields.map(f => f.techName === editingFfTechName ? built : f)
+      toast('Đã cập nhật điều kiện lọc ✓', 'success')
+    } else {
+      updatedFields = [...editTarget.filterFields, buildFf(ffDraft, editTarget.filterFields)]
+      toast('Đã thêm điều kiện lọc ✓', 'success')
+    }
+    const updated = { ...editTarget, filterFields: updatedFields }
     setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditTarget(updated)
-    toast('Đã thêm điều kiện lọc ✓', 'success')
     setAddFilterFieldOpen(false)
+    setEditingFfTechName(null)
     setFfDraft(emptyFfDraft())
     setFilterFieldErrors({})
   }
 
-  // Click [Xóa] một điều kiện lọc → mở dialog xác nhận (cảnh báo campaign bị ảnh hưởng) thay vì xóa ngay
-  const handleDeleteFilterField = (techName: string) => {
+  // Toggle Khóa/Mở điều kiện lọc. Khóa → dialog xác nhận; Mở → ngay.
+  const handleToggleLockFilterField = (techName: string) => {
     if (!editTarget) return
-    const ff = editTarget.filterFields.find(f => f.techName === techName)
-    if (ff) setConfirmDeleteFf(ff)
+    const f = editTarget.filterFields.find(x => x.techName === techName)
+    if (!f) return
+    if (f.locked) applyLockFilterField(techName, false)
+    else setConfirmLockFf(f)
   }
-
-  // Người dùng xác nhận trong dialog → thực sự xóa
-  const confirmDeleteFilterField = () => {
-    if (!editTarget || !confirmDeleteFf) return
-    const updated = { ...editTarget, filterFields: editTarget.filterFields.filter(f => f.techName !== confirmDeleteFf.techName) }
+  const applyLockFilterField = (techName: string, locked: boolean) => {
+    if (!editTarget) return
+    const updated = { ...editTarget, filterFields: editTarget.filterFields.map(f => f.techName === techName ? { ...f, locked } : f) }
     setTriggers(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditTarget(updated)
-    toast('Đã xóa điều kiện lọc', 'warning')
-    setConfirmDeleteFf(null)
+    toast(locked ? 'Đã khóa điều kiện lọc' : 'Đã mở khóa điều kiện lọc', locked ? 'warning' : 'success')
+    setConfirmLockFf(null)
   }
 
   return (
@@ -613,7 +744,7 @@ export function TriggerAdmin() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">B. Tham số đầu ra</h3>
                 <button
-                  onClick={() => { setAddParamOpen(true); setNewParamName(''); setNewParamDesc(''); setParamErrors({}) }}
+                  onClick={() => { setEditingParamName(null); setAddParamOpen(true); setNewParamName(''); setNewParamDesc(''); setParamErrors({}) }}
                   className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
                 >
                   <Plus size={12} /> Thêm tham số
@@ -646,8 +777,8 @@ export function TriggerAdmin() {
                     </div>
                   </div>
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setAddParamOpen(false)} className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1">Hủy</button>
-                    <button onClick={handleAddParam} className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Lưu</button>
+                    <button onClick={() => { setAddParamOpen(false); setEditingParamName(null) }} className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1">Hủy</button>
+                    <button onClick={handleSaveParam} className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Lưu</button>
                   </div>
                 </div>
               )}
@@ -668,28 +799,38 @@ export function TriggerAdmin() {
                       </tr>
                     )}
                     {editTarget.params.map(p => (
-                      <tr key={p.name} className="hover:bg-slate-50 group">
+                      <tr key={p.name} className={`hover:bg-slate-50 group ${p.locked ? 'opacity-50' : ''}`}>
                         <td className="px-3 py-2">
-                          <button
-                            onClick={() => handleCopyParam(p.name)}
-                            className="flex items-center gap-1 font-mono text-blue-600 hover:text-blue-800"
-                            title="Nhấn để copy cú pháp"
-                          >
-                            <span>{`{{${p.name}}}`}</span>
-                            {copiedParam === p.name
-                              ? <CheckCircle size={10} className="text-green-500" />
-                              : <Copy size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleCopyParam(p.name)}
+                              className="flex items-center gap-1 font-mono text-blue-600 hover:text-blue-800"
+                              title="Nhấn để copy cú pháp"
+                            >
+                              <span>{`{{${p.name}}}`}</span>
+                              {copiedParam === p.name
+                                ? <CheckCircle size={10} className="text-green-500" />
+                                : <Copy size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
+                            </button>
+                            {p.locked && <span className="text-[10px] font-medium text-slate-500 bg-slate-200 rounded px-1.5 py-0.5">Đã khóa</span>}
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-slate-600">{p.description}</td>
                         <td className="px-3 py-2">
-                          <button
-                            onClick={() => handleDeleteParam(p.name)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500"
-                            title="Xóa tham số"
-                          >
-                            <Trash2 size={12} />
-                          </button>
+                          <div className="flex items-center gap-1.5 justify-end">
+                            {!p.locked && (
+                              <button onClick={() => openEditParam(p)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-blue-500" title="Sửa tham số">
+                                <Pencil size={12} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleToggleLockParam(p.name)}
+                              className={`transition-opacity ${p.locked ? 'text-slate-500 hover:text-green-600 opacity-100' : 'text-slate-400 hover:text-amber-600 opacity-0 group-hover:opacity-100'}`}
+                              title={p.locked ? 'Mở khóa tham số' : 'Khóa tham số'}
+                            >
+                              {p.locked ? <Unlock size={12} /> : <Lock size={12} />}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -706,7 +847,7 @@ export function TriggerAdmin() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">C. Điều kiện lọc phân khúc</h3>
                 <button
-                  onClick={() => { setAddFilterFieldOpen(true); setFfDraft(emptyFfDraft()); setFilterFieldErrors({}) }}
+                  onClick={() => { setEditingFfTechName(null); setAddFilterFieldOpen(true); setFfDraft(emptyFfDraft()); setFilterFieldErrors({}) }}
                   className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
                 >
                   <Plus size={12} /> Thêm điều kiện lọc
@@ -719,12 +860,16 @@ export function TriggerAdmin() {
                   draft={ffDraft}
                   errors={filterFieldErrors}
                   onChange={setFfDraft}
-                  onSave={handleAddFilterField}
-                  onCancel={() => setAddFilterFieldOpen(false)}
+                  onSave={handleSaveFilterField}
+                  onCancel={() => { setAddFilterFieldOpen(false); setEditingFfTechName(null) }}
                 />
               )}
 
-              <FilterFieldTable fields={editTarget.filterFields} onDelete={handleDeleteFilterField} />
+              <FilterFieldTable
+                fields={editTarget.filterFields}
+                onEdit={openEditFilterField}
+                onToggleLock={handleToggleLockFilterField}
+              />
             </section>
           </div>
         )}
@@ -739,54 +884,29 @@ export function TriggerAdmin() {
         </div>
       </Dialog>
 
-      {/* ── Dialog xác nhận xóa điều kiện lọc — cảnh báo campaign bị ảnh hưởng ── */}
-      <Dialog
-        open={!!confirmDeleteFf}
-        onClose={() => setConfirmDeleteFf(null)}
-        title="Xóa điều kiện lọc?"
-      >
-        {confirmDeleteFf && editTarget && (() => {
-          const affected = campaignsUsingTrigger(mockCampaigns, editTarget.code)
-          return (
-            <div className="text-sm text-slate-600 space-y-3">
-              <p>
-                Bạn đang xóa điều kiện lọc <span className="font-medium text-slate-800">{confirmDeleteFf.name}</span> khỏi trigger{' '}
-                <span className="font-mono text-amber-700">{editTarget.code}</span>.
-              </p>
-              {affected.length > 0 ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-                  <p className="text-amber-800">
-                    <span className="font-medium">{affected.length} chiến dịch</span> đang dùng trigger này sẽ bị đánh dấu cần rà soát lại điều kiện lọc:
-                  </p>
-                  <ul className="space-y-1">
-                    {affected.map(c => (
-                      <li key={c.id} className="flex items-center gap-1.5 text-xs text-slate-700">
-                        <span className="w-1 h-1 rounded-full bg-amber-500" />
-                        <span className="font-medium">{c.name}</span>
-                        <span className="font-mono text-slate-400">{c.code}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-xs text-amber-700">
-                    Chiến dịch đang chạy sẽ tự chuyển <span className="font-medium">Tạm dừng</span> và phải cập nhật điều kiện lọc trước khi bật lại.
-                  </p>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500 italic">Chưa có chiến dịch nào dùng trigger này — xóa không ảnh hưởng chiến dịch đang chạy.</p>
-              )}
-            </div>
-          )
-        })()}
-        <DialogActions>
-          <button
-            onClick={() => setConfirmDeleteFf(null)}
-            className="text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-3 py-1.5"
-          >
-            Hủy
-          </button>
-          <Button variant="danger" onClick={confirmDeleteFilterField}>Xác nhận xóa</Button>
-        </DialogActions>
-      </Dialog>
+      {/* ── Dialog xác nhận KHÓA điều kiện lọc — cảnh báo campaign bị ảnh hưởng ── */}
+      <LockConfirmDialog
+        open={!!confirmLockFf}
+        onClose={() => setConfirmLockFf(null)}
+        onConfirm={() => confirmLockFf && applyLockFilterField(confirmLockFf.techName, true)}
+        title="Khóa điều kiện lọc?"
+        itemLabel={<>điều kiện lọc <span className="font-medium text-slate-800">{confirmLockFf?.name}</span></>}
+        triggerCode={editTarget?.code ?? ''}
+        affected={editTarget ? campaignsUsingTrigger(mockCampaigns, editTarget.code) : []}
+        effectNote="Chiến dịch đang chạy có lọc theo thuộc tính này sẽ tự chuyển Tạm dừng và phải cập nhật điều kiện lọc trước khi bật lại."
+      />
+
+      {/* ── Dialog xác nhận KHÓA tham số — cảnh báo campaign bị ảnh hưởng ── */}
+      <LockConfirmDialog
+        open={!!confirmLockParam}
+        onClose={() => setConfirmLockParam(null)}
+        onConfirm={() => confirmLockParam && applyLockParam(confirmLockParam.name, true)}
+        title="Khóa tham số?"
+        itemLabel={<>tham số <span className="font-mono text-amber-700">{`{{${confirmLockParam?.name}}}`}</span></>}
+        triggerCode={editTarget?.code ?? ''}
+        affected={editTarget ? campaignsUsingTrigger(mockCampaigns, editTarget.code) : []}
+        effectNote="Chiến dịch đang chạy có tham chiếu tham số này trong nội dung tin nhắn sẽ tự chuyển Tạm dừng và phải cập nhật trước khi bật lại."
+      />
 
       {/* ── Modal tạo trigger mới ── */}
       <Dialog

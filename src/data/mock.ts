@@ -201,7 +201,7 @@ export const mockTriggers: Trigger[] = [
       },
       {
         techName: 'nationality', name: 'Quốc tịch', dataType: 'enum',
-        operators: ['IN', 'NOT IN'], required: false, values: ['VN', 'ROW'],
+        operators: ['IN', 'NOT IN'], required: false, values: ['VN', 'ROW'], locked: true,
       },
     ],
   },

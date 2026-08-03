@@ -202,7 +202,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
           </span>
           <span className="text-sm font-medium">T{ti + 1} · {trig.code}</span>
           <div className="flex gap-1 flex-wrap">
-            {trigData?.params.map(p => (
+            {trigData?.params.filter(p => !p.locked).map(p => (
               <div key={p.name} className="relative group">
                 <ParamChip name={p.name} onClick={() => insertParam(p.name)} />
                 <div className="absolute bottom-full left-0 mb-1 hidden group-hover:block bg-slate-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-30">
@@ -1751,7 +1751,8 @@ export function CampaignBuilder() {
                     onRemove={() => setSegments(prev => prev.filter(x => x.id !== seg.id))}
                     fieldGroups={selectedTriggers.map(t => ({
                       triggerCode: t.code,
-                      fields: mockTriggers.find(mt => mt.code === t.code)?.filterFields ?? [],
+                      // Ẩn thuộc tính bị Khóa (locked) — QTV không chọn được khi cấu hình campaign mới (URD UC-TRG-05)
+                      fields: (mockTriggers.find(mt => mt.code === t.code)?.filterFields ?? []).filter(f => !f.locked),
                     }))}
                   />
                 ))}
