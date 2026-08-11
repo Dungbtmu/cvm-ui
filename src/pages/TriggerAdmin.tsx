@@ -54,6 +54,20 @@ const OPERATOR_OPTIONS: { op: string; label: string }[] = [
 const OP_LABEL: Record<string, string> = Object.fromEntries(OPERATOR_OPTIONS.map(o => [o.op, o.label]))
 const opLabel = (op: string) => OP_LABEL[op] ?? op
 
+// Toán tử hợp lệ theo kiểu dữ liệu — chặn tổ hợp vô nghĩa (vd enum + BETWEEN).
+// enum/boolean: chỉ so sánh bằng + tập hợp (không so thứ tự); số/ngày: đủ so sánh thứ tự + BETWEEN.
+const OPS_BY_TYPE: Record<FilterFieldDataType, string[]> = {
+  enum: ['=', '!=', 'IN', 'NOT IN', 'IS NULL', 'IS NOT NULL'],
+  boolean: ['=', '!=', 'IS NULL', 'IS NOT NULL'],
+  string: ['=', '!=', 'CONTAINS', 'IN', 'NOT IN', 'IS NULL', 'IS NOT NULL'],
+  integer: ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN', 'IN', 'NOT IN', 'IS NULL', 'IS NOT NULL'],
+  decimal: ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN', 'IN', 'NOT IN', 'IS NULL', 'IS NOT NULL'],
+  float: ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN', 'IN', 'NOT IN', 'IS NULL', 'IS NOT NULL'],
+  date: ['=', '!=', 'AFTER', 'BEFORE', 'BETWEEN', '>', '<', '>=', '<=', 'IS NULL', 'IS NOT NULL'],
+  datetime: ['=', '!=', 'AFTER', 'BEFORE', 'BETWEEN', '>', '<', '>=', '<=', 'IS NULL', 'IS NOT NULL'],
+}
+const opsForType = (t: FilterFieldDataType) => OPERATOR_OPTIONS.filter(o => OPS_BY_TYPE[t].includes(o.op))
+
 // Bản nháp form khai báo điều kiện lọc — dùng chung cho cả tạo mới lẫn xem/sửa
 // Admin chỉ nhập tên nghiệp vụ; techName (mã kỹ thuật để trao đổi với dev) hệ thống tự sinh.
 type FilterFieldDraft = {
@@ -149,7 +163,12 @@ function FilterFieldForm({ draft, errors, onChange, onSave, onCancel }: {
           <label className="text-xs text-slate-500 mb-0.5 block">Kiểu dữ liệu</label>
           <select
             value={draft.dataType}
-            onChange={e => onChange({ ...draft, dataType: e.target.value as FilterFieldDataType })}
+            onChange={e => {
+              const dt = e.target.value as FilterFieldDataType
+              // đổi kiểu → bỏ các toán tử không còn hợp lệ với kiểu mới
+              const validOps = OPS_BY_TYPE[dt]
+              onChange({ ...draft, dataType: dt, operators: draft.operators.filter(op => validOps.includes(op)) })
+            }}
             className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-blue-400"
           >
             {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -162,9 +181,9 @@ function FilterFieldForm({ draft, errors, onChange, onSave, onCancel }: {
       </div>
       {/* Toán tử hỗ trợ — tick nhiều */}
       <div>
-        <label className="text-xs text-slate-500 mb-1 block">Toán tử hỗ trợ <span className="text-red-400">*</span> <span className="text-slate-400 font-normal">(tick những toán tử áp dụng)</span></label>
+        <label className="text-xs text-slate-500 mb-1 block">Toán tử hỗ trợ <span className="text-red-400">*</span> <span className="text-slate-400 font-normal">(chỉ hiện toán tử hợp lệ với kiểu đã chọn)</span></label>
         <div className="flex flex-wrap gap-1.5">
-          {OPERATOR_OPTIONS.map(({ op, label }) => {
+          {opsForType(draft.dataType).map(({ op, label }) => {
             const on = draft.operators.includes(op)
             return (
               <button

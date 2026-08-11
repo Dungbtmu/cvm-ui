@@ -245,7 +245,7 @@ export const mockTriggers: Trigger[] = [
       },
       {
         techName: 'sent_count', name: 'Số lần đã gửi trigger', dataType: 'integer',
-        operators: ['integer'], required: false, values: [],
+        operators: ['=', '>=', '<='], required: false, values: [],
       },
     ],
   },

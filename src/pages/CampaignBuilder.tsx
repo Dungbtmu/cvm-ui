@@ -639,6 +639,20 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
               {/* Ô giá trị — render theo kiểu: enum → dropdown; boolean → dropdown Đúng/Sai; số/chuỗi → nhập tay; ngày → picker; BETWEEN → 2 ô; IS NULL → không ô */}
               {NO_VALUE_OPS.has(f.op) ? (
                 <div className="flex-1 min-w-0" />
+              ) : f.op === 'BETWEEN' && valuesOf(f.triggerCode, f.field).length > 0 ? (
+                // Lưới an toàn: enum + BETWEEN (tổ hợp lẽ ra bị chặn ở Trigger Admin, nhưng phòng dữ liệu cũ)
+                // → 2 dropdown từ–đến thay vì âm thầm bỏ qua BETWEEN
+                <div className="flex-1 min-w-0 flex items-center gap-1">
+                  <select value={f.value} onChange={e => updateFilter(i, { value: e.target.value })} className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white">
+                    <option value="">Từ...</option>
+                    {valuesOf(f.triggerCode, f.field).map(v => <option key={v}>{v}</option>)}
+                  </select>
+                  <span className="text-slate-400 text-xs">–</span>
+                  <select value={f.value2 ?? ''} onChange={e => updateFilter(i, { value2: e.target.value })} className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white">
+                    <option value="">Đến...</option>
+                    {valuesOf(f.triggerCode, f.field).map(v => <option key={v}>{v}</option>)}
+                  </select>
+                </div>
               ) : typeOf(f.triggerCode, f.field) === 'boolean' ? (
                 <select
                   value={f.value}
