@@ -58,6 +58,23 @@ export const mockCampaigns: Campaign[] = [
     filterInvalid: { triggerName: 'U09', filterFieldName: 'Số ngày gắn bó' },
   },
   {
+    // Dính CẢ 2 cờ cùng lúc — dùng để test tooltip [Bật] + banner Builder hiện đồng thời
+    // PARAM_INVALID và FILTER_INVALID (khác id 3/4 vốn mỗi cái chỉ dính 1 cờ).
+    id: '12',
+    name: 'Test dính cả 2 cờ',
+    code: 'CVM-TEST-DUAL-FLAG',
+    status: 'Paused',
+    triggers: ['E01'],
+    templateIds: ['1'],
+    startDate: '01/06/2026',
+    endDate: '31/12/2026',
+    priority: 12,
+    owner: 'QTV Marketing',
+    createdAt: '20/08/2026 09:30',
+    paramInvalid: { triggerName: 'E01', paramName: 'package_code' },
+    filterInvalid: { triggerName: 'E01', filterFieldName: 'Loại SIM' },
+  },
+  {
     id: '7',
     name: 'Ưu đãi gói data sinh viên',
     code: 'CVM-STUDENT-DATA-Q2-2026',
@@ -149,7 +166,7 @@ export const mockCampaigns: Campaign[] = [
     // demo trạng thái ban đầu trước khi set cờ thủ công (xem ghi chú DEMO SCRIPT bên dưới),
     // vì prototype UI không tự tính cờ khi Khóa param/filter ở Trigger Admin (giới hạn mock —
     // logic đó là backend thật, quét nội dung message thực tế đối chiếu param/filter bị khóa).
-    id: '8',
+    id: '11',
     name: 'Demo test trigger E01',
     code: 'CVM-DEMO-TRIGGER-E01',
     status: 'Active',
@@ -157,7 +174,7 @@ export const mockCampaigns: Campaign[] = [
     templateIds: ['1'],
     startDate: '01/06/2026',
     endDate: '31/12/2026',
-    priority: 8,
+    priority: 11,
     owner: 'QTV Marketing',
     createdAt: '20/08/2026 09:00',
     goal: 'Dữ liệu demo — test nghiệp vụ Trigger (Thêm/Sửa/Khóa param + điều kiện lọc)',
@@ -167,7 +184,7 @@ export const mockCampaigns: Campaign[] = [
 // ── DEMO SCRIPT — hướng dẫn set cờ thủ công để demo chuỗi Trigger → Campaign ──
 // Prototype không tự tính PARAM_INVALID/FILTER_INVALID khi Khóa ở Trigger Admin (đó là logic
 // backend thật). Để demo "Khóa param/filter → campaign Active tự chuyển Paused + cảnh báo",
-// set thủ công 1 trong 2 dòng dưới vào campaign id='8' phía trên rồi build lại:
+// set thủ công 1 trong 2 dòng dưới vào campaign id='11' phía trên rồi build lại:
 //   status: 'Paused', paramInvalid: { triggerName: 'E01', paramName: 'package_code' }
 //   status: 'Paused', filterInvalid: { triggerName: 'E01', filterFieldName: 'Loại SIM' }
 // Sau đó vào Campaign List/Detail xem banner, tooltip [Bật], và mở [Sửa] xem banner trong Builder.
