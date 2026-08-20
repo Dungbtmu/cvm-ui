@@ -144,7 +144,33 @@ export const mockCampaigns: Campaign[] = [
     createdAt: '13/05/2026 09:00',
     goal: 'Giảm churn rate, tăng engagement',
   },
+  {
+    // Campaign demo — Active, dùng trigger E01, CHƯA gắn cờ. Dùng làm campaign "sạch" để
+    // demo trạng thái ban đầu trước khi set cờ thủ công (xem ghi chú DEMO SCRIPT bên dưới),
+    // vì prototype UI không tự tính cờ khi Khóa param/filter ở Trigger Admin (giới hạn mock —
+    // logic đó là backend thật, quét nội dung message thực tế đối chiếu param/filter bị khóa).
+    id: '8',
+    name: 'Demo test trigger E01',
+    code: 'CVM-DEMO-TRIGGER-E01',
+    status: 'Active',
+    triggers: ['E01'],
+    templateIds: ['1'],
+    startDate: '01/06/2026',
+    endDate: '31/12/2026',
+    priority: 8,
+    owner: 'QTV Marketing',
+    createdAt: '20/08/2026 09:00',
+    goal: 'Dữ liệu demo — test nghiệp vụ Trigger (Thêm/Sửa/Khóa param + điều kiện lọc)',
+  },
 ]
+
+// ── DEMO SCRIPT — hướng dẫn set cờ thủ công để demo chuỗi Trigger → Campaign ──
+// Prototype không tự tính PARAM_INVALID/FILTER_INVALID khi Khóa ở Trigger Admin (đó là logic
+// backend thật). Để demo "Khóa param/filter → campaign Active tự chuyển Paused + cảnh báo",
+// set thủ công 1 trong 2 dòng dưới vào campaign id='8' phía trên rồi build lại:
+//   status: 'Paused', paramInvalid: { triggerName: 'E01', paramName: 'package_code' }
+//   status: 'Paused', filterInvalid: { triggerName: 'E01', filterFieldName: 'Loại SIM' }
+// Sau đó vào Campaign List/Detail xem banner, tooltip [Bật], và mở [Sửa] xem banner trong Builder.
 
 // Danh mục trigger + điều kiện lọc con — nguồn: .claude/output/bss-mapping/trigger-sub-conditions.md
 // Điều kiện lọc (filterFields.operators) đồng bộ với file danh mục gốc. Params là dữ liệu mẫu
