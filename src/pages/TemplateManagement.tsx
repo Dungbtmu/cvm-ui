@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Copy, Eye, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Search, Copy, Eye, Trash2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { TriggerChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockTemplates, mockCampaigns, mockTriggers } from '../data/mock'
 import type { Template, ChannelType } from '../types'
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const
-// Nhóm dùng để gom template chưa gắn Trigger nào — luôn hiển thị cuối cùng (URD UC-TPL-00 STT 1).
-const UNGROUPED_KEY = '__ungrouped__'
 
 export function TemplateManagement() {
   const navigate = useNavigate()
@@ -21,9 +20,11 @@ export function TemplateManagement() {
   const [disableTarget, setDisableTarget] = useState<Template | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Template | null>(null)
   const [usagePopup, setUsagePopup] = useState<Template | null>(null)
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [triggerPopup, setTriggerPopup] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState(20)
 
+  // Sắp xếp phẳng theo số lần dùng nhiều nhất — không nhóm theo Trigger (URD v4.3: cột Trigger
+  // riêng thay cho nhóm collapsible, giống cách Campaign List hiển thị cột Trigger).
   const filtered = templates
     .filter(t => {
       const matchSearch = !search || t.name.toLowerCase().includes(search.toLowerCase())
@@ -33,35 +34,8 @@ export function TemplateManagement() {
     })
     .sort((a, b) => b.usageCount - a.usageCount)
 
-  // Nhóm theo Trigger áp dụng — template gắn nhiều Trigger xuất hiện lặp lại ở từng nhóm tương ứng;
-  // template chưa gắn Trigger nào rơi vào nhóm UNGROUPED_KEY, luôn hiển thị cuối (URD UC-TPL-00).
-  const groups: { key: string; code: string; name: string; templates: Template[] }[] = []
-  const groupIndex = new Map<string, number>()
-  for (const t of filtered) {
-    const codes = t.triggerCodes && t.triggerCodes.length > 0 ? t.triggerCodes : [UNGROUPED_KEY]
-    for (const code of codes) {
-      if (!groupIndex.has(code)) {
-        const trigger = mockTriggers.find(tr => tr.code === code)
-        groups.push({
-          key: code,
-          code: code === UNGROUPED_KEY ? '' : code,
-          name: code === UNGROUPED_KEY ? 'Chưa gắn Trigger' : (trigger?.name ?? code),
-          templates: [],
-        })
-        groupIndex.set(code, groups.length - 1)
-      }
-      groups[groupIndex.get(code)!].templates.push(t)
-    }
-  }
-  groups.sort((a, b) => (a.key === UNGROUPED_KEY ? 1 : b.key === UNGROUPED_KEY ? -1 : 0))
-
   const changePageSize = (size: number) => setPageSize(size)
   const handleFilter = (fn: () => void) => { fn() }
-  const toggleGroup = (key: string) => setCollapsedGroups(prev => {
-    const next = new Set(prev)
-    if (next.has(key)) next.delete(key); else next.add(key)
-    return next
-  })
 
   const handleClone = (t: Template) => {
     const clone: Template = { ...t, id: String(Date.now()), name: `Bản sao của ${t.name}`, usageCount: 0 }
@@ -126,130 +100,161 @@ export function TemplateManagement() {
         </select>
       </div>
 
-      {/* Danh sách nhóm theo Trigger áp dụng (URD UC-TPL-00) — mỗi nhóm 1 khối collapsible; nhóm
-          "Chưa gắn Trigger" luôn ở cuối; template gắn nhiều Trigger lặp lại ở từng nhóm tương ứng.
-          Không phân trang theo trang số — URD không đặc tả pagination cho chế độ nhóm; thay vào đó
-          giữ dropdown số dòng/trang chỉ mang tính hiển thị số lượng gợi ý, danh sách hiển thị đầy đủ
-          theo nhóm để không cắt ngang một nhóm giữa 2 trang. */}
-      {filtered.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-lg px-4 py-8 text-center text-slate-400 text-sm">
-          Không có template nào phù hợp
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {groups.map(group => {
-            const isCollapsed = collapsedGroups.has(group.key)
-            return (
-              <div key={group.key} className="bg-white border border-slate-200 rounded-lg overflow-visible">
-                <button onClick={() => toggleGroup(group.key)}
-                  className="w-full flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200 text-left hover:bg-slate-100">
-                  {isCollapsed ? <ChevronRight size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
-                  <span className="text-sm font-semibold text-slate-700">
-                    {group.key === UNGROUPED_KEY
-                      ? 'Chưa gắn Trigger'
-                      : `${group.code} · ${group.name}`}
-                  </span>
-                  <span className="text-xs text-slate-400">({group.templates.length})</span>
-                </button>
-                {!isCollapsed && (
-                  <table className="w-full text-sm">
-                    <thead className="border-b border-slate-100">
-                      <tr className="text-xs text-slate-500">
-                        <th className="text-left px-4 py-2 font-medium">Tên Template</th>
-                        <th className="text-left px-4 py-2 font-medium">Kênh hỗ trợ</th>
-                        <th className="text-left px-4 py-2 font-medium">Trạng thái</th>
-                        <th className="text-left px-4 py-2 font-medium">Dùng</th>
-                        <th className="text-right px-4 py-2 font-medium">Hành động</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {group.templates.map(t => (
-                        <tr key={`${group.key}-${t.id}`} className={`hover:bg-slate-50 ${t.status === 'Inactive' ? 'opacity-50' : ''}`}>
-                          <td className="px-4 py-2.5 font-medium text-slate-800">{t.name}</td>
-                          <td className="px-4 py-2.5">
-                            <div className="flex gap-1 flex-wrap">{channelDots(t.channels)}</div>
-                          </td>
-                          <td className="px-4 py-2.5">
-                            {t.status === 'Active'
-                              ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Hoạt động</span>
-                              : <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Không hoạt động</span>
-                            }
-                          </td>
-                          <td className="px-4 py-2.5 relative">
-                            {t.usageCount === 0 ? (
-                              <span className="text-slate-400">–</span>
-                            ) : (
-                              <button
-                                onClick={() => setUsagePopup(usagePopup?.id === t.id ? null : t)}
-                                className="text-blue-600 hover:text-blue-800 underline text-sm"
-                              >
-                                {t.usageCount} lần
-                              </button>
-                            )}
-                            {usagePopup?.id === t.id && (() => {
-                              const campaigns = mockCampaigns.filter(c => c.templateIds?.includes(t.id))
-                              const statusColor: Record<string, string> = {
-                                Active: 'text-green-600', Draft: 'text-slate-500',
-                                Pending: 'text-yellow-600', Paused: 'text-orange-500', Ended: 'text-slate-400',
-                              }
-                              return (
-                                <div className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-30 p-3 mt-1 w-72 text-xs">
-                                  <div className="font-medium text-slate-700 mb-2">Campaign sử dụng template này:</div>
-                                  <div className="space-y-1.5">
-                                    {campaigns.map(c => (
-                                      <div key={c.id} className="flex items-center justify-between gap-2">
-                                        <span className="text-slate-700 truncate">{c.name}</span>
-                                        <span className={`flex-shrink-0 font-medium ${statusColor[c.status]}`}>{c.status}</span>
-                                      </div>
-                                    ))}
-                                    {campaigns.length === 0 && <div className="text-slate-400 italic">Chưa có campaign nào</div>}
-                                  </div>
-                                  <button onClick={() => setUsagePopup(null)} className="mt-2.5 text-slate-400 hover:text-slate-600">Đóng</button>
+      {/* Bảng phẳng, sắp xếp theo số lần dùng nhiều nhất — cột Trigger hiển thị tối đa 2 chip +
+          "+N ⓘ" popover, cùng pattern với cột Trigger tại Campaign List (URD v4.3, Screen 4A). */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-visible">
+        <table className="w-full text-sm">
+          <thead className="border-b border-slate-100">
+            <tr className="text-xs text-slate-500">
+              <th className="text-left px-4 py-2 font-medium">Tên Template</th>
+              <th className="text-left px-4 py-2 font-medium">Trigger</th>
+              <th className="text-left px-4 py-2 font-medium">Kênh hỗ trợ</th>
+              <th className="text-left px-4 py-2 font-medium">Trạng thái</th>
+              <th className="text-left px-4 py-2 font-medium">Dùng</th>
+              <th className="text-right px-4 py-2 font-medium">Hành động</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {filtered.map(t => {
+              const triggerCodes = t.triggerCodes ?? []
+              return (
+                <tr key={t.id} className={`hover:bg-slate-50 ${t.status === 'Inactive' ? 'opacity-50' : ''}`}>
+                  <td className="px-4 py-2.5 font-medium text-slate-800">{t.name}</td>
+                  <td className="px-4 py-2.5">
+                    {triggerCodes.length === 0 ? (
+                      <span className="text-slate-400">–</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1 items-center">
+                        {triggerCodes.slice(0, 2).map(code => {
+                          const trig = mockTriggers.find(x => x.code === code)
+                          return (
+                            <span key={code} title={trig ? `${trig.name}\n${trig.source} · ${trig.type}` : code} className="cursor-default">
+                              <TriggerChip code={code} />
+                            </span>
+                          )
+                        })}
+                        {triggerCodes.length > 2 && (
+                          <div className="relative">
+                            <button
+                              onClick={() => setTriggerPopup(triggerPopup === t.id ? null : t.id)}
+                              className="text-xs text-slate-500 hover:text-blue-600 border border-slate-200 rounded-full px-1.5 py-0.5"
+                            >
+                              +{triggerCodes.length - 2} ⓘ
+                            </button>
+                            {triggerPopup === t.id && (
+                              <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 min-w-72 w-80">
+                                <div className="px-3 pt-2.5 pb-1.5 border-b border-slate-100 text-xs font-medium text-slate-500">
+                                  Tất cả trigger ({triggerCodes.length})
                                 </div>
-                              )
-                            })()}
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <div className="flex gap-2 justify-end">
-                              <Button size="sm" variant="ghost" onClick={() => navigate(`/templates/${t.id}/view`)}>
-                                <Eye size={12} /> Xem
-                              </Button>
-                              <Button size="sm" onClick={() => navigate(`/templates/${t.id}`)}>Sửa</Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleClone(t)}>
-                                <Copy size={12} /> Nhân bản
-                              </Button>
-                              <Button size="sm" variant={t.status === 'Active' ? 'danger' : 'success'} onClick={() => handleToggle(t)}>
-                                {t.status === 'Active' ? 'Tắt' : 'Bật'}
-                              </Button>
-                              <Button size="sm" variant="ghost" disabled={t.usageCount > 0}
-                                title={t.usageCount > 0 ? `Không thể xóa — template đang được ${t.usageCount} campaign sử dụng (kể cả Draft/Ended)` : undefined}
-                                onClick={() => setDeleteTarget(t)}
-                                className={t.usageCount === 0 ? 'text-red-500 hover:bg-red-50' : ''}
-                              >
-                                <Trash2 size={12} /> Xóa
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )
-          })}
-          <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-            <span>{filtered.length} template</span>
-            <select
-              value={pageSize}
-              onChange={e => changePageSize(Number(e.target.value))}
-              className="border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none"
-            >
-              {PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}/trang</option>)}
-            </select>
-          </div>
+                                <div className="max-h-64 overflow-y-auto divide-y divide-slate-50">
+                                  {triggerCodes.map(code => {
+                                    const trig = mockTriggers.find(x => x.code === code)
+                                    return (
+                                      <div key={code} className="px-3 py-2 text-xs space-y-0.5">
+                                        <div className="font-mono text-amber-700 font-medium">{code}</div>
+                                        <div className="text-slate-600">{trig?.name ?? '—'}</div>
+                                        <div className="text-slate-400">{trig?.source ?? '—'} · {trig?.type ?? '—'}</div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                                <div className="px-3 py-1.5 border-t border-slate-100">
+                                  <button onClick={() => setTriggerPopup(null)} className="text-xs text-slate-400 hover:text-slate-600">Đóng</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex gap-1 flex-wrap">{channelDots(t.channels)}</div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {t.status === 'Active'
+                      ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Hoạt động</span>
+                      : <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Không hoạt động</span>
+                    }
+                  </td>
+                  <td className="px-4 py-2.5 relative">
+                    {t.usageCount === 0 ? (
+                      <span className="text-slate-400">–</span>
+                    ) : (
+                      <button
+                        onClick={() => setUsagePopup(usagePopup?.id === t.id ? null : t)}
+                        className="text-blue-600 hover:text-blue-800 underline text-sm"
+                      >
+                        {t.usageCount} lần
+                      </button>
+                    )}
+                    {usagePopup?.id === t.id && (() => {
+                      const campaigns = mockCampaigns.filter(c => c.templateIds?.includes(t.id))
+                      const statusColor: Record<string, string> = {
+                        Active: 'text-green-600', Draft: 'text-slate-500',
+                        Pending: 'text-yellow-600', Paused: 'text-orange-500', Ended: 'text-slate-400',
+                      }
+                      return (
+                        <div className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-30 p-3 mt-1 w-72 text-xs">
+                          <div className="font-medium text-slate-700 mb-2">Campaign sử dụng template này:</div>
+                          <div className="space-y-1.5">
+                            {campaigns.map(c => (
+                              <div key={c.id} className="flex items-center justify-between gap-2">
+                                <span className="text-slate-700 truncate">{c.name}</span>
+                                <span className={`flex-shrink-0 font-medium ${statusColor[c.status]}`}>{c.status}</span>
+                              </div>
+                            ))}
+                            {campaigns.length === 0 && <div className="text-slate-400 italic">Chưa có campaign nào</div>}
+                          </div>
+                          <button onClick={() => setUsagePopup(null)} className="mt-2.5 text-slate-400 hover:text-slate-600">Đóng</button>
+                        </div>
+                      )
+                    })()}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex gap-2 justify-end">
+                      <Button size="sm" variant="ghost" onClick={() => navigate(`/templates/${t.id}/view`)}>
+                        <Eye size={12} /> Xem
+                      </Button>
+                      <Button size="sm" onClick={() => navigate(`/templates/${t.id}`)}>Sửa</Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleClone(t)}>
+                        <Copy size={12} /> Nhân bản
+                      </Button>
+                      <Button size="sm" variant={t.status === 'Active' ? 'danger' : 'success'} onClick={() => handleToggle(t)}>
+                        {t.status === 'Active' ? 'Tắt' : 'Bật'}
+                      </Button>
+                      <Button size="sm" variant="ghost" disabled={t.usageCount > 0}
+                        title={t.usageCount > 0 ? `Không thể xóa — template đang được ${t.usageCount} campaign sử dụng (kể cả Draft/Ended)` : undefined}
+                        onClick={() => setDeleteTarget(t)}
+                        className={t.usageCount === 0 ? 'text-red-500 hover:bg-red-50' : ''}
+                      >
+                        <Trash2 size={12} /> Xóa
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">
+                  Không có template nào phù hợp
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <span>{filtered.length} template</span>
+          <select
+            value={pageSize}
+            onChange={e => changePageSize(Number(e.target.value))}
+            className="border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none"
+          >
+            {PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}/trang</option>)}
+          </select>
         </div>
-      )}
+      </div>
 
       <Dialog open={!!disableTarget} onClose={() => setDisableTarget(null)} title="Tắt template?">
         <p className="text-sm text-slate-600">
