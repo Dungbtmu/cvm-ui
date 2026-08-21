@@ -179,7 +179,65 @@ export const mockCampaigns: Campaign[] = [
     createdAt: '20/08/2026 09:00',
     goal: 'Dữ liệu demo — test nghiệp vụ Trigger (Thêm/Sửa/Khóa param + điều kiện lọc)',
   },
+  {
+    // Demo endDate = Vô hạn — không có endDate, chạy đến khi QTV/Admin chủ động [Dừng].
+    // Campaign List/Detail phải hiển thị "DD/MM – Vô hạn" thay vì khoảng ngày.
+    id: '13',
+    name: 'Chăm sóc KH lâu dài — không giới hạn',
+    code: 'CVM-LOYALTY-INFINITE-2026',
+    status: 'Active',
+    triggers: ['E06'],
+    templateIds: ['2'],
+    startDate: '01/07/2026',
+    isInfinite: true,
+    priority: 13,
+    owner: 'QTV Marketing',
+    createdAt: '15/07/2026 09:00',
+    goal: 'Chăm sóc khách hàng dài hạn — không đặt ngày kết thúc cố định',
+  },
+  {
+    // Demo badge "Chưa tới ngày bắt đầu" — Active nhưng startDate ở tương lai so với "hôm nay" (21/08/2026).
+    // Vẫn giữ nguyên status Active, chỉ thêm badge phụ tại Campaign List/Detail (URD Screen 2 STT 8).
+    id: '14',
+    name: 'Khai trương chi nhánh mới Q4',
+    code: 'CVM-BRANCH-OPEN-Q4-2026',
+    status: 'Active',
+    triggers: ['E06'],
+    templateIds: ['2'],
+    startDate: '01/10/2026',
+    endDate: '31/12/2026',
+    priority: 14,
+    owner: 'QTV Marketing',
+    createdAt: '20/08/2026 10:00',
+    submittedAt: '20/08/2026 11:00',
+    goal: 'Quảng bá chi nhánh mới — đã duyệt trước, chờ tới ngày khai trương mới bắt đầu gửi',
+  },
+  {
+    // Demo pausedConfigChanged — khác paramInvalid/filterInvalid (đó là do Khóa). Ở đây Admin đã SỬA
+    // (không Khóa) param/điều kiện lọc của trigger E02 trong lúc campaign đang Paused; nội dung message
+    // hiện tại của campaign không tham chiếu trực tiếp phần vừa sửa (nên không đủ điều kiện gắn cờ
+    // PARAM_INVALID/FILTER_INVALID) — nhưng [Bật] vẫn phải quay về Chờ duyệt để Admin xác nhận lại
+    // cấu hình trigger mới, thay vì bật thẳng Active (xem URD UC-CAM-07).
+    id: '15',
+    name: 'Nhắc cài app sau kích hoạt — chờ xác nhận lại',
+    code: 'CVM-APP-REMIND-RECHECK-2026',
+    status: 'Paused',
+    triggers: ['E02'],
+    templateIds: ['5'],
+    startDate: '01/07/2026',
+    endDate: '31/12/2026',
+    priority: 15,
+    owner: 'QTV Marketing',
+    createdAt: '10/07/2026 09:00',
+    pausedConfigChanged: true,
+  },
 ]
+
+// ── DEMO SCRIPT 2 — pausedConfigChanged (Bật lại → Chờ duyệt, khác PARAM_INVALID/FILTER_INVALID) ──
+// Campaign id='15' minh họa sẵn case này (status Paused + pausedConfigChanged: true). Vào Campaign List
+// hoặc Detail, nhấn [Bật] → hệ thống hiện confirm dialog cảnh báo sẽ chuyển về Chờ duyệt (Pending) thay vì
+// Active thẳng — khác với campaign Paused thường (vd id='4' đã dính filterInvalid nên bị khóa vĩnh viễn,
+// hoặc 1 campaign Paused "sạch" không cờ nào thì [Bật] chuyển Active ngay không cần confirm).
 
 // ── DEMO SCRIPT — hướng dẫn set cờ thủ công để demo chuỗi Trigger → Campaign ──
 // Prototype không tự tính PARAM_INVALID/FILTER_INVALID khi Khóa ở Trigger Admin (đó là logic
@@ -357,16 +415,16 @@ export const mockTriggers: Trigger[] = [
         operators: ['=', 'IN'], required: true, values: ['DAILY_DATA'],
       },
       {
-        techName: 'used_percent', name: 'Tỷ lệ data đã sử dụng (%)', dataType: 'decimal',
-        operators: ['>', '>=', '=', '<', 'BETWEEN'], required: true, values: [],
+        techName: 'used_percent', name: 'Tỷ lệ data đã sử dụng', dataType: 'decimal',
+        operators: ['>', '>=', '=', '<', 'BETWEEN'], required: true, values: [], unit: 'percent',
       },
       {
-        techName: 'remaining_data_mb', name: 'Dung lượng data còn lại (MB)', dataType: 'decimal',
-        operators: ['<', '<=', '=', '>', 'BETWEEN'], required: false, values: [],
+        techName: 'remaining_data_mb', name: 'Dung lượng data còn lại', dataType: 'decimal',
+        operators: ['<', '<=', '=', '>', 'BETWEEN'], required: false, values: [], unit: 'GB',
       },
       {
-        techName: 'total_quota_mb', name: 'Tổng dung lượng gói (MB)', dataType: 'decimal',
-        operators: ['>', '>=', '='], required: false, values: [],
+        techName: 'total_quota_mb', name: 'Tổng dung lượng gói', dataType: 'decimal',
+        operators: ['>', '>=', '='], required: false, values: [], unit: 'GB',
       },
       {
         techName: 'package_code', name: 'Mã gói data', dataType: 'string',
@@ -410,12 +468,12 @@ export const mockTriggers: Trigger[] = [
         operators: ['=', 'IN'], required: true, values: ['DATA'],
       },
       {
-        techName: 'remaining_data_mb', name: 'Data còn lại (MB)', dataType: 'decimal',
-        operators: ['=', '<=', '<'], required: true, values: [],
+        techName: 'remaining_data_mb', name: 'Data còn lại', dataType: 'decimal',
+        operators: ['=', '<=', '<'], required: true, values: [], unit: 'GB',
       },
       {
-        techName: 'used_percent', name: 'Tỷ lệ sử dụng (%)', dataType: 'decimal',
-        operators: ['=', '>=', '>'], required: false, values: [],
+        techName: 'used_percent', name: 'Tỷ lệ sử dụng', dataType: 'decimal',
+        operators: ['=', '>=', '>'], required: false, values: [], unit: 'percent',
       },
       {
         techName: 'package_code', name: 'Mã gói', dataType: 'string',
@@ -1922,6 +1980,7 @@ export const mockTemplates: Template[] = [
   {
     id: '1', name: 'Chào mừng SIM', channels: ['Push', 'Zalo OA'], usageCount: 3, status: 'Active',
     description: 'Gửi khi khách hàng kích hoạt SIM mới — chào đón và giới thiệu gói cước',
+    triggerCodes: ['E01'],
     contents: {
       Push: { title: 'Chào mừng {{ten_kh}} đến với VietnamPost!', body: 'SIM {{loai_sim}} của bạn đã kích hoạt thành công vào {{ngay_kich_hoat}}. Khám phá các gói cước ưu đãi dành riêng cho bạn ngay hôm nay.' },
       'Zalo OA': { body: 'Xin chào {{ten_kh}},\n\nChúc mừng bạn đã kích hoạt thành công SIM {{loai_sim}} của VietnamPost vào ngày {{ngay_kich_hoat}}.\n\nSố dư hiện tại: {{so_du}} đ\nSố điện thoại: {{so_dt}}\n\nCảm ơn bạn đã tin tùy chọn VietnamPost. Chúc bạn có trải nghiệm tuyệt vời!' },
@@ -1930,6 +1989,7 @@ export const mockTemplates: Template[] = [
   {
     id: '2', name: 'Nhắc nạp thẻ', channels: ['SMS', 'USSD'], usageCount: 3, status: 'Active',
     description: 'Nhắc khách hàng nạp tiền khi số dư tài khoản thấp hoặc sắp hết hạn gói',
+    triggerCodes: ['E_ZERO_BALANCE'],
     contents: {
       SMS: { body: 'VietnamPost: Tai khoan {{so_dt}} con {{so_du}}d, het han {{ngay_het_han}}. Nap the ngay de khong bi gian doan lien lac. Hotline: 1800 xxxx.' },
       USSD: { body: 'VietnamPost thong bao: So du con {{so_du}}d. Het han {{ngay_het_han}}. Nap the de tiep tuc su dung dich vu.' },
@@ -1938,6 +1998,7 @@ export const mockTemplates: Template[] = [
   {
     id: '3', name: 'Sắp hết data', channels: ['Push', 'SMS'], usageCount: 2, status: 'Active',
     description: 'Cảnh báo khi data gói cước còn dưới ngưỡng — khuyến khích mua thêm data',
+    triggerCodes: ['E_DATA_100'],
     contents: {
       Push: { title: 'Data của bạn sắp hết!', body: 'Gói data còn {{data_con_lai}} MB — sắp hết rồi {{ten_kh}} ơi. Mua thêm data ngay để lướt net không bị gián đoạn.' },
       SMS: { body: 'VietnamPost: Goi data cua {{so_dt}} chi con {{data_con_lai}}MB. Mua them data tai *098# hoac lien he hotline 1800 xxxx.' },
@@ -1958,6 +2019,7 @@ export const mockTemplates: Template[] = [
   {
     id: '5', name: 'Cài app nhắc nhở', channels: ['Push'], usageCount: 2, status: 'Inactive',
     description: 'Nhắc khách hàng chưa cài ứng dụng VietnamPost Mobile',
+    triggerCodes: ['E_APP_INACTIVE_X_DAYS'],
     contents: {
       Push: { title: 'Quản lý tài khoản dễ dàng hơn!', body: 'Xin chào {{ten_kh}}, hãy tải app VietnamPost để nạp tiền, kiểm tra số dư và đăng ký gói cước mọi lúc mọi nơi. Tải ngay — hoàn toàn miễn phí!' },
     },
@@ -1980,6 +2042,10 @@ export const mockBlacklist: BlacklistEntry[] = [
   { phone: '0934567013', campaign: 'Giữ chân KH có nguy cơ rời mạng', channel: 'Push', source: 'campaign' },
   { phone: '0945678014', campaign: 'Giữ chân KH có nguy cơ rời mạng', channel: 'Email', source: 'manual' },
   { phone: '0956789015', campaign: 'Tết Nguyên Đán 2026',        channel: 'Banner',  source: 'upload' },
+  // Blacklist toàn hệ thống (UC-BL-04/UC-BL-05) — scope='global', campaign/channel giữ placeholder cố định
+  // để tái dùng đúng field hiện có mà không phải sửa kiểu dữ liệu của các entry theo campaign.
+  { phone: '0900000016', campaign: 'Toàn hệ thống', channel: 'Push', source: 'manual', scope: 'global' },
+  { phone: '0900000017', campaign: 'Toàn hệ thống', channel: 'Push', source: 'upload', scope: 'global' },
 ]
 
 export const mockCustomers: Customer[] = [

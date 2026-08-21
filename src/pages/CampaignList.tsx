@@ -6,7 +6,7 @@ import { StatusBadge, TriggerChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockCampaigns, mockTriggers } from '../data/mock'
-import { reactivateBlockReason } from '../lib/utils'
+import { reactivateBlockReason, reactivateFlow, sortCampaignsForList, isBeforeStart } from '../lib/utils'
 import type { Campaign, CampaignStatus } from '../types'
 
 const statusFilters: CampaignStatus[] = ['Active', 'Draft', 'Pending', 'Paused', 'Ended']
@@ -23,11 +23,15 @@ export function CampaignList() {
 
   const [confirmStop, setConfirmStop] = useState<Campaign | null>(null)
   const [tooltipCampaign, setTooltipCampaign] = useState<string | null>(null)
+  const [confirmActivatePending, setConfirmActivatePending] = useState<Campaign | null>(null)
+  const [editingPriority, setEditingPriority] = useState<string | null>(null)
+  const [priorityDraft, setPriorityDraft] = useState('')
+  const [confirmPriorityChange, setConfirmPriorityChange] = useState<{ campaign: Campaign; newPriority: number } | null>(null)
 
   const toggleFilter = (f: CampaignStatus) =>
     setActiveFilters(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f])
 
-  const filtered = campaigns.filter(c => {
+  const filtered = sortCampaignsForList(campaigns.filter(c => {
     const matchSearch =
       !search ||
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -35,7 +39,7 @@ export function CampaignList() {
       c.triggers.some(t => t.toLowerCase().includes(search.toLowerCase()))
     const matchStatus = activeFilters.length === 0 || activeFilters.includes(c.status)
     return matchSearch && matchStatus
-  })
+  }))
 
   const handleStop = (c: Campaign) => setConfirmStop(c)
   const handleStopConfirm = () => {
@@ -44,10 +48,45 @@ export function CampaignList() {
     toast('Campaign đã dừng', 'warning')
     setConfirmStop(null)
   }
+  // [Bật] campaign Paused — 3 nhánh theo UC-CAM-07: blocked (còn cờ vô hiệu, xử lý ở nút disabled),
+  // toPending (param/điều kiện lọc trigger bị Sửa trong lúc Paused → confirm rồi về Chờ duyệt),
+  // toActive (không thay đổi gì → bật thẳng, không cần confirm — hành vi cũ)
   const handleActivate = (c: Campaign) => {
-    if (reactivateBlockReason(c)) return   // chặn bật thẳng khi còn cờ vô hiệu
+    const flow = reactivateFlow(c)
+    if (flow === 'blocked') return
+    if (flow === 'toPending') { setConfirmActivatePending(c); return }
     setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: 'Active' as CampaignStatus } : x))
     toast('Campaign đã kích hoạt lại', 'success')
+  }
+  const confirmActivateToPending = () => {
+    if (!confirmActivatePending) return
+    setCampaigns(prev => prev.map(x => x.id === confirmActivatePending.id
+      ? { ...x, status: 'Pending' as CampaignStatus, pausedConfigChanged: false }
+      : x))
+    toast('Đã chuyển về Chờ duyệt để Admin xác nhận lại', 'warning')
+    setConfirmActivatePending(null)
+  }
+
+  // Sửa priority inline trên Campaign List — chỉ campaign Active. Xác nhận đổi → chuyển về Pending
+  // để Admin xác nhận lại (khác Priority Matrix, nơi Admin tự sắp xếp không cần duyệt lại).
+  const startEditPriority = (c: Campaign) => {
+    setEditingPriority(c.id)
+    setPriorityDraft(String(c.priority))
+  }
+  const commitPriorityEdit = (c: Campaign) => {
+    const newPriority = Number(priorityDraft)
+    setEditingPriority(null)
+    if (!Number.isInteger(newPriority) || newPriority < 1 || newPriority === c.priority) return
+    setConfirmPriorityChange({ campaign: c, newPriority })
+  }
+  const confirmPriorityChangeApply = () => {
+    if (!confirmPriorityChange) return
+    const { campaign: c, newPriority } = confirmPriorityChange
+    setCampaigns(prev => prev.map(x => x.id === c.id
+      ? { ...x, priority: newPriority, status: 'Pending' as CampaignStatus }
+      : x))
+    toast('Đã đổi độ ưu tiên — campaign chuyển về Chờ duyệt', 'warning')
+    setConfirmPriorityChange(null)
   }
 
   return (
@@ -94,6 +133,7 @@ export function CampaignList() {
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Tên / Mã Campaign</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Trigger</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Hiệu lực</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Ưu tiên</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Trạng thái</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Hành động</th>
             </tr>
@@ -154,10 +194,43 @@ export function CampaignList() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-xs text-slate-500">
-                  {c.startDate} – {c.endDate}
+                  {c.startDate} – {c.isInfinite ? 'Vô hạn' : c.endDate}
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={c.status} />
+                  {c.status === 'Active' ? (
+                    editingPriority === c.id ? (
+                      <input
+                        type="number"
+                        autoFocus
+                        value={priorityDraft}
+                        min={1}
+                        onChange={e => setPriorityDraft(e.target.value)}
+                        onBlur={() => commitPriorityEdit(c)}
+                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                        className="w-16 px-1.5 py-1 text-xs border border-blue-300 rounded focus:outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => startEditPriority(c)}
+                        className="text-xs text-slate-700 hover:text-blue-600 hover:underline px-1.5 py-1 rounded"
+                        title="Nhấn để sửa độ ưu tiên"
+                      >
+                        {c.priority}
+                      </button>
+                    )
+                  ) : (
+                    <span className="text-xs text-slate-400">{c.priority}</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <StatusBadge status={c.status} />
+                    {c.status === 'Active' && isBeforeStart(c) && (
+                      <span className="text-xs bg-slate-100 text-slate-500 rounded-full px-2 py-0.5 whitespace-nowrap">
+                        ⏳ Chưa tới ngày bắt đầu
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 justify-end">
@@ -190,7 +263,7 @@ export function CampaignList() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-slate-400 text-sm">
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">
                   Không có campaign nào phù hợp.
                 </td>
               </tr>
@@ -218,6 +291,30 @@ export function CampaignList() {
         <DialogActions>
           <Button variant="outline" onClick={() => setConfirmStop(null)}>Hủy</Button>
           <Button variant="danger" onClick={handleStopConfirm}>Xác nhận Dừng</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!confirmActivatePending} onClose={() => setConfirmActivatePending(null)} title="Bật lại campaign?">
+        <p className="text-sm text-slate-600">
+          Trigger đang dùng đã bị Admin sửa tham số/điều kiện lọc trong lúc campaign tạm dừng. Bật lại sẽ
+          chuyển campaign về <strong>Chờ duyệt</strong> để Admin xác nhận lại cấu hình mới, thay vì kích hoạt thẳng.
+        </p>
+        <DialogActions>
+          <Button variant="outline" onClick={() => setConfirmActivatePending(null)}>Hủy</Button>
+          <Button variant="primary" onClick={confirmActivateToPending}>Xác nhận</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!confirmPriorityChange} onClose={() => setConfirmPriorityChange(null)} title="Thay đổi độ ưu tiên?">
+        <p className="text-sm text-slate-600">
+          Thay đổi độ ưu tiên sẽ chuyển campaign về <strong>Chờ duyệt</strong> để Admin xác nhận lại
+          {confirmPriorityChange && (
+            <> — từ <strong>{confirmPriorityChange.campaign.priority}</strong> thành <strong>{confirmPriorityChange.newPriority}</strong>.</>
+          )}
+        </p>
+        <DialogActions>
+          <Button variant="outline" onClick={() => setConfirmPriorityChange(null)}>Hủy</Button>
+          <Button variant="primary" onClick={confirmPriorityChangeApply}>Xác nhận</Button>
         </DialogActions>
       </Dialog>
     </div>

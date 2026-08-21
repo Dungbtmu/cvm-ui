@@ -5,23 +5,54 @@ import { Card } from '../components/ui/Card'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockCampaigns } from '../data/mock'
+import type { ChannelType } from '../types'
+
+const CAP_CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'USSD', 'Banner', 'Email']
+
+// Số nguyên dương ≤ 9999, hoặc rỗng (= không giới hạn) — dùng chung cho mọi ô ngưỡng Frequency Cap
+// (Ngày/Tuần/Tháng/theo kênh/Gửi lại). Xem URD Settings Tab 1 STT 1.10.
+function capFieldError(v: string): boolean {
+  if (v === '') return false
+  const n = Number(v)
+  return !Number.isInteger(n) || n <= 0 || n > 9999
+}
 
 export function Settings() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState(0)
 
-  // Frequency Cap
-  const [capDay, setCapDay] = useState('3')
-  const [capWeek, setCapWeek] = useState('7')
-  const [cooldown, setCooldown] = useState('24')
+  // Frequency Cap — Daily/Weekly/Monthly đều KHÔNG bắt buộc, để trống = không giới hạn (URD STT 1.1-1.3).
+  // Cooldown đã bị bỏ khỏi form theo URD V4 (thay bằng cấu hình Gửi lại ở STT 1.5).
+  const [capDay, setCapDay] = useState('')
+  const [capWeek, setCapWeek] = useState('')
+  const [capMonth, setCapMonth] = useState('')
+  const [capChannel, setCapChannel] = useState<Partial<Record<ChannelType, string>>>({})
 
-  const capDayErr = capDay === '' || Number(capDay) <= 0 || Number(capDay) > 9999 || !Number.isInteger(Number(capDay))
-  const capWeekErr = capWeek === '' || Number(capWeek) <= 0 || Number(capWeek) > 9999 || !Number.isInteger(Number(capWeek))
-  const cooldownErr = cooldown === '' || Number(cooldown) <= 0 || Number(cooldown) > 168 || !Number.isInteger(Number(cooldown))
-  const weekLtDayErr = !capDayErr && !capWeekErr && Number(capWeek) < Number(capDay)
+  const [allowResend, setAllowResend] = useState(false)
+  const [resendMaxCount, setResendMaxCount] = useState('')
+  const [resendGapHours, setResendGapHours] = useState('')
+
+  const capDayErr = capFieldError(capDay)
+  const capWeekErr = capFieldError(capWeek)
+  const capMonthErr = capFieldError(capMonth)
+  const capChannelErrs = CAP_CHANNELS.reduce<Partial<Record<ChannelType, boolean>>>((acc, ch) => {
+    acc[ch] = capFieldError(capChannel[ch] ?? '')
+    return acc
+  }, {})
+  const resendMaxErr = capFieldError(resendMaxCount)
+  const resendGapErr = capFieldError(resendGapHours)
+
+  const weekLtDayErr = !capDayErr && !capWeekErr && capDay !== '' && capWeek !== '' && Number(capWeek) < Number(capDay)
+  const monthLtWeekErr = !capWeekErr && !capMonthErr && capWeek !== '' && capMonth !== '' && Number(capMonth) < Number(capWeek)
+  const resendIncompleteErr = allowResend && (resendMaxCount === '' || resendGapHours === '')
+
+  const hasAnyCapErr = capDayErr || capWeekErr || capMonthErr
+    || Object.values(capChannelErrs).some(Boolean)
+    || weekLtDayErr || monthLtWeekErr
+    || resendMaxErr || resendGapErr || resendIncompleteErr
 
   const handleSaveCap = () => {
-    if (capDayErr || capWeekErr || cooldownErr || weekLtDayErr) return
+    if (hasAnyCapErr) return
     toast('Đã lưu cài đặt ✓', 'success')
   }
 
@@ -75,22 +106,25 @@ export function Settings() {
 
       {/* ── Frequency Cap ── */}
       {activeTab === 0 && (
-        <Card className="space-y-4">
+        <Card className="space-y-5">
           <div className="text-sm font-semibold text-slate-700">Giới hạn tần suất nhận tin — áp dụng toàn hệ thống</div>
+
+          {/* Ngưỡng tổng: Ngày / Tuần / Tháng — tất cả không bắt buộc, để trống = không giới hạn */}
           <div className="space-y-3">
             {([
-              ['Tối đa số tin / KH / ngày', capDay, setCapDay, 'tin', capDayErr, 'Phải là số nguyên từ 1 đến 9999'],
-              ['Tối đa số tin / KH / tuần', capWeek, setCapWeek, 'tin', capWeekErr, 'Phải là số nguyên từ 1 đến 9999'],
-              ['Cooldown sau khi đạt giới hạn', cooldown, setCooldown, 'giờ', cooldownErr, 'Phải là số nguyên từ 1 đến 168'],
-            ] as [string, string, (v: string) => void, string, boolean, string][]).map(([label, value, setter, unit, hasErr, errMsg]) => (
+              ['Tối đa tin/KH/ngày', capDay, setCapDay, capDayErr],
+              ['Tối đa tin/KH/tuần', capWeek, setCapWeek, capWeekErr],
+              ['Tối đa tin/KH/tháng', capMonth, setCapMonth, capMonthErr],
+            ] as [string, string, (v: string) => void, boolean][]).map(([label, value, setter, hasErr]) => (
               <div key={label} className="flex items-center gap-4">
-                <label className="text-sm text-slate-600 w-64">{label}:</label>
+                <label className="text-sm text-slate-600 w-56">{label}:</label>
                 <div>
-                  <input type="number" min="1" value={value} onChange={e => setter(e.target.value)} placeholder="VD: 3"
-                    className={`w-20 px-2 py-1.5 text-sm border rounded focus:outline-none focus:border-blue-400 text-center ${hasErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
-                  {hasErr && <div className="text-xs text-red-500 mt-0.5">{errMsg}</div>}
+                  <input type="number" min="1" max="9999" value={value} onChange={e => setter(e.target.value)}
+                    placeholder="VD: 3 (để trống = không giới hạn)"
+                    className={`w-56 px-2 py-1.5 text-sm border rounded focus:outline-none focus:border-blue-400 ${hasErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                  {hasErr && <div className="text-xs text-red-500 mt-0.5">Giá trị không hợp lệ — phải là số nguyên từ 1 đến 9999</div>}
                 </div>
-                <span className="text-sm text-slate-500">{unit}</span>
+                <span className="text-sm text-slate-500">tin</span>
               </div>
             ))}
             {weekLtDayErr && (
@@ -98,11 +132,79 @@ export function Settings() {
                 Giới hạn tuần phải ≥ giới hạn ngày
               </div>
             )}
+            {monthLtWeekErr && (
+              <div className="text-xs text-red-500 bg-red-50 rounded px-2 py-1.5">
+                Giới hạn tháng phải ≥ giới hạn tuần
+              </div>
+            )}
           </div>
+
+          {/* Giới hạn theo kênh */}
+          <div>
+            <div className="text-sm font-medium text-slate-700 mb-2">Giới hạn theo kênh</div>
+            <table className="w-full text-sm max-w-md">
+              <thead className="text-xs text-slate-500 border-b border-slate-100">
+                <tr>
+                  <th className="text-left pb-2 font-medium">Kênh</th>
+                  <th className="text-left pb-2 font-medium">Tối đa/ngày</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CAP_CHANNELS.map(ch => (
+                  <tr key={ch} className="border-b border-slate-50">
+                    <td className="py-1.5 text-slate-600">{ch}</td>
+                    <td className="py-1.5">
+                      <input type="number" min="1" max="9999"
+                        value={capChannel[ch] ?? ''}
+                        onChange={e => setCapChannel(prev => ({ ...prev, [ch]: e.target.value }))}
+                        placeholder="Không giới hạn"
+                        className={`w-32 px-2 py-1 text-sm border rounded focus:outline-none focus:border-blue-400 ${capChannelErrs[ch] ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="text-xs text-slate-400 mt-1">Để trống = kênh đó không giới hạn riêng; vẫn chịu ràng buộc Ngày/Tuần/Tháng ở trên nếu có cấu hình.</div>
+          </div>
+
+          {/* Cho phép gửi lại */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer w-fit">
+              <input type="checkbox" checked={allowResend} onChange={e => setAllowResend(e.target.checked)}
+                className="accent-blue-500" />
+              <span className="text-sm font-medium text-slate-700">Cho phép gửi lại</span>
+            </label>
+            {allowResend && (
+              <div className="mt-2 space-y-3 pl-6">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm text-slate-600 w-56">Số lần gửi lại tối đa:</label>
+                  <div>
+                    <input type="number" min="1" max="9999" value={resendMaxCount}
+                      onChange={e => setResendMaxCount(e.target.value)} placeholder="VD: 2"
+                      className={`w-32 px-2 py-1.5 text-sm border rounded focus:outline-none focus:border-blue-400 ${resendMaxErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <label className="text-sm text-slate-600 w-56">Khoảng cách tối thiểu giữa các lần (giờ):</label>
+                  <div>
+                    <input type="number" min="1" max="9999" value={resendGapHours}
+                      onChange={e => setResendGapHours(e.target.value)} placeholder="VD: 4"
+                      className={`w-32 px-2 py-1.5 text-sm border rounded focus:outline-none focus:border-blue-400 ${resendGapErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                  </div>
+                </div>
+                {resendIncompleteErr && (
+                  <div className="text-xs text-red-500 bg-red-50 rounded px-2 py-1.5 w-fit">
+                    Vui lòng nhập đầy đủ số lần và khoảng cách gửi lại
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1.5">
-            ⚠ Thay đổi áp dụng cho sự kiện tiếp theo — không hồi tố
+            ⚠ Thay đổi áp dụng cho sự kiện tiếp theo — không hồi tố. Để trống một ngưỡng nghĩa là không giới hạn ở cấp đó.
           </div>
-          <Button variant="primary" onClick={handleSaveCap} disabled={capDayErr || capWeekErr || cooldownErr || weekLtDayErr}>
+          <Button variant="primary" onClick={handleSaveCap} disabled={hasAnyCapErr}>
             Lưu cài đặt
           </Button>
         </Card>

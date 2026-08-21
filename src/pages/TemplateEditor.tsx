@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { ParamChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
-import { mockTemplates, mockCampaigns } from '../data/mock'
+import { mockTemplates, mockCampaigns, mockTriggers } from '../data/mock'
 import { removeVietnameseTones } from '../lib/utils'
 import type { ChannelType, TemplateChannelContent } from '../types'
 
@@ -105,6 +105,15 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
   const [tplName, setTplName] = useState(existing?.name ?? '')
   const [tplDesc, setTplDesc] = useState(existing?.description ?? '')
   const [tplStatus, setTplStatus] = useState<'Active' | 'Inactive'>(existing?.status ?? 'Active')
+  // Trigger áp dụng — không bắt buộc; chỉ để nhóm hiển thị tại Danh sách Template (UC-TPL-00), KHÔNG
+  // giới hạn phạm vi dùng template khi soạn campaign (xem UC-TPL-01 Quy tắc nghiệp vụ). Chỉ liệt kê
+  // trigger đang Active để chọn.
+  const [triggerCodes, setTriggerCodes] = useState<string[]>(existing?.triggerCodes ?? [])
+  const [triggerPickerOpen, setTriggerPickerOpen] = useState(false)
+  const activeTriggers = mockTriggers.filter(t => t.status === 'Active')
+  const toggleTrigger = (code: string) => {
+    setTriggerCodes(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code])
+  }
   const [activeChannels, setActiveChannels] = useState<ChannelType[]>(existing?.channels ?? [])
   const [activeTab, setActiveTab] = useState<ChannelType>(existing?.channels[0] ?? 'Push')
   const [contents, setContents] = useState<Record<ChannelType, ChannelContent>>(
@@ -207,6 +216,52 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                   className="text-sm text-slate-500 border-b border-slate-100 focus:border-blue-300 focus:outline-none w-full py-1 bg-transparent"
                 />
             }
+
+            {/* Trigger áp dụng — không bắt buộc, chỉ để nhóm hiển thị tại UC-TPL-00, không giới hạn phạm vi dùng */}
+            <div>
+              <label className="text-xs text-slate-500 font-medium block mb-1">
+                Trigger áp dụng <span className="font-normal text-slate-400">(không bắt buộc — chỉ để nhóm hiển thị, không giới hạn khi soạn campaign)</span>
+              </label>
+              {readOnly ? (
+                triggerCodes.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {triggerCodes.map(code => {
+                      const t = mockTriggers.find(x => x.code === code)
+                      return <span key={code} className="bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-xs">{t ? `${t.code} · ${t.name}` : code}</span>
+                    })}
+                  </div>
+                ) : <span className="text-xs text-slate-400 italic">Chưa gắn Trigger</span>
+              ) : (
+                <div className="relative">
+                  <button type="button" onClick={() => setTriggerPickerOpen(o => !o)}
+                    className="w-full flex flex-wrap items-center gap-1 px-2 py-1.5 border border-slate-200 rounded text-left text-xs min-h-[34px] hover:border-blue-300">
+                    {triggerCodes.length === 0
+                      ? <span className="text-slate-400">-- Chọn 1 hoặc nhiều trigger --</span>
+                      : triggerCodes.map(code => {
+                          const t = mockTriggers.find(x => x.code === code)
+                          return <span key={code} className="bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">{t ? t.code : code}</span>
+                        })}
+                  </button>
+                  {triggerPickerOpen && (
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {activeTriggers.map(t => (
+                        <label key={t.code} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 cursor-pointer">
+                          <input type="checkbox" className="accent-blue-500"
+                            checked={triggerCodes.includes(t.code)}
+                            onChange={() => toggleTrigger(t.code)} />
+                          <span className="font-mono text-slate-500">{t.code}</span>
+                          <span className="text-slate-700">{t.name}</span>
+                        </label>
+                      ))}
+                      {activeTriggers.length === 0 && <div className="px-3 py-2 text-xs text-slate-400">Không có trigger Active nào</div>}
+                      <div className="border-t border-slate-100 p-1.5 text-right">
+                        <button type="button" onClick={() => setTriggerPickerOpen(false)} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5">Xong</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <div className="flex items-center gap-1 border border-slate-200 rounded-lg overflow-hidden text-xs">

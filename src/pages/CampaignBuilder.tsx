@@ -7,7 +7,7 @@ import { StatusBadge, TriggerChip, ParamChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockTriggers, mockSegments, mockCampaigns, mockTemplates } from '../data/mock'
-import { removeVietnameseTones } from '../lib/utils'
+import { removeVietnameseTones, smsSegmentInfo } from '../lib/utils'
 import type { ChannelType, TriggerLogic, BlackoutAction, TriggerFilterField, FilterFieldDataType } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
@@ -53,8 +53,6 @@ interface SegmentEntry {
   id: string
   name: string
   reach: number
-  filters?: FilterCondition[]
-  filterExpanded?: boolean
 }
 
 interface VariantContent { title?: string; body?: string; cta?: string; ctaUrl?: string; imageName?: string; sampleValues?: Record<string, string> }
@@ -66,6 +64,18 @@ type ChannelCards = Record<string, Record<string, TriggerCardData>>
 
 function defaultVariant(): { segmentId: null; segmentName: string; content: VariantContent } {
   return { segmentId: null, segmentName: 'Tất cả (dự phòng)', content: {} }
+}
+
+// ── Điều kiện lọc theo Trigger × Phân khúc × Kênh (URD Section 4 STT 4b) ──
+// Trước đây điều kiện lọc gắn per phân khúc dùng chung mọi kênh (SegmentEntry.filters). Giờ mỗi kênh
+// có bộ điều kiện lọc RIÊNG cho từng cặp Trigger × Phân khúc. Key phân khúc: segmentId thật, hoặc
+// '__NONE__' khi campaign chưa chọn phân khúc nào (áp dụng lọc trực tiếp trên toàn bộ audience trigger).
+const NO_SEGMENT_KEY = '__NONE__'
+// channelFilters[channel][triggerCode][segmentKey] = FilterCondition[]
+type ChannelFilters = Record<string, Record<string, Record<string, FilterCondition[]>>>
+
+function getChannelFilterList(cf: ChannelFilters, ch: string, trigCode: string, segKey: string): FilterCondition[] {
+  return cf[ch]?.[trigCode]?.[segKey] ?? []
 }
 
 function interpolate(text: string | undefined, sampleValues: Record<string, string> | undefined): string {
@@ -92,7 +102,10 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: VariantCont
         <>
           <div className="text-slate-400 font-medium text-[10px]">VietnamPost</div>
           <div className="bg-slate-100 rounded p-2 text-slate-700">{body || 'Nội dung SMS...'}</div>
-          <div className="text-slate-400">{(body ?? '').length}/160 · {Math.ceil(Math.max(1, (body ?? '').length) / 160)} SMS segment</div>
+          {(() => {
+            const info = smsSegmentInfo(body ?? '')
+            return <div className="text-slate-400">{info.length}/{info.limit} · {info.segments} SMS segment</div>
+          })()}
         </>
       )}
       {ch === 'Zalo OA' && (
@@ -135,9 +148,16 @@ interface TriggerCardProps {
   guideOpen: boolean
   onGuideToggle: () => void
   canShowVariant: boolean
+  // Điều kiện lọc theo Trigger × Phân khúc × Kênh (URD Section 4 STT 4b) — 1 accordion riêng per
+  // phân khúc đã chọn ở Section 3 (hoặc 1 accordion duy nhất khi chưa chọn phân khúc nào).
+  fieldGroups: FilterFieldGroup[]
+  getFilters: (segKey: string) => FilterCondition[]
+  setFilters: (segKey: string, filters: FilterCondition[]) => void
+  filterExpandedKey: (segKey: string) => boolean
+  onToggleFilterExpanded: (segKey: string) => void
 }
 
-function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpen, onGuideToggle, canShowVariant }: TriggerCardProps) {
+function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpen, onGuideToggle, canShowVariant, fieldGroups, getFilters, setFilters, filterExpandedKey, onToggleFilterExpanded }: TriggerCardProps) {
   const trigData = mockTriggers.find(x => x.code === trig.code)
   const [activeVariant, setActiveVariant] = useState(0)
   const [showPreview, setShowPreview] = useState(false)
@@ -147,6 +167,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
   const limits = CHANNEL_LIMITS[ch]
   const variant = data.variants[activeVariant] ?? data.variants[0]
   const content = variant?.content ?? {}
+  const smsInfo = smsSegmentInfo(content.body ?? '')
 
   const updateContent = (field: keyof VariantContent, value: string) => {
     const newVariants = data.variants.map((v, i) =>
@@ -283,6 +304,31 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
         </div>
       )}
 
+      {/* Điều kiện lọc theo Trigger × Phân khúc × Kênh — accordion riêng cho từng phân khúc đã chọn
+          ở Section 3 (hoặc 1 accordion "toàn bộ audience" khi chưa chọn phân khúc nào) */}
+      <div className="px-4 py-2 border-b border-slate-100 bg-slate-50 space-y-2">
+        <div className="text-xs text-slate-500 font-medium">Điều kiện lọc theo Kênh ({ch}):</div>
+        {(availableSegments.length > 0 ? availableSegments : [{ id: NO_SEGMENT_KEY, name: 'Toàn bộ audience (chưa chọn phân khúc)', reach: 0 }]).map(seg => {
+          const segKey = availableSegments.length > 0 ? seg.id : NO_SEGMENT_KEY
+          return (
+            <div key={segKey} className="space-y-1">
+              {availableSegments.length > 0 && (
+                <div className="text-xs font-medium text-slate-600">[{seg.name}]</div>
+              )}
+              <FilterAccordion
+                filters={getFilters(segKey)}
+                onChange={f => setFilters(segKey, f)}
+                fieldGroups={fieldGroups}
+                expanded={filterExpandedKey(segKey)}
+                onToggle={() => onToggleFilterExpanded(segKey)}
+                reachBefore={seg.reach}
+                disabledReason={fieldGroups.length === 0 ? 'Chưa chọn trigger ở mục 2 — điều kiện lọc chưa khả dụng' : undefined}
+              />
+            </div>
+          )
+        })}
+      </div>
+
       {/* 2-col compose / preview */}
       <div className="grid grid-cols-[55%_45%]">
         {/* LEFT: compose */}
@@ -358,9 +404,15 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
           <div>
             <label className="text-xs text-slate-500 font-medium block mb-1">
               {ch === 'Zalo OA' ? 'Nội dung *' : ch === 'Email' ? 'Body * (plain text)' : 'Nội dung *'}
-              <span className={`float-right ${limits.body !== 99999 && (content.body ?? '').length > limits.body ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
-                {(content.body ?? '').length}{limits.body !== 99999 ? `/${limits.body}` : ''}
-              </span>
+              {ch === 'SMS' ? (
+                <span className={`float-right ${smsInfo.segments > 1 ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
+                  {smsInfo.length}/{smsInfo.limit}
+                </span>
+              ) : (
+                <span className={`float-right ${limits.body !== 99999 && (content.body ?? '').length > limits.body ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
+                  {(content.body ?? '').length}{limits.body !== 99999 ? `/${limits.body}` : ''}
+                </span>
+              )}
             </label>
             <textarea
               ref={bodyRef}
@@ -373,9 +425,9 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
               placeholder="Nhập nội dung tin nhắn. Dùng {{ten_bien}} để chèn tham số động."
               className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 resize-none"
             />
-            {ch === 'SMS' && (content.body ?? '').length > 160 && (
+            {ch === 'SMS' && smsInfo.segments > 1 && (
               <div className="text-xs text-orange-500 mt-1">
-                {Math.ceil((content.body ?? '').length / 160)} SMS segments · chi phí nhân {Math.ceil((content.body ?? '').length / 160)}×
+                {smsInfo.hasAccent ? 'Nội dung có dấu' : 'Nội dung không dấu'} · {smsInfo.segments} SMS segment · chi phí nhân {smsInfo.segments}×
               </div>
             )}
             {ch === 'USSD' && (
@@ -429,10 +481,37 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
   )
 }
 
-// ── SegmentCard: hiển thị phân khúc + nhiều điều kiện lọc ──
+// ── SegmentCard: chọn phân khúc + hiển thị reach (Section 3 chỉ còn STT 2-4 — điều kiện lọc con đã
+// dời sang Section 4 Message Matrix, xem FilterAccordion bên dưới) ──
+interface SegmentCardProps {
+  seg: SegmentEntry
+  onRemove: () => void
+}
+
+function SegmentCard({ seg, onRemove }: SegmentCardProps) {
+  return (
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
+      <div className="p-3 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-slate-700">{seg.name}</span>
+          <button onClick={onRemove} className="text-slate-300 hover:text-red-400">
+            <X size={14} />
+          </button>
+        </div>
+        <div className="text-xs text-slate-500">
+          {seg.reach.toLocaleString('vi-VN')} KH
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── FilterAccordion: điều kiện lọc theo Trigger × Phân khúc × Kênh (URD Section 4 STT 4b) ──
 // Thuộc tính điều kiện lọc con lấy trực tiếp từ trigger.filterFields (khai báo tại màn Trigger Admin).
 // Toán tử khả dụng KHAI BÁO THẲNG per field (field.operators) — không suy từ kiểu dữ liệu.
 // Nhãn hiển thị tiếng Việt cho toán tử, nhưng giá trị lưu vẫn là ký hiệu gốc để khớp danh mục.
+// Trước đây đây là 1 bộ lọc per phân khúc dùng chung mọi kênh (SegmentCard) — giờ mỗi kênh có bộ
+// điều kiện lọc riêng cho từng cặp Trigger × Phân khúc; UI/logic bên trong giữ nguyên như cũ.
 const OP_LABEL: Record<string, string> = {
   '=': '=', '!=': '≠', '>=': '≥', '<=': '≤', 'BETWEEN': 'trong khoảng',
   'IN': 'thuộc', 'NOT IN': 'không thuộc', 'CONTAINS': 'chứa',
@@ -441,25 +520,27 @@ const OP_LABEL: Record<string, string> = {
 const opLabel = (op: string) => OP_LABEL[op] ?? op
 // Toán tử không cần nhập giá trị (chỉ kiểm tra tồn tại)
 const NO_VALUE_OPS = new Set(['IS NULL', 'IS NOT NULL'])
+// Hậu tố đơn vị hiển thị cạnh ô giá trị — chỉ áp dụng cho thuộc tính kiểu Số có khai báo unit
+const UNIT_SUFFIX: Record<string, string> = { percent: '%', GB: 'GB' }
 
 interface FilterFieldGroup {
   triggerCode: string
   fields: TriggerFilterField[]
 }
 
-interface SegmentCardProps {
-  seg: SegmentEntry
-  onChange: (updated: SegmentEntry) => void
-  onRemove: () => void
+interface FilterAccordionProps {
+  filters: FilterCondition[]
+  onChange: (filters: FilterCondition[]) => void
   fieldGroups: FilterFieldGroup[]
+  expanded: boolean
+  onToggle: () => void
+  reachBefore: number
+  disabledReason?: string  // khi set → accordion vô hiệu hóa hoàn toàn, hiển thị text mờ này
 }
 
-function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps) {
-  const filters = seg.filters ?? []
-  const noTriggerSelected = fieldGroups.length === 0
-  // Trigger đã chọn nhưng không trigger nào khai báo điều kiện lọc → không có thuộc tính khả dụng để lọc
+function FilterAccordion({ filters, onChange, fieldGroups, expanded, onToggle, reachBefore, disabledReason }: FilterAccordionProps) {
   const hasAnyField = fieldGroups.some(g => g.fields.length > 0)
-  const filterDisabled = noTriggerSelected || !hasAnyField
+  const filterDisabled = !!disabledReason || !hasAnyField
   const firstGroup = fieldGroups.find(g => g.fields.length > 0)
   const firstField = firstGroup?.fields[0]
 
@@ -472,6 +553,9 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
     fieldOf(triggerCode, techName)?.values ?? []
   const typeOf = (triggerCode: string | undefined, techName: string): FilterFieldDataType =>
     fieldOf(triggerCode, techName)?.dataType ?? 'string'
+  const unitOf = (triggerCode: string | undefined, techName: string) =>
+    fieldOf(triggerCode, techName)?.unit ?? 'none'
+  const isNumericType = (t: FilterFieldDataType) => ['integer', 'decimal', 'float'].includes(t)
 
   // giá trị mặc định khi chọn field/toán tử mới: enum → phần tử đầu; kiểu khác → rỗng để nhập tay
   const defaultValue = (triggerCode: string | undefined, techName: string) => {
@@ -481,17 +565,13 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
 
   const addFilter = () => {
     if (!firstField) return
-    onChange({
-      ...seg,
-      filters: [...filters, {
-        field: firstField.techName,
-        fieldLabel: firstField.name,
-        triggerCode: firstGroup?.triggerCode,
-        op: firstField.operators[0] ?? '=',
-        value: defaultValue(firstGroup?.triggerCode, firstField.techName),
-      }],
-      filterExpanded: true,
-    })
+    onChange([...filters, {
+      field: firstField.techName,
+      fieldLabel: firstField.name,
+      triggerCode: firstGroup?.triggerCode,
+      op: firstField.operators[0] ?? '=',
+      value: defaultValue(firstGroup?.triggerCode, firstField.techName),
+    }])
   }
 
   // select value = "triggerCode::techName" để phân biệt field trùng tên giữa các trigger
@@ -510,57 +590,47 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
       value: defaultValue(triggerCode, techName),
       value2: undefined,
     } : f)
-    onChange({ ...seg, filters: next })
+    onChange(next)
   }
 
   const updateFilter = (i: number, patch: Partial<FilterCondition>) => {
-    const next = filters.map((f, idx) => idx === i ? { ...f, ...patch } : f)
-    onChange({ ...seg, filters: next })
+    onChange(filters.map((f, idx) => idx === i ? { ...f, ...patch } : f))
   }
 
   const removeFilter = (i: number) => {
-    onChange({ ...seg, filters: filters.filter((_, idx) => idx !== i) })
+    onChange(filters.filter((_, idx) => idx !== i))
   }
 
-  const applyFilters = () => {
-    onChange({ ...seg, filterExpanded: false })
+  // validate BETWEEN "đến" >= "từ" — khoảng ngược là blocking issue (chặn Gửi duyệt)
+  const isBetweenInvalid = (f: FilterCondition) => {
+    if (f.op !== 'BETWEEN' || !f.value || !f.value2) return false
+    const a = Number(f.value); const b = Number(f.value2)
+    if (Number.isNaN(a) || Number.isNaN(b)) return f.value2 < f.value
+    return b < a
+  }
+  // validate % trong khoảng 0-100
+  const isPercentInvalid = (val: string, triggerCode: string | undefined, techName: string) => {
+    if (unitOf(triggerCode, techName) !== 'percent' || val === '') return false
+    const n = Number(val)
+    return Number.isNaN(n) || n < 0 || n > 100
   }
 
-  const cancelFilters = () => {
-    onChange({ ...seg, filterExpanded: false })
+  const summaryValue = (f: FilterCondition) => {
+    if (NO_VALUE_OPS.has(f.op)) return ''
+    const suffix = UNIT_SUFFIX[unitOf(f.triggerCode, f.field)] ?? ''
+    const withUnit = (v: string) => v && suffix ? `${v} ${suffix}` : v
+    return f.op === 'BETWEEN' ? `${withUnit(f.value)} – ${withUnit(f.value2 ?? '')}` : withUnit(f.value)
   }
-
-  const summaryValue = (f: FilterCondition) =>
-    NO_VALUE_OPS.has(f.op) ? '' : f.op === 'BETWEEN' ? `${f.value} – ${f.value2 ?? ''}` : f.value
   const filterSummary = filters.length > 0
     ? filters.map(f => `${f.fieldLabel} ${opLabel(f.op)} ${summaryValue(f)}`.trim()).join(' · ')
     : null
 
   // reach sau lọc — giả lập giảm ~20% mỗi điều kiện
-  const reachAfter = Math.round(seg.reach * Math.pow(0.8, filters.length))
+  const reachAfter = Math.round(reachBefore * Math.pow(0.8, filters.length))
 
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden">
-      <div className="p-3 space-y-1.5">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-700">{seg.name}</span>
-          <button onClick={onRemove} className="text-slate-300 hover:text-red-400">
-            <X size={14} />
-          </button>
-        </div>
-
-        {/* Reach */}
-        <div className="text-xs text-slate-500">
-          {seg.reach.toLocaleString('vi-VN')} KH
-          {filters.length > 0 && (
-            <span className="ml-2 text-slate-400">
-              → Sau lọc: <span className="font-medium text-blue-600">~{reachAfter.toLocaleString('vi-VN')} KH</span>
-            </span>
-          )}
-        </div>
-
-        {/* Filter summary + toggle */}
+    <div className="border border-slate-100 rounded-lg overflow-hidden bg-white">
+      <div className="px-3 py-2 space-y-1">
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <span className="text-slate-400">Điều kiện lọc:</span>
           {filterSummary ? (
@@ -574,137 +644,158 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
                 </span>
               ))}
             </div>
-          ) : noTriggerSelected ? (
-            <span className="text-slate-400 italic">Chọn trigger ở mục 2 để xem điều kiện lọc khả dụng</span>
+          ) : disabledReason ? (
+            <span className="text-slate-400 italic">{disabledReason}</span>
           ) : !hasAnyField ? (
             <span className="text-slate-400 italic">Trigger đã chọn chưa khai báo điều kiện lọc nào — phân khúc dùng toàn bộ audience của trigger</span>
           ) : (
             <span className="text-slate-400">(chưa có)</span>
           )}
           {!filterDisabled && (
-            <button
-              onClick={() => onChange({ ...seg, filterExpanded: !seg.filterExpanded })}
-              className="text-blue-500 hover:text-blue-700 ml-1"
-            >
-              {seg.filterExpanded ? '▸ Thu gọn' : (filterSummary ? '▸ Sửa' : '+ Thêm lọc')}
+            <button onClick={onToggle} className="text-blue-500 hover:text-blue-700 ml-1">
+              {expanded ? '▸ Thu gọn' : (filterSummary ? '▸ Sửa' : '+ Thêm lọc')}
             </button>
           )}
         </div>
+        {filters.length > 0 && (
+          <div className="text-xs text-slate-400">
+            → Sau lọc: <span className="font-medium text-blue-600">~{reachAfter.toLocaleString('vi-VN')} KH</span>
+          </div>
+        )}
       </div>
 
-      {/* Expanded filter editor */}
-      {seg.filterExpanded && !filterDisabled && (
+      {expanded && !filterDisabled && (
         <div className="border-t border-slate-100 bg-slate-50 p-3 space-y-2">
-          {/* Filter rows */}
           {filters.map((f, i) => (
-            <div key={i} className="flex items-center gap-2">
-              {/* AND badge sau dòng đầu */}
-              {i > 0 && (
-                <span className="text-xs font-medium text-slate-400 w-8 text-center flex-shrink-0">VÀ</span>
-              )}
-              {i === 0 && <div className="w-8 flex-shrink-0" />}
+            <div key={i} className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                {i > 0 && (
+                  <span className="text-xs font-medium text-slate-400 w-8 text-center flex-shrink-0">VÀ</span>
+                )}
+                {i === 0 && <div className="w-8 flex-shrink-0" />}
 
-              <select
-                value={`${f.triggerCode}::${f.field}`}
-                onChange={e => updateFilterField(i, e.target.value)}
-                className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
-              >
-                {fieldGroups.filter(g => g.fields.length > 0).map(g => (
-                  <optgroup key={g.triggerCode} label={g.triggerCode}>
-                    {g.fields.map(opt => (
-                      <option key={`${g.triggerCode}::${opt.techName}`} value={`${g.triggerCode}::${opt.techName}`}>{opt.name}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-
-              {/* Badge nguồn trigger — luôn hiển thị để phân biệt field trùng tên giữa các trigger */}
-              {fieldGroups.length > 1 && f.triggerCode && (
-                <span
-                  className="flex-shrink-0 text-xs font-mono bg-slate-200 text-slate-600 rounded px-1.5 py-0.5 max-w-[6rem] truncate"
-                  title={`Thuộc tính này thuộc trigger ${f.triggerCode}`}
-                >
-                  {f.triggerCode}
-                </span>
-              )}
-
-              <select
-                value={f.op}
-                onChange={e => updateFilter(i, { op: e.target.value, value2: e.target.value === 'BETWEEN' ? (f.value2 ?? '') : undefined })}
-                className="flex-shrink-0 border border-slate-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
-              >
-                {opsOf(f.triggerCode, f.field).map(op => <option key={op} value={op}>{opLabel(op)}</option>)}
-              </select>
-
-              {/* Ô giá trị — render theo kiểu: enum → dropdown; boolean → dropdown Đúng/Sai; số/chuỗi → nhập tay; ngày → picker; BETWEEN → 2 ô; IS NULL → không ô */}
-              {NO_VALUE_OPS.has(f.op) ? (
-                <div className="flex-1 min-w-0" />
-              ) : f.op === 'BETWEEN' && valuesOf(f.triggerCode, f.field).length > 0 ? (
-                // Lưới an toàn: enum + BETWEEN (tổ hợp lẽ ra bị chặn ở Trigger Admin, nhưng phòng dữ liệu cũ)
-                // → 2 dropdown từ–đến thay vì âm thầm bỏ qua BETWEEN
-                <div className="flex-1 min-w-0 flex items-center gap-1">
-                  <select value={f.value} onChange={e => updateFilter(i, { value: e.target.value })} className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white">
-                    <option value="">Từ...</option>
-                    {valuesOf(f.triggerCode, f.field).map(v => <option key={v}>{v}</option>)}
-                  </select>
-                  <span className="text-slate-400 text-xs">–</span>
-                  <select value={f.value2 ?? ''} onChange={e => updateFilter(i, { value2: e.target.value })} className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white">
-                    <option value="">Đến...</option>
-                    {valuesOf(f.triggerCode, f.field).map(v => <option key={v}>{v}</option>)}
-                  </select>
-                </div>
-              ) : typeOf(f.triggerCode, f.field) === 'boolean' ? (
                 <select
-                  value={f.value}
-                  onChange={e => updateFilter(i, { value: e.target.value })}
+                  value={`${f.triggerCode}::${f.field}`}
+                  onChange={e => updateFilterField(i, e.target.value)}
                   className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
                 >
-                  <option value="">Chọn...</option>
-                  <option value="Đúng">Đúng</option>
-                  <option value="Sai">Sai</option>
+                  {fieldGroups.filter(g => g.fields.length > 0).map(g => (
+                    <optgroup key={g.triggerCode} label={g.triggerCode}>
+                      {g.fields.map(opt => (
+                        <option key={`${g.triggerCode}::${opt.techName}`} value={`${g.triggerCode}::${opt.techName}`}>{opt.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
-              ) : valuesOf(f.triggerCode, f.field).length > 0 ? (
+
+                {fieldGroups.length > 1 && f.triggerCode && (
+                  <span
+                    className="flex-shrink-0 text-xs font-mono bg-slate-200 text-slate-600 rounded px-1.5 py-0.5 max-w-[6rem] truncate"
+                    title={`Thuộc tính này thuộc trigger ${f.triggerCode}`}
+                  >
+                    {f.triggerCode}
+                  </span>
+                )}
+
                 <select
-                  value={f.value}
-                  onChange={e => updateFilter(i, { value: e.target.value })}
-                  className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
+                  value={f.op}
+                  onChange={e => updateFilter(i, { op: e.target.value, value2: e.target.value === 'BETWEEN' ? (f.value2 ?? '') : undefined })}
+                  className="flex-shrink-0 border border-slate-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
                 >
-                  {valuesOf(f.triggerCode, f.field).map(v => <option key={v}>{v}</option>)}
+                  {opsOf(f.triggerCode, f.field).map(op => <option key={op} value={op}>{opLabel(op)}</option>)}
                 </select>
-              ) : (
-                <div className="flex-1 min-w-0 flex items-center gap-1">
-                  <input
-                    type={['integer', 'decimal', 'float'].includes(typeOf(f.triggerCode, f.field)) ? 'number' : typeOf(f.triggerCode, f.field) === 'date' ? 'date' : 'text'}
+
+                {/* Ô giá trị — render theo kiểu: enum → dropdown; boolean → dropdown Đúng/Sai; số/chuỗi → nhập tay (kèm hậu tố đơn vị %/GB nếu có); ngày → picker; BETWEEN → 2 ô; IS NULL → không ô */}
+                {NO_VALUE_OPS.has(f.op) ? (
+                  <div className="flex-1 min-w-0" />
+                ) : f.op === 'BETWEEN' && valuesOf(f.triggerCode, f.field).length > 0 ? (
+                  <div className="flex-1 min-w-0 flex items-center gap-1">
+                    <select value={f.value} onChange={e => updateFilter(i, { value: e.target.value })} className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white">
+                      <option value="">Từ...</option>
+                      {valuesOf(f.triggerCode, f.field).map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <span className="text-slate-400 text-xs">–</span>
+                    <select value={f.value2 ?? ''} onChange={e => updateFilter(i, { value2: e.target.value })} className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white">
+                      <option value="">Đến...</option>
+                      {valuesOf(f.triggerCode, f.field).map(v => <option key={v}>{v}</option>)}
+                    </select>
+                  </div>
+                ) : typeOf(f.triggerCode, f.field) === 'boolean' ? (
+                  <select
                     value={f.value}
                     onChange={e => updateFilter(i, { value: e.target.value })}
-                    placeholder="Nhập giá trị"
                     className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
-                  />
-                  {f.op === 'BETWEEN' && (
-                    <>
-                      <span className="text-slate-400 text-xs">–</span>
+                  >
+                    <option value="">Chọn...</option>
+                    <option value="Đúng">Đúng</option>
+                    <option value="Sai">Sai</option>
+                  </select>
+                ) : valuesOf(f.triggerCode, f.field).length > 0 ? (
+                  <select
+                    value={f.value}
+                    onChange={e => updateFilter(i, { value: e.target.value })}
+                    className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
+                  >
+                    {valuesOf(f.triggerCode, f.field).map(v => <option key={v}>{v}</option>)}
+                  </select>
+                ) : (
+                  <div className="flex-1 min-w-0 flex items-center gap-1">
+                    <div className="relative flex-1 min-w-0">
                       <input
-                        type={['integer', 'decimal', 'float'].includes(typeOf(f.triggerCode, f.field)) ? 'number' : typeOf(f.triggerCode, f.field) === 'date' ? 'date' : 'text'}
-                        value={f.value2 ?? ''}
-                        onChange={e => updateFilter(i, { value2: e.target.value })}
-                        placeholder="đến"
-                        className="flex-1 min-w-0 border border-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white"
+                        type={isNumericType(typeOf(f.triggerCode, f.field)) ? 'number' : typeOf(f.triggerCode, f.field) === 'date' ? 'date' : 'text'}
+                        value={f.value}
+                        onChange={e => updateFilter(i, { value: e.target.value })}
+                        placeholder="Nhập giá trị"
+                        className={`w-full border rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white ${
+                          isPercentInvalid(f.value, f.triggerCode, f.field) ? 'border-red-400' : 'border-slate-200'
+                        } ${UNIT_SUFFIX[unitOf(f.triggerCode, f.field)] ? 'pr-6' : ''}`}
                       />
-                    </>
-                  )}
-                </div>
-              )}
+                      {UNIT_SUFFIX[unitOf(f.triggerCode, f.field)] && (
+                        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">
+                          {UNIT_SUFFIX[unitOf(f.triggerCode, f.field)]}
+                        </span>
+                      )}
+                    </div>
+                    {f.op === 'BETWEEN' && (
+                      <>
+                        <span className="text-slate-400 text-xs">–</span>
+                        <div className="relative flex-1 min-w-0">
+                          <input
+                            type={isNumericType(typeOf(f.triggerCode, f.field)) ? 'number' : typeOf(f.triggerCode, f.field) === 'date' ? 'date' : 'text'}
+                            value={f.value2 ?? ''}
+                            onChange={e => updateFilter(i, { value2: e.target.value })}
+                            placeholder="đến"
+                            className={`w-full border rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 bg-white ${
+                              isPercentInvalid(f.value2 ?? '', f.triggerCode, f.field) ? 'border-red-400' : 'border-slate-200'
+                            } ${UNIT_SUFFIX[unitOf(f.triggerCode, f.field)] ? 'pr-6' : ''}`}
+                          />
+                          {UNIT_SUFFIX[unitOf(f.triggerCode, f.field)] && (
+                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">
+                              {UNIT_SUFFIX[unitOf(f.triggerCode, f.field)]}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
-              <button
-                onClick={() => removeFilter(i)}
-                className="text-slate-300 hover:text-red-400 flex-shrink-0"
-              >
-                <X size={12} />
-              </button>
+                <button
+                  onClick={() => removeFilter(i)}
+                  className="text-slate-300 hover:text-red-400 flex-shrink-0"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              {isBetweenInvalid(f) && (
+                <div className="text-xs text-red-500 pl-8">Giá trị "đến" phải lớn hơn hoặc bằng "từ"</div>
+              )}
+              {(isPercentInvalid(f.value, f.triggerCode, f.field) || isPercentInvalid(f.value2 ?? '', f.triggerCode, f.field)) && (
+                <div className="text-xs text-red-500 pl-8">Giá trị phần trăm phải từ 0 đến 100</div>
+              )}
             </div>
           ))}
 
-          {/* Add condition */}
           <button
             onClick={addFilter}
             className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-1"
@@ -714,22 +805,6 @@ function SegmentCard({ seg, onChange, onRemove, fieldGroups }: SegmentCardProps)
 
           <div className="text-xs text-slate-400">
             ⓘ Thuộc tính danh mục (enum) chọn từ danh sách; thuộc tính số/ngày nhập trực tiếp. Toán tử khả dụng theo khai báo của từng thuộc tính.
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={applyFilters}
-              className="text-xs px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Áp dụng
-            </button>
-            <button
-              onClick={cancelFilters}
-              className="text-xs px-3 py-1.5 border border-slate-200 rounded hover:bg-white"
-            >
-              Hủy
-            </button>
           </div>
         </div>
       )}
@@ -1042,6 +1117,7 @@ export function CampaignBuilder() {
   const [goal, setGoal] = useState(existing?.goal ?? '')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [isInfinite, setIsInfinite] = useState(existing?.isInfinite ?? false)
   const [priority, setPriority] = useState('12')
   const [s1Collapsed, setS1Collapsed] = useState(false)
 
@@ -1081,6 +1157,9 @@ export function CampaignBuilder() {
   const [removeChannelTarget, setRemoveChannelTarget] = useState<ChannelType | null>(null)
   const [guideOpen, setGuideOpen] = useState<Record<string, boolean>>({})
   const [s4Collapsed, setS4Collapsed] = useState(false)
+  // Điều kiện lọc theo Trigger × Phân khúc × Kênh (URD Section 4 STT 4b — dời từ Section 3)
+  const [channelFilters, setChannelFilters] = useState<ChannelFilters>({})
+  const [filterExpanded, setFilterExpanded] = useState<Record<string, boolean>>({})
 
   // S6
   const [dncOn, setDncOn] = useState(true)
@@ -1113,12 +1192,18 @@ export function CampaignBuilder() {
   // Issues
   const issues: string[] = []
   if (!name.trim()) issues.push('Chưa nhập tên campaign')
+  if (!startDate) issues.push('Chưa chọn ngày bắt đầu')
+  if (!isInfinite && !endDate) issues.push('Chưa chọn ngày kết thúc (hoặc chọn Vô hạn)')
+  // Ngày kết thúc quá khứ là blocking issue — KHÔNG áp dụng cho campaign chọn Vô hạn (không có endDate để so sánh)
+  if (!isInfinite && endDate && new Date(endDate) < new Date(new Date().toDateString())) {
+    issues.push('Ngày kết thúc không được ở trong quá khứ')
+  }
   if (selectedTriggers.length === 0) issues.push('Chưa chọn trigger')
   if (activeChannels.length === 0) issues.push('Chưa chọn kênh gửi')
   if (blMode !== 'none' && activeChannels.length === 0) issues.push('Blacklist: chưa có kênh nào được chọn')
   // Cờ vô hiệu là blocking issue độc lập — chặn Gửi duyệt cho đến khi QTV sửa (URD Khối 3)
   if (existing?.paramInvalid) issues.push('Còn tham số không hợp lệ do trigger đã thay đổi — sửa nội dung message')
-  if (existing?.filterInvalid) issues.push('Còn điều kiện lọc không hợp lệ do trigger đã thay đổi — sửa điều kiện lọc ở mục 3')
+  if (existing?.filterInvalid) issues.push('Còn điều kiện lọc không hợp lệ do trigger đã thay đổi — sửa điều kiện lọc ở mục 4 (Message Matrix)')
 
   // ---- Trigger helpers ----
   const canAddTrigger = triggerMode === 'advanced' || selectedTriggers.length === 0
@@ -1130,11 +1215,29 @@ export function CampaignBuilder() {
     setTriggerDropdown(false)
     setTriggerSearch('')
     setTouched(true)
+    // Khởi tạo entry điều kiện lọc rỗng cho trigger mới ở tất cả kênh đã có
+    setChannelFilters(prev => {
+      const segKeys = segments.length > 0 ? segments.map(s => s.id) : [NO_SEGMENT_KEY]
+      const next: ChannelFilters = { ...prev }
+      activeChannels.forEach(ch => {
+        next[ch] = { ...(next[ch] ?? {}) }
+        if (!next[ch][t.code]) {
+          next[ch][t.code] = {}
+          segKeys.forEach(segKey => { next[ch][t.code][segKey] = [] })
+        }
+      })
+      return next
+    })
   }
   const removeTrigger = (code: string) => {
     setSelectedTriggers(prev => prev.filter(t => t.code !== code))
     // remove from cards
     setChannelCards(prev => {
+      const next = { ...prev }
+      Object.keys(next).forEach(ch => { delete next[ch][code] })
+      return next
+    })
+    setChannelFilters(prev => {
       const next = { ...prev }
       Object.keys(next).forEach(ch => { delete next[ch][code] })
       return next
@@ -1152,11 +1255,62 @@ export function CampaignBuilder() {
     }))
   }
 
+  // Thêm phân khúc ở Section 3: khởi tạo entry điều kiện lọc rỗng cho phân khúc mới ở mọi
+  // (kênh × trigger) đã cấu hình — nếu đây là phân khúc đầu tiên, kế thừa điều kiện đã lọc dưới
+  // NO_SEGMENT_KEY (lọc trên "toàn bộ audience" trước khi có phân khúc) thay vì mất trắng.
+  const addSegment = (seg: SegmentEntry) => {
+    setSegments(prev => [...prev, seg])
+    setChannelFilters(prev => {
+      const next: ChannelFilters = {}
+      Object.entries(prev).forEach(([ch, byTrig]) => {
+        next[ch] = {}
+        Object.entries(byTrig).forEach(([trigCode, bySeg]) => {
+          const inherited = segments.length === 0 ? (bySeg[NO_SEGMENT_KEY] ?? []) : []
+          next[ch][trigCode] = { ...bySeg, [seg.id]: inherited.map(f => ({ ...f })) }
+        })
+      })
+      return next
+    })
+  }
+  const removeSegment = (segId: string) => {
+    setSegments(prev => prev.filter(x => x.id !== segId))
+    setChannelFilters(prev => {
+      const next: ChannelFilters = {}
+      Object.entries(prev).forEach(([ch, byTrig]) => {
+        next[ch] = {}
+        Object.entries(byTrig).forEach(([trigCode, bySeg]) => {
+          const rest = { ...bySeg }
+          delete rest[segId]
+          next[ch][trigCode] = rest
+        })
+      })
+      return next
+    })
+  }
+
   const addChannel = (ch: ChannelType) => {
     if (activeChannels.includes(ch)) return
     setActiveChannels(prev => [...prev, ch])
     setActiveChannelTab(ch)
     setTouched(true)
+    // Khởi tạo điều kiện lọc mặc định cho kênh vừa thêm: với mỗi trigger × phân khúc đã có, kế thừa
+    // bộ điều kiện lọc từ kênh đã cấu hình trước (nếu có), hoặc rỗng nếu đây là kênh đầu tiên (URD
+    // Section 4 STT 4b "Khởi tạo khi thêm kênh mới") — QTV sửa riêng cho kênh mới không ảnh hưởng kênh khác.
+    setChannelFilters(prev => {
+      const segKeys = segments.length > 0 ? segments.map(s => s.id) : [NO_SEGMENT_KEY]
+      const sourceCh = activeChannels[0]  // kênh đã cấu hình trước đó (nếu có)
+      const next: ChannelFilters = { ...prev, [ch]: { ...(prev[ch] ?? {}) } }
+      selectedTriggers.forEach(t => {
+        const inherited = sourceCh ? (prev[sourceCh]?.[t.code] ?? {}) : {}
+        next[ch][t.code] = { ...(next[ch][t.code] ?? {}) }
+        segKeys.forEach(segKey => {
+          if (!next[ch][t.code][segKey]) {
+            next[ch][t.code][segKey] = inherited[segKey] ? inherited[segKey].map(f => ({ ...f })) : []
+          }
+        })
+      })
+      return next
+    })
   }
 
   const tryRemoveChannel = (ch: ChannelType) => {
@@ -1384,16 +1538,33 @@ export function CampaignBuilder() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-medium text-slate-600 mb-1 block">Ngày bắt đầu</label>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Ngày bắt đầu *</label>
                     <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setTouched(true) }}
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-600 mb-1 block">Ngày kết thúc</label>
-                    <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setTouched(true) }}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">
+                      Ngày kết thúc {!isInfinite && '*'}
+                    </label>
+                    {!isInfinite ? (
+                      <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setTouched(true) }}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+                    ) : (
+                      <div className="w-full px-3 py-2 text-sm border border-slate-100 rounded-md bg-slate-50 text-slate-400 italic">
+                        Không giới hạn — chạy đến khi [Dừng]
+                      </div>
+                    )}
                   </div>
                 </div>
+                <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isInfinite}
+                    onChange={e => { setIsInfinite(e.target.checked); if (e.target.checked) setEndDate(''); setTouched(true) }}
+                    className="accent-blue-500"
+                  />
+                  Không giới hạn ngày kết thúc (Vô hạn)
+                </label>
                 <div className="text-xs text-slate-500">Người tạo: QTV Marketing</div>
               </div>
             )}
@@ -1601,6 +1772,15 @@ export function CampaignBuilder() {
                           const displayTrig = triggerLogic === 'AND'
                             ? { ...trig, code: 'ALL TRIGGERS (AND)', name: 'Dùng chung cho tất cả trigger' }
                             : trig
+                          // fieldGroups cho accordion điều kiện lọc: AND mode dùng chung 1 card → hợp nhất
+                          // thuộc tính lọc của TẤT CẢ trigger đã chọn; OR mode → chỉ thuộc tính của trigger này
+                          const filterTriggerCodes = triggerLogic === 'AND' ? selectedTriggers.map(t => t.code) : [trig.code]
+                          const fieldGroups: FilterFieldGroup[] = filterTriggerCodes.map(code => ({
+                            triggerCode: code,
+                            // Ẩn thuộc tính bị Khóa (locked) — QTV không chọn được khi cấu hình campaign mới (URD UC-TRG-05)
+                            fields: (mockTriggers.find(mt => mt.code === code)?.filterFields ?? []).filter(f => !f.locked),
+                          }))
+                          const filterCardKey = trig.code  // '__AND__' khi AND mode, code gốc khi OR mode
                           return (
                             <TriggerCard
                               key={trig.code}
@@ -1613,6 +1793,20 @@ export function CampaignBuilder() {
                               guideOpen={!!guideOpen[guideKey]}
                               onGuideToggle={() => setGuideOpen(prev => ({ ...prev, [guideKey]: !prev[guideKey] }))}
                               canShowVariant={triggerLogic === 'OR' && segmentLogic === 'OR'}
+                              fieldGroups={fieldGroups}
+                              getFilters={segKey => getChannelFilterList(channelFilters, activeChannelTab, filterCardKey, segKey)}
+                              setFilters={(segKey, filters) => setChannelFilters(prev => ({
+                                ...prev,
+                                [activeChannelTab]: {
+                                  ...(prev[activeChannelTab] ?? {}),
+                                  [filterCardKey]: { ...(prev[activeChannelTab]?.[filterCardKey] ?? {}), [segKey]: filters },
+                                },
+                              }))}
+                              filterExpandedKey={segKey => !!filterExpanded[`${activeChannelTab}|${filterCardKey}|${segKey}`]}
+                              onToggleFilterExpanded={segKey => {
+                                const k = `${activeChannelTab}|${filterCardKey}|${segKey}`
+                                setFilterExpanded(prev => ({ ...prev, [k]: !prev[k] }))
+                              }}
                             />
                           )
                         })}
@@ -1739,7 +1933,7 @@ export function CampaignBuilder() {
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
                   {mockSegments.filter(s => !segments.find(x => x.id === s.id)).map(s => (
                     <button key={s.id}
-                      onClick={() => { setSegments(prev => [...prev, { id: s.id, name: s.name, reach: s.reach }]); setSegmentDropdown(false) }}
+                      onClick={() => { addSegment({ id: s.id, name: s.name, reach: s.reach }); setSegmentDropdown(false) }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">
                       <div className="font-medium text-slate-700">{s.name}</div>
                       <div className="text-xs text-slate-400">{s.reach.toLocaleString('vi-VN')} KH · {s.source}</div>
@@ -1761,13 +1955,7 @@ export function CampaignBuilder() {
                   <SegmentCard
                     key={seg.id}
                     seg={seg}
-                    onChange={updated => setSegments(prev => prev.map(x => x.id === seg.id ? updated : x))}
-                    onRemove={() => setSegments(prev => prev.filter(x => x.id !== seg.id))}
-                    fieldGroups={selectedTriggers.map(t => ({
-                      triggerCode: t.code,
-                      // Ẩn thuộc tính bị Khóa (locked) — QTV không chọn được khi cấu hình campaign mới (URD UC-TRG-05)
-                      fields: (mockTriggers.find(mt => mt.code === t.code)?.filterFields ?? []).filter(f => !f.locked),
-                    }))}
+                    onRemove={() => removeSegment(seg.id)}
                   />
                 ))}
               </div>

@@ -6,7 +6,7 @@ import { StatusBadge, TriggerChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockCampaigns } from '../data/mock'
-import { reactivateBlockReason } from '../lib/utils'
+import { reactivateBlockReason, reactivateFlow, isBeforeStart } from '../lib/utils'
 import type { ChannelType, CampaignStatus } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
@@ -189,6 +189,7 @@ export function CampaignDetail() {
   const [stopConfirm, setStopConfirm] = useState(false)
   const [blPreviewOpen, setBlPreviewOpen] = useState(false)
   const [wlPreviewOpen, setWlPreviewOpen] = useState(false)
+  const [activatePendingConfirm, setActivatePendingConfirm] = useState(false)
 
   const handleStop = () => {
     setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: 'Paused' as CampaignStatus } : c))
@@ -196,10 +197,20 @@ export function CampaignDetail() {
     setStopConfirm(false)
   }
 
+  // [Bật] — 3 nhánh theo UC-CAM-07, xem giải thích chi tiết ở CampaignList.tsx
   const handleActivate = () => {
-    if (reactivateBlockReason(campaign)) return   // chặn bật thẳng khi còn cờ vô hiệu
+    const flow = reactivateFlow(campaign)
+    if (flow === 'blocked') return
+    if (flow === 'toPending') { setActivatePendingConfirm(true); return }
     setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: 'Active' as CampaignStatus } : c))
     toast('Campaign đã kích hoạt lại', 'success')
+  }
+  const confirmActivateToPending = () => {
+    setCampaigns(prev => prev.map(c => c.id === campaign.id
+      ? { ...c, status: 'Pending' as CampaignStatus, pausedConfigChanged: false }
+      : c))
+    toast('Đã chuyển về Chờ duyệt để Admin xác nhận lại', 'warning')
+    setActivatePendingConfirm(false)
   }
   const activateBlock = reactivateBlockReason(campaign)
 
@@ -216,6 +227,11 @@ export function CampaignDetail() {
             <div className="flex items-center gap-3">
               <h1 className="text-lg font-bold text-slate-800">{campaign.name}</h1>
               <StatusBadge status={campaign.status} />
+              {campaign.status === 'Active' && isBeforeStart(campaign) && (
+                <span className="text-xs bg-slate-100 text-slate-500 rounded-full px-2 py-0.5 whitespace-nowrap">
+                  ⏳ Chưa tới ngày bắt đầu
+                </span>
+              )}
             </div>
             <div className="text-xs font-mono text-slate-400 mt-1">{campaign.code}</div>
           </div>
@@ -260,7 +276,7 @@ export function CampaignDetail() {
               ['Tên campaign', campaign.name],
               ['Mã kịch bản', campaign.code],
               ['Mục tiêu', campaign.goal ?? '—'],
-              ['Thời gian', `${campaign.startDate} – ${campaign.endDate}`],
+              ['Thời gian', `${campaign.startDate} – ${campaign.isInfinite ? 'Vô hạn' : campaign.endDate}`],
               ['Độ ưu tiên', String(campaign.priority)],
               ['Người tạo', campaign.owner],
               ['Ngày tạo', campaign.createdAt],
@@ -511,6 +527,18 @@ export function CampaignDetail() {
         <DialogActions>
           <Button variant="outline" onClick={() => setStopConfirm(false)}>Hủy</Button>
           <Button variant="danger" onClick={handleStop}>Xác nhận Dừng</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Activate → Pending confirm (UC-CAM-07: param/điều kiện lọc trigger bị Sửa trong lúc Paused) */}
+      <Dialog open={activatePendingConfirm} onClose={() => setActivatePendingConfirm(false)} title="Bật lại campaign?">
+        <p className="text-sm text-slate-600">
+          Trigger đang dùng đã bị Admin sửa tham số/điều kiện lọc trong lúc campaign tạm dừng. Bật lại sẽ
+          chuyển campaign về <strong>Chờ duyệt</strong> để Admin xác nhận lại cấu hình mới, thay vì kích hoạt thẳng.
+        </p>
+        <DialogActions>
+          <Button variant="outline" onClick={() => setActivatePendingConfirm(false)}>Hủy</Button>
+          <Button variant="primary" onClick={confirmActivateToPending}>Xác nhận</Button>
         </DialogActions>
       </Dialog>
 
