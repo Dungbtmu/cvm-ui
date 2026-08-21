@@ -337,7 +337,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
           {limits.hasImage && (
             <div>
               <div className="text-xs text-slate-500 font-medium mb-1">
-                Image {limits.imageRequired ? '** bắt buộc **' : '(optional)'}
+                Hình ảnh {limits.imageRequired ? '** bắt buộc **' : '(tùy chọn)'}
                 {ch === 'Push' ? ' · 1:1' : ch === 'Banner' ? ' · 16:9' : ch === 'Email' ? ' · banner ngang' : ''}
               </div>
               {content.imageName ? (
@@ -359,7 +359,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
                 </>
               )}
               {limits.imageRequired && !content.imageName && (
-                <div className="text-xs text-orange-500 mt-1">⚠ Chưa upload image → không thể lưu</div>
+                <div className="text-xs text-orange-500 mt-1">⚠ Chưa tải lên hình ảnh → không thể lưu</div>
               )}
             </div>
           )}
@@ -386,7 +386,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
           {limits.title !== undefined && (
             <div>
               <label className="text-xs text-slate-500 font-medium block mb-1">
-                {ch === 'Email' ? 'Subject *' : 'Title *'}
+                {ch === 'Email' ? 'Tiêu đề thư *' : 'Tiêu đề *'}
                 <span className="float-right text-slate-400">{(content.title ?? '').length}/{limits.title}</span>
               </label>
               <input
@@ -403,7 +403,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
           {/* Body */}
           <div>
             <label className="text-xs text-slate-500 font-medium block mb-1">
-              {ch === 'Zalo OA' ? 'Nội dung *' : ch === 'Email' ? 'Body * (plain text)' : 'Nội dung *'}
+              {ch === 'Zalo OA' ? 'Nội dung *' : ch === 'Email' ? 'Nội dung * (văn bản thuần)' : 'Nội dung *'}
               {ch === 'SMS' ? (
                 <span className={`float-right ${smsInfo.segments > 1 ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
                   {smsInfo.length}/{smsInfo.limit}
@@ -427,7 +427,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
             />
             {ch === 'SMS' && smsInfo.segments > 1 && (
               <div className="text-xs text-orange-500 mt-1">
-                {smsInfo.hasAccent ? 'Nội dung có dấu' : 'Nội dung không dấu'} · {smsInfo.segments} SMS segment · chi phí nhân {smsInfo.segments}×
+                {smsInfo.hasAccent ? 'Nội dung có dấu' : 'Nội dung không dấu'} · {smsInfo.segments} đoạn SMS · chi phí nhân {smsInfo.segments}×
               </div>
             )}
             {ch === 'USSD' && (
@@ -440,7 +440,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
             <>
               <div>
                 <label className="text-xs text-slate-500 font-medium block mb-1">
-                  CTA Label *
+                  Nhãn CTA *
                   <span className="float-right text-slate-400">{(content.cta ?? '').length}/30</span>
                 </label>
                 <input value={content.cta ?? ''} onChange={e => updateContent('cta', e.target.value)}
@@ -448,7 +448,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
                   className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400" />
               </div>
               <div>
-                <label className="text-xs text-slate-500 font-medium block mb-1">CTA URL *</label>
+                <label className="text-xs text-slate-500 font-medium block mb-1">Đường dẫn CTA *</label>
                 <input value={content.ctaUrl ?? ''} onChange={e => updateContent('ctaUrl', e.target.value)}
                   placeholder="https://..."
                   className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400" />
