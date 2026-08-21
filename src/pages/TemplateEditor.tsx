@@ -11,18 +11,6 @@ import type { ChannelType, TemplateChannelContent } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
-
-const ALL_PARAMS = [
-  { name: 'ten_kh', description: 'Họ tên đầy đủ', format: 'text' },
-  { name: 'loai_sim', description: 'Loại SIM', format: 'text' },
-  { name: 'so_dt', description: 'Số điện thoại', format: 'text' },
-  { name: 'so_du', description: 'Số dư tài khoản', format: 'currency' },
-  { name: 'data_con_lai', description: 'Data còn lại (MB)', format: 'number' },
-  { name: 'ngay_het_han', description: 'Ngày hết hạn gói', format: 'date' },
-  { name: 'ngay_kich_hoat', description: 'Ngày kích hoạt SIM', format: 'date' },
-  { name: 'app_installed', description: 'Đã cài app chưa', format: 'boolean' },
-]
-
 const CHANNEL_LIMITS: Record<ChannelType, { title?: number; body: number; hasImage: boolean; imageRequired?: boolean }> = {
   Push:    { title: 65,  body: 240,   hasImage: true },
   'Zalo OA': { body: 1000, hasImage: true },
@@ -105,14 +93,17 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
   const [tplName, setTplName] = useState(existing?.name ?? '')
   const [tplDesc, setTplDesc] = useState(existing?.description ?? '')
   const [tplStatus, setTplStatus] = useState<'Active' | 'Inactive'>(existing?.status ?? 'Active')
-  // Trigger áp dụng — không bắt buộc; chỉ để nhóm hiển thị tại Danh sách Template (UC-TPL-00), KHÔNG
-  // giới hạn phạm vi dùng template khi soạn campaign (xem UC-TPL-01 Quy tắc nghiệp vụ). Chỉ liệt kê
-  // trigger đang Active để chọn.
-  const [triggerCodes, setTriggerCodes] = useState<string[]>(existing?.triggerCodes ?? [])
+  // Trigger — BẮT BUỘC chọn đúng 1 trigger (URD v4.4). Mục đích: lấy đúng bộ tham số của trigger đó
+  // để soạn nhanh + chính xác, KHÔNG phải để nhóm hiển thị. Chỉ liệt kê trigger đang Active để chọn.
+  const [triggerCode, setTriggerCode] = useState<string>(existing?.triggerCode ?? '')
   const [triggerPickerOpen, setTriggerPickerOpen] = useState(false)
+  const [triggerTouched, setTriggerTouched] = useState(false)
   const activeTriggers = mockTriggers.filter(t => t.status === 'Active')
-  const toggleTrigger = (code: string) => {
-    setTriggerCodes(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code])
+  const selectedTrigger = mockTriggers.find(t => t.code === triggerCode)
+  const selectTrigger = (code: string) => {
+    setTriggerCode(code)
+    setTriggerTouched(true)
+    setTriggerPickerOpen(false)
   }
   const [activeChannels, setActiveChannels] = useState<ChannelType[]>(existing?.channels ?? [])
   const [activeTab, setActiveTab] = useState<ChannelType>(existing?.channels[0] ?? 'Push')
@@ -179,6 +170,11 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
       toast('Tên template không được để trống', 'error')
       return
     }
+    if (!triggerCode) {
+      setTriggerTouched(true)
+      toast('Vui lòng chọn trigger cho template này', 'error')
+      return
+    }
     if (tplStatus === 'Inactive' && activeCampaignsUsingThis.length > 0) {
       setInactiveConfirm(true)
       return
@@ -217,47 +213,37 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                 />
             }
 
-            {/* Trigger áp dụng — không bắt buộc, chỉ để nhóm hiển thị tại UC-TPL-00, không giới hạn phạm vi dùng */}
+            {/* Trigger — bắt buộc chọn đúng 1, dùng để lấy đúng tham số động của trigger đó (URD v4.4) */}
             <div>
               <label className="text-xs text-slate-500 font-medium block mb-1">
-                Trigger áp dụng <span className="font-normal text-slate-400">(không bắt buộc — chỉ để nhóm hiển thị, không giới hạn khi soạn campaign)</span>
+                Trigger <span className="text-red-400">*</span>
               </label>
               {readOnly ? (
-                triggerCodes.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {triggerCodes.map(code => {
-                      const t = mockTriggers.find(x => x.code === code)
-                      return <span key={code} className="bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-xs">{t ? `${t.code} · ${t.name}` : code}</span>
-                    })}
-                  </div>
-                ) : <span className="text-xs text-slate-400 italic">Chưa gắn Trigger</span>
+                selectedTrigger
+                  ? <span className="bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-xs">{selectedTrigger.code} · {selectedTrigger.name}</span>
+                  : <span className="text-xs text-slate-400 italic">Chưa chọn trigger</span>
               ) : (
                 <div className="relative">
                   <button type="button" onClick={() => setTriggerPickerOpen(o => !o)}
-                    className="w-full flex flex-wrap items-center gap-1 px-2 py-1.5 border border-slate-200 rounded text-left text-xs min-h-[34px] hover:border-blue-300">
-                    {triggerCodes.length === 0
-                      ? <span className="text-slate-400">-- Chọn 1 hoặc nhiều trigger --</span>
-                      : triggerCodes.map(code => {
-                          const t = mockTriggers.find(x => x.code === code)
-                          return <span key={code} className="bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">{t ? t.code : code}</span>
-                        })}
+                    className={`w-full flex items-center gap-1 px-2 py-1.5 border rounded text-left text-xs min-h-[34px] hover:border-blue-300 ${triggerTouched && !triggerCode ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}>
+                    {selectedTrigger
+                      ? <span className="bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">{selectedTrigger.code} · {selectedTrigger.name}</span>
+                      : <span className="text-slate-400">-- Chọn trigger --</span>}
                   </button>
                   {triggerPickerOpen && (
                     <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                       {activeTriggers.map(t => (
-                        <label key={t.code} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 cursor-pointer">
-                          <input type="checkbox" className="accent-blue-500"
-                            checked={triggerCodes.includes(t.code)}
-                            onChange={() => toggleTrigger(t.code)} />
+                        <button type="button" key={t.code} onClick={() => selectTrigger(t.code)}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 text-left">
                           <span className="font-mono text-slate-500">{t.code}</span>
                           <span className="text-slate-700">{t.name}</span>
-                        </label>
+                        </button>
                       ))}
                       {activeTriggers.length === 0 && <div className="px-3 py-2 text-xs text-slate-400">Không có trigger Active nào</div>}
-                      <div className="border-t border-slate-100 p-1.5 text-right">
-                        <button type="button" onClick={() => setTriggerPickerOpen(false)} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5">Xong</button>
-                      </div>
                     </div>
+                  )}
+                  {triggerTouched && !triggerCode && (
+                    <div className="text-xs text-red-500 mt-0.5">Vui lòng chọn trigger cho template này</div>
                   )}
                 </div>
               )}
@@ -385,14 +371,16 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                 </>
               )}
 
-              {/* PARAMS — ẩn khi readOnly */}
+              {/* PARAMS — lấy đúng theo trigger đã chọn ở Header (URD v4.4), ẩn khi readOnly */}
               {!readOnly && (
                 <div>
                   <div className="text-xs text-slate-500 font-medium mb-1.5">THAM SỐ ĐỘNG:</div>
-                  {ALL_PARAMS.length > 0 ? (
+                  {!selectedTrigger ? (
+                    <div className="text-xs text-slate-400 italic">Chọn trigger để xem tham số khả dụng</div>
+                  ) : selectedTrigger.params.length > 0 ? (
                     <>
                       <div className="flex flex-wrap gap-1.5">
-                        {ALL_PARAMS.map(p => (
+                        {selectedTrigger.params.map(p => (
                           <div key={p.name} className="relative group">
                             <ParamChip name={p.name} onClick={() => insertParam(p.name)} />
                             <div className="absolute bottom-full left-0 mb-1 hidden group-hover:block bg-slate-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-30">
@@ -404,8 +392,20 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                       <div className="text-xs text-slate-400 mt-1">→ Click chip để chèn vào nội dung</div>
                     </>
                   ) : (
-                    <div className="text-xs text-slate-400 italic">Chưa có tham số động — cần có ít nhất 1 trigger Active trong hệ thống</div>
+                    <div className="text-xs text-slate-400 italic">Trigger này chưa khai báo tham số nào</div>
                   )}
+                  {/* Cảnh báo tham số đã chèn không còn thuộc trigger đang chọn (ví dụ sau khi đổi trigger) */}
+                  {selectedTrigger && (() => {
+                    const validNames = new Set(selectedTrigger.params.map(p => p.name))
+                    const used = Array.from((content.body ?? '').matchAll(/\{\{(\w+)\}\}/g)).map(m => m[1])
+                    const invalid = Array.from(new Set(used.filter(n => !validNames.has(n))))
+                    if (invalid.length === 0) return null
+                    return (
+                      <div className="text-xs text-orange-500 mt-1.5">
+                        ⚠ Tham số {invalid.map(n => `{{${n}}}`).join(', ')} không thuộc trigger đã chọn — kiểm tra lại nội dung trước khi lưu
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
 

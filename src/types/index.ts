@@ -94,10 +94,11 @@ export interface Template {
   usageCount: number
   status: 'Active' | 'Inactive'
   contents?: Partial<Record<ChannelType, TemplateChannelContent>>
-  // Trigger áp dụng — không bắt buộc, chỉ dùng để nhóm hiển thị tại UC-TPL-00 (Danh sách Template);
-  // KHÔNG giới hạn phạm vi dùng template khi soạn campaign (xem UC-TPL-01 Quy tắc nghiệp vụ).
+  // Trigger gắn cho template — BẮT BUỘC chọn đúng 1 trigger (URD v4.4). Mục đích: lấy đúng bộ
+  // tham số động của trigger đó để soạn nhanh + chính xác, KHÔNG phải để nhóm hiển thị (khác V4.0/4.3).
+  // Optional ở type-level vì đang trong lúc soạn (trước khi lưu) có thể chưa chọn; UI validate bắt buộc.
   // Lưu mã trigger (Trigger.code) để tránh phụ thuộc vòng với danh sách trigger.
-  triggerCodes?: string[]
+  triggerCode?: string
 }
 
 // Phạm vi bản ghi Blacklist — 'campaign' (mặc định, theo cặp campaign-kênh) hoặc 'global' (Blacklist
