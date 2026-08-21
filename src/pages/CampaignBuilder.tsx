@@ -20,6 +20,8 @@ const MOCK_SUBSCRIBERS = [
   { phone: '0988 xxx 005', name: 'Hoàng Văn E', status: 'Active' },
   { phone: '0911 xxx 006', name: 'Đặng Thị F', status: 'Active' },
 ]
+// Nhãn hiển thị tiếng Việt cho status của MOCK_SUBSCRIBERS — giá trị gốc giữ nguyên để so sánh logic
+const subscriberStatusLabel: Record<string, string> = { Active: 'Đang hoạt động', Inactive: 'Ngừng hoạt động' }
 
 const CHANNEL_LIMITS: Record<ChannelType, { title?: number; body: number; hasImage: boolean; imageRequired?: boolean }> = {
   'Push':    { title: 65,  body: 240,  hasImage: true },
@@ -925,7 +927,7 @@ function SuppressionSection({ title, mode, onMode, selected, onSelected, uploadD
                           <span className="text-xs text-slate-400 ml-2">· {sub.name}</span>
                         </div>
                         <span className={`text-xs flex-shrink-0 ${sub.status === 'Active' ? 'text-green-600' : 'text-slate-400'}`}>
-                          {sub.status}
+                          {subscriberStatusLabel[sub.status] ?? sub.status}
                         </span>
                       </label>
                     ))}
