@@ -323,7 +323,6 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
                 fieldGroups={fieldGroups}
                 expanded={filterExpandedKey(segKey)}
                 onToggle={() => onToggleFilterExpanded(segKey)}
-                reachBefore={seg.reach}
                 disabledReason={fieldGroups.length === 0 ? 'Chưa chọn trigger ở mục 2 — điều kiện lọc chưa khả dụng' : undefined}
               />
             </div>
@@ -483,8 +482,8 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
   )
 }
 
-// ── SegmentCard: chọn phân khúc + hiển thị reach (Section 3 chỉ còn STT 2-4 — điều kiện lọc con đã
-// dời sang Section 4 Message Matrix, xem FilterAccordion bên dưới) ──
+// ── SegmentCard: chọn phân khúc (Section 3 chỉ còn STT 2-4 — điều kiện lọc con đã dời sang
+// Section 4 Message Matrix, xem FilterAccordion bên dưới; không hiển thị số lượng KH ước tính) ──
 interface SegmentCardProps {
   seg: SegmentEntry
   onRemove: () => void
@@ -493,15 +492,12 @@ interface SegmentCardProps {
 function SegmentCard({ seg, onRemove }: SegmentCardProps) {
   return (
     <div className="border border-slate-200 rounded-lg overflow-hidden">
-      <div className="p-3 space-y-1.5">
+      <div className="p-3">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-slate-700">{seg.name}</span>
           <button onClick={onRemove} className="text-slate-300 hover:text-red-400">
             <X size={14} />
           </button>
-        </div>
-        <div className="text-xs text-slate-500">
-          {seg.reach.toLocaleString('vi-VN')} KH
         </div>
       </div>
     </div>
@@ -536,11 +532,10 @@ interface FilterAccordionProps {
   fieldGroups: FilterFieldGroup[]
   expanded: boolean
   onToggle: () => void
-  reachBefore: number
   disabledReason?: string  // khi set → accordion vô hiệu hóa hoàn toàn, hiển thị text mờ này
 }
 
-function FilterAccordion({ filters, onChange, fieldGroups, expanded, onToggle, reachBefore, disabledReason }: FilterAccordionProps) {
+function FilterAccordion({ filters, onChange, fieldGroups, expanded, onToggle, disabledReason }: FilterAccordionProps) {
   const hasAnyField = fieldGroups.some(g => g.fields.length > 0)
   const filterDisabled = !!disabledReason || !hasAnyField
   const firstGroup = fieldGroups.find(g => g.fields.length > 0)
@@ -627,9 +622,6 @@ function FilterAccordion({ filters, onChange, fieldGroups, expanded, onToggle, r
     ? filters.map(f => `${f.fieldLabel} ${opLabel(f.op)} ${summaryValue(f)}`.trim()).join(' · ')
     : null
 
-  // reach sau lọc — giả lập giảm ~20% mỗi điều kiện
-  const reachAfter = Math.round(reachBefore * Math.pow(0.8, filters.length))
-
   return (
     <div className="border border-slate-100 rounded-lg overflow-hidden bg-white">
       <div className="px-3 py-2 space-y-1">
@@ -659,11 +651,6 @@ function FilterAccordion({ filters, onChange, fieldGroups, expanded, onToggle, r
             </button>
           )}
         </div>
-        {filters.length > 0 && (
-          <div className="text-xs text-slate-400">
-            → Sau lọc: <span className="font-medium text-blue-600">~{reachAfter.toLocaleString('vi-VN')} KH</span>
-          </div>
-        )}
       </div>
 
       {expanded && !filterDisabled && (
@@ -1429,8 +1416,6 @@ export function CampaignBuilder() {
       t.name.toLowerCase().includes(triggerSearch.toLowerCase()))
   )
 
-  const reach = segments.reduce((s, seg) => s + seg.reach, 0)
-
   // Channel completion indicator
   const channelCompletion = (ch: ChannelType): { done: number; total: number } => {
     if (triggerLogic === 'AND') {
@@ -1883,17 +1868,6 @@ export function CampaignBuilder() {
                     activeChannels={activeChannels}
                     syncNote="Chỉ gửi cho những số trong danh sách cho phép"
                   />
-
-                  {/* Reach cuối */}
-                  <div className="pt-2 border-t border-slate-100 text-sm">
-                    <span className="text-slate-500">Reach cuối cùng: </span>
-                    <span className="font-semibold text-blue-600">
-                      ~{Math.max(0, reach - (blMode !== 'none' ? 320 : 0)).toLocaleString('vi-VN')} KH
-                    </span>
-                    <div className="text-xs text-slate-400 mt-0.5">
-                      = {reach.toLocaleString('vi-VN')} → trừ DNC → trừ BL → giao WL
-                    </div>
-                  </div>
                 </div>
 
                 <div className="text-xs text-slate-500 bg-slate-50 rounded px-2 py-1.5">
@@ -1924,12 +1898,6 @@ export function CampaignBuilder() {
             ) : (
               <div className="text-xs text-green-600 flex items-center gap-1">✓ Sẵn sàng gửi duyệt</div>
             )}
-            <div className="text-xs text-slate-500">
-              Reach ước tính: <span className="font-semibold text-slate-700">~{reach.toLocaleString('vi-VN')} KH</span>
-            </div>
-            <div className="text-xs text-slate-400">
-              Reach cuối cùng: ~{Math.max(0, reach - (blMode !== 'none' ? 320 : 0)).toLocaleString('vi-VN')} KH
-            </div>
           </Card>
 
           {/* S3 Audience */}
@@ -1937,7 +1905,6 @@ export function CampaignBuilder() {
             <div className="text-sm font-semibold text-slate-700">3. Đối tượng / Phân khúc</div>
             <div className="text-xs text-slate-500">
               Nguồn: Customer 360 · Team Data · BSS · OCS
-              <br />Reach ước tính tại: {new Date().toLocaleDateString('vi-VN')} {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
             </div>
 
             {/* Segment picker */}
@@ -1954,7 +1921,7 @@ export function CampaignBuilder() {
                       onClick={() => { addSegment({ id: s.id, name: s.name, reach: s.reach }); setSegmentDropdown(false) }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">
                       <div className="font-medium text-slate-700">{s.name}</div>
-                      <div className="text-xs text-slate-400">{s.reach.toLocaleString('vi-VN')} KH · {s.source}</div>
+                      <div className="text-xs text-slate-400">{s.source}</div>
                     </button>
                   ))}
                   {mockSegments.filter(s => !segments.find(x => x.id === s.id)).length === 0 && (
@@ -1993,19 +1960,6 @@ export function CampaignBuilder() {
               </div>
             )}
 
-            {/* Reach */}
-            <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
-              <div className="text-xs">
-                <span className="text-slate-500">Reach ước tính: </span>
-                <span className="font-semibold text-blue-600">~{reach.toLocaleString('vi-VN')} KH</span>
-              </div>
-              <button className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1">
-                <RefreshCw size={10} /> Tính lại
-              </button>
-            </div>
-            <div className="text-xs text-slate-400 bg-blue-50 rounded px-2 py-1.5">
-              ⓘ Reach ước tính tại thời điểm hiện tại. Phân khúc được đánh giá lại khi trigger kích hoạt — KH có thể vào/ra phân khúc theo thời gian.
-            </div>
           </Card>
 
           {/* Kênh & Lịch gửi */}
