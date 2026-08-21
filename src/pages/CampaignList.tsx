@@ -67,8 +67,10 @@ export function CampaignList() {
     setConfirmActivatePending(null)
   }
 
-  // Sửa priority inline trên Campaign List — chỉ campaign Active. Xác nhận đổi → chuyển về Pending
-  // để Admin xác nhận lại (khác Priority Matrix, nơi Admin tự sắp xếp không cần duyệt lại).
+  // Sửa priority inline trên Campaign List — áp dụng cho campaign Active và Draft.
+  // Active: xác nhận đổi → chuyển về Pending để Admin xác nhận lại (khác Priority Matrix,
+  // nơi Admin tự sắp xếp không cần duyệt lại). Draft: chưa từng qua duyệt nên lưu ngay,
+  // không confirm dialog, không đổi trạng thái.
   const startEditPriority = (c: Campaign) => {
     setEditingPriority(c.id)
     setPriorityDraft(String(c.priority))
@@ -77,6 +79,11 @@ export function CampaignList() {
     const newPriority = Number(priorityDraft)
     setEditingPriority(null)
     if (!Number.isInteger(newPriority) || newPriority < 1 || newPriority === c.priority) return
+    if (c.status === 'Draft') {
+      setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, priority: newPriority } : x))
+      toast('Đã cập nhật độ ưu tiên ✓', 'success')
+      return
+    }
     setConfirmPriorityChange({ campaign: c, newPriority })
   }
   const confirmPriorityChangeApply = () => {
@@ -197,7 +204,7 @@ export function CampaignList() {
                   {c.startDate} – {c.isInfinite ? 'Vô hạn' : c.endDate}
                 </td>
                 <td className="px-4 py-3">
-                  {c.status === 'Active' ? (
+                  {c.status === 'Active' || c.status === 'Draft' ? (
                     editingPriority === c.id ? (
                       <input
                         type="number"
