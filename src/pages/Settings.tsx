@@ -22,15 +22,12 @@ export function Settings() {
   const [activeTab, setActiveTab] = useState(0)
 
   // Frequency Cap — Daily/Weekly/Monthly đều KHÔNG bắt buộc, để trống = không giới hạn (URD STT 1.1-1.3).
-  // Cooldown đã bị bỏ khỏi form theo URD V4 (thay bằng cấu hình Gửi lại ở STT 1.5).
+  // Cooldown đã bị bỏ khỏi form theo URD V4. "Gửi lại" đã CHUYỂN sang Campaign Builder (Nhắc lại —
+  // Re-engagement, cấu hình riêng theo từng campaign) theo URD V4.1 — xem CampaignBuilder.tsx.
   const [capDay, setCapDay] = useState('')
   const [capWeek, setCapWeek] = useState('')
   const [capMonth, setCapMonth] = useState('')
   const [capChannel, setCapChannel] = useState<Partial<Record<ChannelType, string>>>({})
-
-  const [allowResend, setAllowResend] = useState(false)
-  const [resendMaxCount, setResendMaxCount] = useState('')
-  const [resendGapHours, setResendGapHours] = useState('')
 
   const capDayErr = capFieldError(capDay)
   const capWeekErr = capFieldError(capWeek)
@@ -39,17 +36,13 @@ export function Settings() {
     acc[ch] = capFieldError(capChannel[ch] ?? '')
     return acc
   }, {})
-  const resendMaxErr = capFieldError(resendMaxCount)
-  const resendGapErr = capFieldError(resendGapHours)
 
   const weekLtDayErr = !capDayErr && !capWeekErr && capDay !== '' && capWeek !== '' && Number(capWeek) < Number(capDay)
   const monthLtWeekErr = !capWeekErr && !capMonthErr && capWeek !== '' && capMonth !== '' && Number(capMonth) < Number(capWeek)
-  const resendIncompleteErr = allowResend && (resendMaxCount === '' || resendGapHours === '')
 
   const hasAnyCapErr = capDayErr || capWeekErr || capMonthErr
     || Object.values(capChannelErrs).some(Boolean)
     || weekLtDayErr || monthLtWeekErr
-    || resendMaxErr || resendGapErr || resendIncompleteErr
 
   const handleSaveCap = () => {
     if (hasAnyCapErr) return
@@ -167,38 +160,10 @@ export function Settings() {
             <div className="text-xs text-slate-400 mt-1">Để trống = kênh đó không giới hạn riêng; vẫn chịu ràng buộc Ngày/Tuần/Tháng ở trên nếu có cấu hình.</div>
           </div>
 
-          {/* Cho phép gửi lại */}
-          <div>
-            <label className="flex items-center gap-2 cursor-pointer w-fit">
-              <input type="checkbox" checked={allowResend} onChange={e => setAllowResend(e.target.checked)}
-                className="accent-blue-500" />
-              <span className="text-sm font-medium text-slate-700">Cho phép gửi lại</span>
-            </label>
-            {allowResend && (
-              <div className="mt-2 space-y-3 pl-6">
-                <div className="flex items-center gap-4">
-                  <label className="text-sm text-slate-600 w-56">Số lần gửi lại tối đa:</label>
-                  <div>
-                    <input type="number" min="1" max="9999" value={resendMaxCount}
-                      onChange={e => setResendMaxCount(e.target.value)} placeholder="VD: 2"
-                      className={`w-32 px-2 py-1.5 text-sm border rounded focus:outline-none focus:border-blue-400 ${resendMaxErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <label className="text-sm text-slate-600 w-56">Khoảng cách tối thiểu giữa các lần (giờ):</label>
-                  <div>
-                    <input type="number" min="1" max="9999" value={resendGapHours}
-                      onChange={e => setResendGapHours(e.target.value)} placeholder="VD: 4"
-                      className={`w-32 px-2 py-1.5 text-sm border rounded focus:outline-none focus:border-blue-400 ${resendGapErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
-                  </div>
-                </div>
-                {resendIncompleteErr && (
-                  <div className="text-xs text-red-500 bg-red-50 rounded px-2 py-1.5 w-fit">
-                    Vui lòng nhập đầy đủ số lần và khoảng cách gửi lại
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="text-xs text-slate-500 bg-slate-50 rounded px-2 py-1.5">
+            ℹ Cấu hình "Nhắc lại" (gửi thêm tin cho KH đã nhận thành công nhưng chưa xử lý) nằm tại
+            màn hình <span className="font-medium">Tạo/Sửa Campaign</span> — mục Kênh &amp; Lịch gửi,
+            vì mỗi campaign cần tự bật/tắt và chỉnh riêng theo trigger của mình.
           </div>
 
           <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1.5">

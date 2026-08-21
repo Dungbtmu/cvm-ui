@@ -1151,6 +1151,20 @@ export function CampaignBuilder() {
   const [perChannelSchedule, setPerChannelSchedule] = useState<Record<string, boolean>>({})
   const [scheduleCommonConfirm, setScheduleCommonConfirm] = useState(false)
 
+  // Nhắc lại (Re-engagement) — cấu hình riêng theo campaign, không phải toàn hệ thống (URD II.6.10).
+  // Khác Retry kỹ thuật: chỉ nhắc khi lần gửi trước THÀNH CÔNG và KH vẫn còn thoả điều kiện trigger.
+  const [allowReminder, setAllowReminder] = useState(false)
+  const [reminderMaxCount, setReminderMaxCount] = useState('')
+  const [reminderGapHours, setReminderGapHours] = useState('')
+  const reminderFieldError = (v: string) => {
+    if (v === '') return false
+    const n = Number(v)
+    return !Number.isInteger(n) || n <= 0 || n > 9999
+  }
+  const reminderMaxErr = reminderFieldError(reminderMaxCount)
+  const reminderGapErr = reminderFieldError(reminderGapHours)
+  const reminderIncompleteErr = allowReminder && (reminderMaxCount === '' || reminderGapHours === '')
+
   // S4
   const [activeChannelTab, setActiveChannelTab] = useState<ChannelType>('Push')
   const [channelCards, setChannelCards] = useState<ChannelCards>({})
@@ -1204,6 +1218,8 @@ export function CampaignBuilder() {
   // Cờ vô hiệu là blocking issue độc lập — chặn Gửi duyệt cho đến khi QTV sửa (URD Khối 3)
   if (existing?.paramInvalid) issues.push('Còn tham số không hợp lệ do trigger đã thay đổi — sửa nội dung message')
   if (existing?.filterInvalid) issues.push('Còn điều kiện lọc không hợp lệ do trigger đã thay đổi — sửa điều kiện lọc ở mục 4 (Message Matrix)')
+  if (reminderIncompleteErr) issues.push('Nhắc lại: chưa nhập đầy đủ số lần và khoảng cách')
+  if (reminderMaxErr || reminderGapErr) issues.push('Nhắc lại: giá trị không hợp lệ (phải là số nguyên từ 1 đến 9999)')
 
   // ---- Trigger helpers ----
   const canAddTrigger = triggerMode === 'advanced' || selectedTriggers.length === 0
@@ -2063,6 +2079,39 @@ export function CampaignBuilder() {
                 )}
               </div>
             )}
+
+            {/* Nhắc lại (Re-engagement) */}
+            <div className="border-t border-slate-100 pt-3">
+              <label className="flex items-center gap-2 cursor-pointer w-fit">
+                <input type="checkbox" checked={allowReminder} onChange={e => setAllowReminder(e.target.checked)}
+                  className="accent-blue-500" />
+                <span className="text-xs font-medium text-slate-700">Cho phép nhắc lại</span>
+              </label>
+              <div className="text-xs text-slate-400 mt-0.5">
+                Nếu KH vẫn còn thoả điều kiện trigger này sau khi đã nhận tin, hệ thống sẽ chủ động gửi nhắc thêm.
+              </div>
+              {allowReminder && (
+                <div className="mt-2 space-y-2 pl-6">
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-slate-600 w-48">Số lần nhắc lại tối đa:</label>
+                    <input type="number" min="1" max="9999" value={reminderMaxCount}
+                      onChange={e => setReminderMaxCount(e.target.value)} placeholder="VD: 2"
+                      className={`w-24 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-400 ${reminderMaxErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-slate-600 w-48">Khoảng cách tối thiểu (giờ):</label>
+                    <input type="number" min="1" max="9999" value={reminderGapHours}
+                      onChange={e => setReminderGapHours(e.target.value)} placeholder="VD: 24"
+                      className={`w-24 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-400 ${reminderGapErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                  </div>
+                  {reminderIncompleteErr && (
+                    <div className="text-xs text-red-500 bg-red-50 rounded px-2 py-1 w-fit">
+                      Vui lòng nhập đầy đủ số lần và khoảng cách nhắc lại
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </Card>
         </div>
       </div>
