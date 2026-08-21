@@ -193,7 +193,7 @@ export function CampaignDetail() {
 
   const handleStop = () => {
     setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: 'Paused' as CampaignStatus } : c))
-    toast('Campaign đã dừng', 'warning')
+    toast('Chiến dịch đã dừng', 'warning')
     setStopConfirm(false)
   }
 
@@ -203,13 +203,13 @@ export function CampaignDetail() {
     if (flow === 'blocked') return
     if (flow === 'toPending') { setActivatePendingConfirm(true); return }
     setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: 'Active' as CampaignStatus } : c))
-    toast('Campaign đã kích hoạt lại', 'success')
+    toast('Chiến dịch đã kích hoạt lại', 'success')
   }
   const confirmActivateToPending = () => {
     setCampaigns(prev => prev.map(c => c.id === campaign.id
       ? { ...c, status: 'Pending' as CampaignStatus, pausedConfigChanged: false }
       : c))
-    toast('Đã chuyển về Chờ duyệt để Admin xác nhận lại', 'warning')
+    toast('Đã chuyển về Chờ duyệt để Quản trị viên xác nhận lại', 'warning')
     setActivatePendingConfirm(false)
   }
   const activateBlock = reactivateBlockReason(campaign)
@@ -220,7 +220,7 @@ export function CampaignDetail() {
       <div className="bg-white border border-slate-200 rounded-t-lg px-6 py-4">
         <button onClick={() => navigate('/campaigns')}
           className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-3">
-          <ArrowLeft size={14} /> Campaign
+          <ArrowLeft size={14} /> Chiến dịch
         </button>
         <div className="flex items-start justify-between">
           <div>
@@ -270,10 +270,10 @@ export function CampaignDetail() {
 
         {/* S1 */}
         <section className="px-6 py-4 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-700">1. Thông tin Campaign</h2>
+          <h2 className="text-sm font-semibold text-slate-700">1. Thông tin Chiến dịch</h2>
           <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             {[
-              ['Tên campaign', campaign.name],
+              ['Tên chiến dịch', campaign.name],
               ['Mã kịch bản', campaign.code],
               ['Mục tiêu', campaign.goal ?? '—'],
               ['Thời gian', `${campaign.startDate} – ${campaign.isInfinite ? 'Vô hạn' : campaign.endDate}`],
@@ -292,11 +292,11 @@ export function CampaignDetail() {
 
         {/* S2 */}
         <section className="px-6 py-4 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-700">2. Trigger &amp; Logic</h2>
+          <h2 className="text-sm font-semibold text-slate-700">2. Sự kiện kích hoạt &amp; Logic</h2>
           <div className="text-sm text-slate-600 space-y-2">
             <div className="flex gap-2">
               <span className="text-slate-500">Chế độ:</span>
-              <span className="font-medium">Advanced · Logic: OR</span>
+              <span className="font-medium">Nâng cao · Logic: OR</span>
             </div>
             <div className="space-y-1">
               {campaign.triggers.map((t, i) => (
@@ -307,7 +307,7 @@ export function CampaignDetail() {
               ))}
             </div>
             <div className="text-xs text-slate-500">
-              Ưu tiên khi match nhiều trigger: Chỉ gửi trigger thứ tự 1
+              Ưu tiên khi khớp nhiều sự kiện kích hoạt: Chỉ gửi sự kiện thứ tự 1
             </div>
             <div className="text-xs text-slate-500">
               Ước tính tin: ~6,800 KH × 2 kênh = ~13,600 tin
@@ -317,7 +317,7 @@ export function CampaignDetail() {
 
         {/* S3 */}
         <section className="px-6 py-4 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-700">3. Audience / Phân khúc</h2>
+          <h2 className="text-sm font-semibold text-slate-700">3. Đối tượng / Phân khúc</h2>
           <dl className="text-sm space-y-1.5 text-slate-600">
             <div className="flex gap-2"><dt className="text-slate-500 w-32">Phân khúc:</dt><dd>Gen Z User (18–25) · Sắp hết data</dd></div>
             <div className="flex gap-2"><dt className="text-slate-500 w-32">Logic:</dt><dd>Bất kỳ phân khúc nào (OR)</dd></div>
@@ -338,7 +338,7 @@ export function CampaignDetail() {
               </dd>
             </div>
             <div className="flex gap-2">
-              <dt className="text-slate-500 w-32">Reach ước tính:</dt>
+              <dt className="text-slate-500 w-32">Độ phủ ước tính:</dt>
               <dd className="font-semibold text-blue-600">~6,800 KH</dd>
             </div>
           </dl>
@@ -346,7 +346,7 @@ export function CampaignDetail() {
 
         {/* S4 — Message Matrix với tab kênh interactive */}
         <section className="px-6 py-4 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-700">4. Message Matrix</h2>
+          <h2 className="text-sm font-semibold text-slate-700">4. Ma trận tin nhắn</h2>
 
           {/* Channel tabs */}
           <div className="flex gap-1 border-b border-slate-200 flex-wrap">
@@ -421,7 +421,7 @@ export function CampaignDetail() {
               <h2 className="text-sm font-semibold text-slate-700">5. Kênh &amp; Lịch gửi</h2>
               <div className="flex gap-2 text-sm">
                 <span className="text-slate-500 w-40 flex-shrink-0">Đặt lịch theo kênh:</span>
-                <span className="font-medium text-slate-700">{schedule.perChannel ? 'Có — lịch riêng per kênh' : 'Không — tất cả theo thời gian gửi message'}</span>
+                <span className="font-medium text-slate-700">{schedule.perChannel ? 'Có — lịch riêng theo từng kênh' : 'Không — tất cả theo thời gian gửi tin nhắn'}</span>
               </div>
               {!schedule.perChannel ? (
                 <div className="space-y-1.5 text-sm">
@@ -430,7 +430,7 @@ export function CampaignDetail() {
                     <span className="font-medium text-slate-700">{formatSendTime(schedule.common.sendTime)}</span>
                   </div>
                   <div className="flex gap-2">
-                    <span className="text-slate-500 w-40 flex-shrink-0">Blackout chung:</span>
+                    <span className="text-slate-500 w-40 flex-shrink-0">Giờ giới nghiêm chung:</span>
                     <span className="font-medium text-slate-700">
                       {schedule.common.blackout.enabled
                         ? `Bật · ${schedule.common.blackout.from} – ${schedule.common.blackout.to} · ${schedule.common.blackout.action}`
@@ -444,7 +444,7 @@ export function CampaignDetail() {
                     <tr className="text-xs text-slate-500">
                       <th className="text-left px-3 py-2 font-medium">Kênh</th>
                       <th className="text-left px-3 py-2 font-medium">Thời gian gửi</th>
-                      <th className="text-left px-3 py-2 font-medium">Blackout</th>
+                      <th className="text-left px-3 py-2 font-medium">Giờ giới nghiêm</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -475,7 +475,7 @@ export function CampaignDetail() {
           <h2 className="text-sm font-semibold text-slate-700">6. An toàn</h2>
           <dl className="text-sm space-y-1.5 text-slate-600">
             {[
-              ['Blackout', 'Bật · 22:00 – 08:00 · Hủy luôn'],
+              ['Giờ giới nghiêm', 'Bật · 22:00 – 08:00 · Hủy luôn'],
               ['DNC toàn hệ thống', 'Bật'],
             ].map(([label, value]) => (
               <div key={label} className="flex gap-2">
@@ -484,7 +484,7 @@ export function CampaignDetail() {
               </div>
             ))}
             <div className="flex gap-2 items-center">
-              <dt className="text-slate-500 w-40 flex-shrink-0">Blacklist campaign:</dt>
+              <dt className="text-slate-500 w-40 flex-shrink-0">Danh sách chặn chiến dịch:</dt>
               <dd className="flex items-center gap-2 font-medium">
                 BL_ESIM_Q2_2026 · {BL_PHONES.length} SĐT
                 <button
@@ -496,7 +496,7 @@ export function CampaignDetail() {
               </dd>
             </div>
             <div className="flex gap-2 items-center">
-              <dt className="text-slate-500 w-40 flex-shrink-0">Whitelist:</dt>
+              <dt className="text-slate-500 w-40 flex-shrink-0">Danh sách cho phép:</dt>
               <dd className="flex items-center gap-2 font-medium">
                 WL_VIP_Q2_2026 · {WL_PHONES.length} SĐT
                 <button
@@ -508,7 +508,7 @@ export function CampaignDetail() {
               </dd>
             </div>
             {[
-              ['Reach cuối cùng', '~6,480 KH'],
+              ['Độ phủ cuối cùng', '~6,480 KH'],
             ].map(([label, value]) => (
               <div key={label} className="flex gap-2">
                 <dt className="text-slate-500 w-40 flex-shrink-0">{label}:</dt>
@@ -520,7 +520,7 @@ export function CampaignDetail() {
       </div>
 
       {/* Stop confirm */}
-      <Dialog open={stopConfirm} onClose={() => setStopConfirm(false)} title="Dừng campaign?">
+      <Dialog open={stopConfirm} onClose={() => setStopConfirm(false)} title="Dừng chiến dịch?">
         <p className="text-sm text-slate-600">
           Tin nhắn đang trong hàng chờ sẽ bị hủy. Không thể hoàn tác.
         </p>
@@ -531,10 +531,10 @@ export function CampaignDetail() {
       </Dialog>
 
       {/* Activate → Pending confirm (UC-CAM-07: param/điều kiện lọc trigger bị Sửa trong lúc Paused) */}
-      <Dialog open={activatePendingConfirm} onClose={() => setActivatePendingConfirm(false)} title="Bật lại campaign?">
+      <Dialog open={activatePendingConfirm} onClose={() => setActivatePendingConfirm(false)} title="Bật lại chiến dịch?">
         <p className="text-sm text-slate-600">
-          Trigger đang dùng đã bị Admin sửa tham số/điều kiện lọc trong lúc campaign tạm dừng. Bật lại sẽ
-          chuyển campaign về <strong>Chờ duyệt</strong> để Admin xác nhận lại cấu hình mới, thay vì kích hoạt thẳng.
+          Sự kiện kích hoạt đang dùng đã bị Quản trị viên sửa tham số/điều kiện lọc trong lúc chiến dịch tạm dừng. Bật lại sẽ
+          chuyển chiến dịch về <strong>Chờ duyệt</strong> để Quản trị viên xác nhận lại cấu hình mới, thay vì kích hoạt thẳng.
         </p>
         <DialogActions>
           <Button variant="outline" onClick={() => setActivatePendingConfirm(false)}>Hủy</Button>
@@ -543,7 +543,7 @@ export function CampaignDetail() {
       </Dialog>
 
       {/* BL file preview */}
-      <Dialog open={blPreviewOpen} onClose={() => setBlPreviewOpen(false)} title="Blacklist — BL_ESIM_Q2_2026" className="max-w-sm">
+      <Dialog open={blPreviewOpen} onClose={() => setBlPreviewOpen(false)} title="Danh sách chặn — BL_ESIM_Q2_2026" className="max-w-sm">
         <ul className="space-y-1">
           {BL_PHONES.map((phone, i) => (
             <li key={i} className="font-mono text-sm text-slate-700">{phone}</li>
@@ -556,7 +556,7 @@ export function CampaignDetail() {
       </Dialog>
 
       {/* WL file preview */}
-      <Dialog open={wlPreviewOpen} onClose={() => setWlPreviewOpen(false)} title="Whitelist — WL_VIP_Q2_2026" className="max-w-sm">
+      <Dialog open={wlPreviewOpen} onClose={() => setWlPreviewOpen(false)} title="Danh sách cho phép — WL_VIP_Q2_2026" className="max-w-sm">
         <ul className="space-y-1">
           {WL_PHONES.map((phone, i) => (
             <li key={i} className="font-mono text-sm text-slate-700">{phone}</li>

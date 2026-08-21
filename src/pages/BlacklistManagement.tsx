@@ -119,11 +119,11 @@ export function BlacklistManagement() {
     }
 
     if (toAdd.length === 0) {
-      setAddModalErr('Toàn bộ tổ hợp đã nhập đều đã có trong blacklist — không có bản ghi nào được thêm')
+      setAddModalErr('Toàn bộ tổ hợp đã nhập đều đã có trong danh sách chặn — không có bản ghi nào được thêm')
       return
     }
     setList(prev => [...toAdd, ...prev])
-    toast(`Đã thêm ${toAdd.length} bản ghi vào blacklist ✓`, 'success')
+    toast(`Đã thêm ${toAdd.length} bản ghi vào danh sách chặn ✓`, 'success')
     setAddOpen(false)
     setAddPhone(''); setAddCampaigns([]); setAddChannels(['Push']); setAddPhoneErr(''); setAddModalErr('')
   }
@@ -142,7 +142,7 @@ export function BlacklistManagement() {
   // Upload CSV (theo Campaign) — N × M bản ghi tương tự Thêm thủ công (URD Screen 6C STT 9).
   const handleUploadConfirm = () => {
     const total = (upParsed?.valid ?? 0) * Math.max(1, upCampaigns.length) * Math.max(1, upChannels.length)
-    toast(`Đã tải lên ${total} số vào blacklist ✓`, 'success')
+    toast(`Đã tải lên ${total} số vào danh sách chặn ✓`, 'success')
     setUploadOpen(false)
     setUpParsed(null)
     setUpCampaigns([]); setUpChannels(['Push'])
@@ -163,11 +163,11 @@ export function BlacklistManagement() {
     }
 
     if (toAdd.length === 0) {
-      setGManualModalErr('Toàn bộ số đã nhập đều đã có trong Blacklist toàn hệ thống — không có số nào được thêm')
+      setGManualModalErr('Toàn bộ số đã nhập đều đã có trong Danh sách chặn toàn hệ thống — không có số nào được thêm')
       return
     }
     setList(prev => [...toAdd, ...prev])
-    toast(`Đã thêm ${toAdd.length} số vào Blacklist toàn hệ thống ✓`, 'success')
+    toast(`Đã thêm ${toAdd.length} số vào Danh sách chặn toàn hệ thống ✓`, 'success')
     setGlobalOpen(false)
     setGManualPhone(''); setGManualPhoneErr(''); setGManualModalErr('')
   }
@@ -178,7 +178,7 @@ export function BlacklistManagement() {
   }
 
   const handleGlobalUploadConfirm = () => {
-    toast(`Đã upload ${gUpParsed?.valid ?? 0} số vào Blacklist toàn hệ thống ✓`, 'success')
+    toast(`Đã tải lên ${gUpParsed?.valid ?? 0} số vào Danh sách chặn toàn hệ thống ✓`, 'success')
     setGlobalOpen(false)
     setGUpParsed(null)
   }
@@ -192,11 +192,11 @@ export function BlacklistManagement() {
 
   const sourceLabel = (e: BlacklistEntry) => {
     if ((e.scope ?? 'campaign') === 'global') {
-      return e.source === 'upload' ? 'Upload tệp (Toàn hệ thống)' : 'Thêm thủ công (Toàn hệ thống)'
+      return e.source === 'upload' ? 'Tải lên tệp (Toàn hệ thống)' : 'Thêm thủ công (Toàn hệ thống)'
     }
     return ({
-      campaign: 'Chọn trong campaign',
-      upload: 'Upload tệp',
+      campaign: 'Chọn trong chiến dịch',
+      upload: 'Tải lên tệp',
       manual: 'Thêm thủ công',
     } as Record<string, string>)[e.source] ?? e.source
   }
@@ -204,17 +204,17 @@ export function BlacklistManagement() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">Blacklist</h1>
+        <h1 className="text-xl font-bold text-slate-800">Danh sách chặn</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setUploadOpen(true)}>
-            <Upload size={14} /> Upload danh sách
+            <Upload size={14} /> Tải lên danh sách
           </Button>
           <Button variant="primary" onClick={() => setAddOpen(true)}>
             <Plus size={14} /> Thêm thủ công
           </Button>
           {isAdmin && (
             <Button variant="outline" onClick={() => setGlobalOpen(true)} className="border-purple-300 text-purple-700 hover:bg-purple-50">
-              <Globe size={14} /> Thêm vào Blacklist toàn hệ thống
+              <Globe size={14} /> Thêm vào Danh sách chặn toàn hệ thống
             </Button>
           )}
         </div>
@@ -225,19 +225,19 @@ export function BlacklistManagement() {
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => handleSearch(e.target.value)}
-            placeholder="Tìm số điện thoại hoặc campaign..."
+            placeholder="Tìm số điện thoại hoặc chiến dịch..."
             className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
         </div>
         <select value={filterScope} onChange={e => { setFilterScope(e.target.value as '' | BlacklistScope); setPage(1) }}
           className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none">
           <option value="">Phạm vi: Tất cả</option>
-          <option value="campaign">Theo Campaign</option>
+          <option value="campaign">Theo Chiến dịch</option>
           <option value="global">Toàn hệ thống</option>
         </select>
         <select value={filterCampaign} disabled={filterScope === 'global'}
           onChange={e => { setFilterCampaign(e.target.value); setPage(1) }}
           className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400">
-          <option value="">Campaign: Tất cả</option>
+          <option value="">Chiến dịch: Tất cả</option>
           {[...new Set(list.filter(e => (e.scope ?? 'campaign') === 'campaign').map(e => e.campaign))].map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select value={filterChannel} onChange={e => { setFilterChannel(e.target.value); setPage(1) }}
@@ -249,8 +249,8 @@ export function BlacklistManagement() {
           className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none">
           <option value="">Nguồn: Tất cả</option>
           <option value="manual">Thêm thủ công</option>
-          <option value="upload">Upload tệp</option>
-          <option value="campaign">Từ campaign</option>
+          <option value="upload">Tải lên tệp</option>
+          <option value="campaign">Từ chiến dịch</option>
         </select>
       </div>
 
@@ -260,7 +260,7 @@ export function BlacklistManagement() {
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr className="text-xs text-slate-500">
               <th className="text-left px-4 py-3 font-medium">Số điện thoại</th>
-              <th className="text-left px-4 py-3 font-medium">Campaign</th>
+              <th className="text-left px-4 py-3 font-medium">Chiến dịch</th>
               <th className="text-left px-4 py-3 font-medium">Kênh</th>
               <th className="text-left px-4 py-3 font-medium">Nguồn</th>
               <th className="text-right px-4 py-3 font-medium">Hành động</th>
@@ -294,7 +294,7 @@ export function BlacklistManagement() {
               )
             })}
             {paged.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">Danh sách blacklist đang trống</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">Danh sách chặn đang trống</td></tr>
             )}
           </tbody>
         </table>
@@ -328,7 +328,7 @@ export function BlacklistManagement() {
       </div>
 
       {/* Add dialog */}
-      <Dialog open={addOpen} onClose={() => { setAddOpen(false); setAddPhoneErr(''); setAddModalErr('') }} title="Thêm vào Blacklist" className="max-w-md">
+      <Dialog open={addOpen} onClose={() => { setAddOpen(false); setAddPhoneErr(''); setAddModalErr('') }} title="Thêm vào Danh sách chặn" className="max-w-md">
         <div className="space-y-3 text-sm">
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Số điện thoại *</label>
@@ -339,7 +339,7 @@ export function BlacklistManagement() {
             {addPhoneErr && <div className="text-xs text-red-500 mt-1">{addPhoneErr}</div>}
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1 block">Campaign * <span className="font-normal text-slate-400">(chọn nhiều)</span></label>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Chiến dịch * <span className="font-normal text-slate-400">(chọn nhiều)</span></label>
             <CheckboxMultiSelect
               options={mockCampaigns.map(c => c.name)}
               selected={addCampaigns}
@@ -359,10 +359,10 @@ export function BlacklistManagement() {
       </Dialog>
 
       {/* Upload dialog */}
-      <Dialog open={uploadOpen} onClose={() => { setUploadOpen(false); setUpParsed(null) }} title="Upload Blacklist" className="max-w-lg">
+      <Dialog open={uploadOpen} onClose={() => { setUploadOpen(false); setUpParsed(null) }} title="Tải lên Danh sách chặn" className="max-w-lg">
         <div className="space-y-3 text-sm">
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1 block">Campaign * <span className="font-normal text-slate-400">(chọn nhiều)</span></label>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Chiến dịch * <span className="font-normal text-slate-400">(chọn nhiều)</span></label>
             <CheckboxMultiSelect
               options={mockCampaigns.map(c => c.name)}
               selected={upCampaigns}
@@ -428,13 +428,13 @@ export function BlacklistManagement() {
       </Dialog>
 
       {/* Blacklist toàn hệ thống — modal 2 tab con (UC-BL-04 / UC-BL-05) */}
-      <Dialog open={globalOpen} onClose={closeGlobalModal} title="Thêm vào Blacklist toàn hệ thống" className="max-w-lg">
+      <Dialog open={globalOpen} onClose={closeGlobalModal} title="Thêm vào Danh sách chặn toàn hệ thống" className="max-w-lg">
         <div className="space-y-3 text-sm">
           <div className="flex gap-1 bg-slate-100 rounded-md p-1 w-fit">
             {(['manual', 'upload'] as const).map(t => (
               <button key={t} onClick={() => setGlobalTab(t)}
                 className={`px-3 py-1 text-xs rounded transition-colors ${globalTab === t ? 'bg-white text-slate-800 font-medium shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                {t === 'manual' ? 'Thêm thủ công' : 'Upload CSV'}
+                {t === 'manual' ? 'Thêm thủ công' : 'Tải lên CSV'}
               </button>
             ))}
           </div>
@@ -450,7 +450,7 @@ export function BlacklistManagement() {
                 {gManualPhoneErr && <div className="text-xs text-red-500 mt-1">{gManualPhoneErr}</div>}
               </div>
               <div className="text-xs text-purple-600 bg-purple-50 border border-purple-100 rounded px-2 py-1.5">
-                Số sẽ bị chặn ở <strong>mọi</strong> campaign, <strong>mọi</strong> kênh — không cần chọn Campaign/Kênh.
+                Số sẽ bị chặn ở <strong>mọi</strong> chiến dịch, <strong>mọi</strong> kênh — không cần chọn Chiến dịch/Kênh.
               </div>
               {gManualModalErr && <div className="text-xs text-red-600 bg-red-50 rounded px-2 py-1.5">{gManualModalErr}</div>}
             </div>
@@ -498,7 +498,7 @@ export function BlacklistManagement() {
           {globalTab === 'manual' ? (
             <Button variant="primary" onClick={handleGlobalManualAdd} disabled={!gManualPhone.trim()}>Thêm</Button>
           ) : (
-            <Button variant="primary" onClick={handleGlobalUploadConfirm} disabled={!gUpParsed}>Xác nhận Upload</Button>
+            <Button variant="primary" onClick={handleGlobalUploadConfirm} disabled={!gUpParsed}>Xác nhận Tải lên</Button>
           )}
         </DialogActions>
       </Dialog>
@@ -507,8 +507,8 @@ export function BlacklistManagement() {
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Xác nhận xóa">
         <p className="text-sm text-slate-600">
           {(deleteTarget?.scope ?? 'campaign') === 'global'
-            ? <>Xóa <strong>{deleteTarget?.phone}</strong> khỏi Blacklist toàn hệ thống? Số này sẽ có thể nhận tin từ mọi campaign (trừ khi vẫn còn trong blacklist riêng của campaign nào đó).</>
-            : <>Xóa <strong>{deleteTarget?.phone}</strong> khỏi blacklist campaign <strong>{deleteTarget?.campaign}</strong> kênh <strong>{deleteTarget?.channel}</strong>? Số này sẽ có thể nhận tin từ campaign này.</>}
+            ? <>Xóa <strong>{deleteTarget?.phone}</strong> khỏi Danh sách chặn toàn hệ thống? Số này sẽ có thể nhận tin từ mọi chiến dịch (trừ khi vẫn còn trong danh sách chặn riêng của chiến dịch nào đó).</>
+            : <>Xóa <strong>{deleteTarget?.phone}</strong> khỏi danh sách chặn của chiến dịch <strong>{deleteTarget?.campaign}</strong> kênh <strong>{deleteTarget?.channel}</strong>? Số này sẽ có thể nhận tin từ chiến dịch này.</>}
         </p>
         <DialogActions>
           <Button variant="outline" onClick={() => setDeleteTarget(null)}>Hủy</Button>

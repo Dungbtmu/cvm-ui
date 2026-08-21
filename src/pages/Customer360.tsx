@@ -4,16 +4,16 @@ import { ArrowLeft, X } from 'lucide-react'
 import { mockCustomers } from '../data/mock'
 
 const historyItems = [
-  { date: '10/05 09:32', campaign: 'Chào mừng SIM', channel: 'Zalo OA', result: '✓ Delivered', ok: true },
-  { date: '08/05 14:10', campaign: 'Nạp thẻ lỗi', channel: 'SMS', result: '✓ Delivered', ok: true },
-  { date: '07/05 08:45', campaign: 'Hết data', channel: 'Zalo OA', result: '⛔ Blocked → Fallback', ok: false },
-  { date: '07/05 08:46', campaign: 'Hết data', channel: 'SMS', result: '✓ Delivered', ok: true },
-  { date: '06/05 10:12', campaign: 'Nhắc nạp tiền', channel: 'Push', result: '✓ Delivered', ok: true },
-  { date: '05/05 14:30', campaign: 'Nhắc nạp tiền', channel: 'SMS', result: '✓ Delivered', ok: true },
-  { date: '04/05 09:05', campaign: 'Hết data', channel: 'Push', result: '✓ Delivered', ok: true },
-  { date: '03/05 11:20', campaign: 'Chào mừng SIM', channel: 'Email', result: '✓ Delivered', ok: true },
-  { date: '02/05 08:00', campaign: 'Nhắc nạp tiền', channel: 'Zalo OA', result: '⛔ Blocked', ok: false },
-  { date: '01/05 16:45', campaign: 'Hết data', channel: 'Push', result: '✓ Delivered', ok: true },
+  { date: '10/05 09:32', campaign: 'Chào mừng SIM', channel: 'Zalo OA', result: '✓ Đã chuyển phát', ok: true },
+  { date: '08/05 14:10', campaign: 'Nạp thẻ lỗi', channel: 'SMS', result: '✓ Đã chuyển phát', ok: true },
+  { date: '07/05 08:45', campaign: 'Hết data', channel: 'Zalo OA', result: '⛔ Bị chặn → Chuyển kênh dự phòng', ok: false },
+  { date: '07/05 08:46', campaign: 'Hết data', channel: 'SMS', result: '✓ Đã chuyển phát', ok: true },
+  { date: '06/05 10:12', campaign: 'Nhắc nạp tiền', channel: 'Push', result: '✓ Đã chuyển phát', ok: true },
+  { date: '05/05 14:30', campaign: 'Nhắc nạp tiền', channel: 'SMS', result: '✓ Đã chuyển phát', ok: true },
+  { date: '04/05 09:05', campaign: 'Hết data', channel: 'Push', result: '✓ Đã chuyển phát', ok: true },
+  { date: '03/05 11:20', campaign: 'Chào mừng SIM', channel: 'Email', result: '✓ Đã chuyển phát', ok: true },
+  { date: '02/05 08:00', campaign: 'Nhắc nạp tiền', channel: 'Zalo OA', result: '⛔ Bị chặn', ok: false },
+  { date: '01/05 16:45', campaign: 'Hết data', channel: 'Push', result: '✓ Đã chuyển phát', ok: true },
 ]
 
 const CHANNELS = ['Tất cả', 'Push', 'Zalo OA', 'SMS', 'Email', 'USSD', 'Banner']
@@ -99,7 +99,7 @@ export function Customer360() {
         <div className="space-y-4">
           {/* Channel status */}
           <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-            <div className="text-sm font-semibold text-slate-700">Trạng thái kênh (Sync-back)</div>
+            <div className="text-sm font-semibold text-slate-700">Trạng thái kênh (đồng bộ ngược)</div>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-slate-500 border-b border-slate-100">
@@ -110,7 +110,7 @@ export function Customer360() {
               </thead>
               <tbody>
                 {[
-                  { ch: 'Zalo OA', status: '⛔ Blocked', date: '05/05 09:32', ok: false },
+                  { ch: 'Zalo OA', status: '⛔ Bị chặn', date: '05/05 09:32', ok: false },
                   { ch: 'SMS', status: '✅ Hoạt động', date: '—', ok: true },
                   { ch: 'USSD', status: '✅ Hoạt động', date: '—', ok: true },
                   { ch: 'Push', status: '✅ Hoạt động', date: '—', ok: true },
@@ -124,18 +124,18 @@ export function Customer360() {
               </tbody>
             </table>
             <div className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1.5">
-              ⓘ Tự cập nhật từ phản hồi Gateway. Reset về Active khi KH unblock.
+              ⓘ Tự cập nhật từ phản hồi Cổng gửi tin. Đặt lại về Hoạt động khi khách hàng bỏ chặn.
             </div>
           </div>
 
           {/* Throttling */}
           <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2">
-            <div className="text-sm font-semibold text-slate-700">Throttling</div>
+            <div className="text-sm font-semibold text-slate-700">Giới hạn tần suất gửi</div>
             <dl className="space-y-1.5 text-sm">
               {[
                 ['Tin nhắn hôm nay', '2 / 3 (còn 1)'],
-                ['Cooldown active', 'Không'],
-                ['BSS DNC Flag', 'Không'],
+                ['Đang trong thời gian nghỉ', 'Không'],
+                ['Cờ DNC từ BSS', 'Không'],
               ].map(([label, value]) => (
                 <div key={label} className="flex gap-2">
                   <dt className="text-slate-500 w-36 flex-shrink-0">{label}:</dt>
@@ -210,7 +210,7 @@ export function Customer360() {
                 </select>
               </div>
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-500">Campaign:</span>
+                <span className="text-slate-500">Chiến dịch:</span>
                 <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1) }}
                   className="border border-slate-200 rounded px-2 py-1 text-xs focus:outline-none">
                   {CAMPAIGNS_FILTER.map(c => <option key={c}>{c}</option>)}

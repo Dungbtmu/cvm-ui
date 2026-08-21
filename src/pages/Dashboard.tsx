@@ -11,13 +11,13 @@ import { useToast } from '../components/ui/Toast'
 import { recentTriggerEvents } from '../data/mock'
 
 const kpiCards = [
-  { label: 'Số campaign đang chạy', value: '12', sub: '↑2 vs hôm qua', trend: 'up', spark: [8,9,9,10,11,11,12], tooltip: 'Số campaign có trạng thái Active tại thời điểm này' },
-  { label: 'Trigger kích hoạt hôm nay', value: '3,842', sub: '↑18% vs hôm qua', trend: 'up', spark: [2100,2400,2400,2800,3200,3600,3842], tooltip: 'Tổng số lần trigger kích hoạt từ 00:00 đến hiện tại' },
-  { label: 'Tin nhắn đã gửi hôm nay', value: '48,320', sub: '', trend: 'neutral', spark: [28000,32000,38000,42000,40000,38000,48320], tooltip: 'Tổng message ở trạng thái Sent hoặc Delivered trong ngày' },
+  { label: 'Số chiến dịch đang chạy', value: '12', sub: '↑2 vs hôm qua', trend: 'up', spark: [8,9,9,10,11,11,12], tooltip: 'Số chiến dịch có trạng thái Đang chạy tại thời điểm này' },
+  { label: 'Sự kiện kích hoạt hôm nay', value: '3,842', sub: '↑18% vs hôm qua', trend: 'up', spark: [2100,2400,2400,2800,3200,3600,3842], tooltip: 'Tổng số lần sự kiện kích hoạt từ 00:00 đến hiện tại' },
+  { label: 'Tin nhắn đã gửi hôm nay', value: '48,320', sub: '', trend: 'neutral', spark: [28000,32000,38000,42000,40000,38000,48320], tooltip: 'Tổng tin nhắn ở trạng thái Đã gửi hoặc Đã chuyển phát trong ngày' },
   { label: 'Tỉ lệ đã tới đích hôm nay', value: '96.4%', sub: '● SLA: OK', trend: 'up', spark: [95.1,95.8,96.2,96.0,96.5,96.1,96.4], tooltip: 'Đã tới đích / Đã gửi × 100% — tính từ 00:00 hôm nay' },
-  { label: 'Tin nhắn thất bại', value: '1,760', sub: '⚠ ↑3% vs hôm qua', trend: 'down', spark: [900,1000,1100,1200,1400,1600,1760], tooltip: 'Gateway trả lỗi hoặc timeout sau 3 lần retry' },
+  { label: 'Tin nhắn thất bại', value: '1,760', sub: '⚠ ↑3% vs hôm qua', trend: 'down', spark: [900,1000,1100,1200,1400,1600,1760], tooltip: 'Cổng gửi tin trả lỗi hoặc quá thời gian chờ sau 3 lần thử lại' },
   { label: 'Tỉ lệ chuyển đổi', value: '8.3%', sub: '↑0.4% vs tuần', trend: 'up', spark: [7.5,7.8,7.9,8.0,8.1,8.2,8.3], tooltip: 'Số KH hoàn thành hành động mục tiêu / Gửi thành công × 100% (cửa sổ 24h)' },
-  { label: 'Bị chặn Blacklist hôm nay', value: '4,210', sub: 'BSS DNC: 3,840', trend: 'neutral', spark: [2800,3100,3400,3600,3800,4000,4210], tooltip: 'Tin bị suppress bởi DNC + Blacklist campaign trong ngày' },
+  { label: 'Bị chặn Danh sách chặn hôm nay', value: '4,210', sub: 'BSS DNC: 3,840', trend: 'neutral', spark: [2800,3100,3400,3600,3800,4000,4210], tooltip: 'Tin bị chặn bởi DNC + Danh sách chặn của chiến dịch trong ngày' },
 ]
 
 const volumeData = [
@@ -135,13 +135,13 @@ export function Dashboard() {
           <div className="text-sm font-semibold text-slate-700">Hàng chờ & Tồn đọng</div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-slate-600">
-              <span>Pending (blackout):</span><span className="font-medium">1,240</span>
+              <span>Đang chờ (giờ giới nghiêm):</span><span className="font-medium">1,240</span>
             </div>
             <div className="flex justify-between text-slate-600">
-              <span>Scheduled (future):</span><span className="font-medium">8,900</span>
+              <span>Đã lên lịch (tương lai):</span><span className="font-medium">8,900</span>
             </div>
             <div className="flex justify-between text-slate-600">
-              <span>Oldest pending:</span>
+              <span>Chờ lâu nhất:</span>
               <span className={`font-medium ${oldestPendingMinutes > 30 ? 'text-red-600' : oldestPendingMinutes > 15 ? 'text-orange-600' : 'text-slate-700'}`}>
                 {oldestPendingMinutes} phút
               </span>
@@ -153,7 +153,7 @@ export function Dashboard() {
               onClick={() => toast('Tính năng đang phát triển', 'warning')}
               className="text-xs text-blue-500 hover:text-blue-700 self-end"
             >
-              [Xem queue]
+              [Xem hàng chờ]
             </button>
           </div>
         </Card>
@@ -163,11 +163,11 @@ export function Dashboard() {
       {/* ROW 3 — Campaign Monitoring */}
       <div className="grid grid-cols-2 gap-4">
         <Card className="space-y-3">
-          <div className="text-sm font-semibold text-slate-700">Campaign đang chạy nhiều nhất</div>
+          <div className="text-sm font-semibold text-slate-700">Chiến dịch đang chạy nhiều nhất</div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-slate-500 border-b border-slate-100">
-                <th className="text-left pb-2 font-medium">Campaign</th>
+                <th className="text-left pb-2 font-medium">Chiến dịch</th>
                 <th className="text-right pb-2 font-medium">Đã gửi</th>
                 <th className="text-right pb-2 font-medium">Tỉ lệ</th>
                 <th className="text-right pb-2 font-medium">Xu hướng</th>
@@ -195,7 +195,7 @@ export function Dashboard() {
 
         <Card className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-slate-700">Trigger kích hoạt nhiều nhất</div>
+            <div className="text-sm font-semibold text-slate-700">Sự kiện kích hoạt nhiều nhất</div>
             <div className="flex text-xs rounded-full border border-slate-200 overflow-hidden">
               <button
                 onClick={() => setTriggerRange('today')}
@@ -214,7 +214,7 @@ export function Dashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-slate-500 border-b border-slate-100">
-                <th className="text-left pb-2 font-medium">Trigger</th>
+                <th className="text-left pb-2 font-medium">Sự kiện kích hoạt</th>
                 <th className="text-right pb-2 font-medium">Kích hoạt</th>
                 <th className="text-right pb-2 font-medium">Tỉ lệ khớp</th>
               </tr>

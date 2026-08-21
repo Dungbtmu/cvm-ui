@@ -45,7 +45,7 @@ export function CampaignList() {
   const handleStopConfirm = () => {
     if (!confirmStop) return
     setCampaigns(prev => prev.map(c => c.id === confirmStop.id ? { ...c, status: 'Paused' as CampaignStatus } : c))
-    toast('Campaign đã dừng', 'warning')
+    toast('Chiến dịch đã dừng', 'warning')
     setConfirmStop(null)
   }
   // [Bật] campaign Paused — 3 nhánh theo UC-CAM-07: blocked (còn cờ vô hiệu, xử lý ở nút disabled),
@@ -56,14 +56,14 @@ export function CampaignList() {
     if (flow === 'blocked') return
     if (flow === 'toPending') { setConfirmActivatePending(c); return }
     setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: 'Active' as CampaignStatus } : x))
-    toast('Campaign đã kích hoạt lại', 'success')
+    toast('Chiến dịch đã kích hoạt lại', 'success')
   }
   const confirmActivateToPending = () => {
     if (!confirmActivatePending) return
     setCampaigns(prev => prev.map(x => x.id === confirmActivatePending.id
       ? { ...x, status: 'Pending' as CampaignStatus, pausedConfigChanged: false }
       : x))
-    toast('Đã chuyển về Chờ duyệt để Admin xác nhận lại', 'warning')
+    toast('Đã chuyển về Chờ duyệt để Quản trị viên xác nhận lại', 'warning')
     setConfirmActivatePending(null)
   }
 
@@ -92,16 +92,16 @@ export function CampaignList() {
     setCampaigns(prev => prev.map(x => x.id === c.id
       ? { ...x, priority: newPriority, status: 'Pending' as CampaignStatus }
       : x))
-    toast('Đã đổi độ ưu tiên — campaign chuyển về Chờ duyệt', 'warning')
+    toast('Đã đổi độ ưu tiên — chiến dịch chuyển về Chờ duyệt', 'warning')
     setConfirmPriorityChange(null)
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">Campaign</h1>
+        <h1 className="text-xl font-bold text-slate-800">Chiến dịch</h1>
         <Button variant="primary" onClick={() => navigate('/campaigns/new')}>
-          <Plus size={14} /> Tạo Campaign
+          <Plus size={14} /> Tạo Chiến dịch
         </Button>
       </div>
 
@@ -110,11 +110,11 @@ export function CampaignList() {
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Tìm tên campaign, mã hoặc trigger code..."
+            placeholder="Tìm tên chiến dịch, mã hoặc mã sự kiện kích hoạt..."
             className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-slate-500 font-medium">FILTER:</span>
+          <span className="text-xs text-slate-500 font-medium">BỘ LỌC:</span>
           {statusFilters.map(f => (
             <button key={f} onClick={() => toggleFilter(f)}
               className={`text-xs px-3 py-1 rounded-full border transition-colors ${
@@ -137,8 +137,8 @@ export function CampaignList() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Tên / Mã Campaign</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Trigger</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Tên / Mã Chiến dịch</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Sự kiện kích hoạt</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Hiệu lực</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Ưu tiên</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Trạng thái</th>
@@ -177,7 +177,7 @@ export function CampaignList() {
                         {tooltipCampaign === c.id && (
                           <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 min-w-72 w-80">
                             <div className="px-3 pt-2.5 pb-1.5 border-b border-slate-100 text-xs font-medium text-slate-500">
-                              Tất cả trigger ({c.triggers.length})
+                              Tất cả sự kiện kích hoạt ({c.triggers.length})
                             </div>
                             <div className="max-h-64 overflow-y-auto divide-y divide-slate-50">
                               {c.triggers.map(code => {
@@ -271,14 +271,14 @@ export function CampaignList() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">
-                  Không có campaign nào phù hợp.
+                  Không có chiến dịch nào phù hợp.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
         <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span>{filtered.length} campaign</span>
+          <span>{filtered.length} chiến dịch</span>
           <div className="flex items-center gap-2">
             <button className="px-2 py-1 border border-slate-200 rounded hover:bg-slate-50">‹</button>
             <span className="px-2 py-1 bg-blue-500 text-white rounded">1</span>
@@ -291,7 +291,7 @@ export function CampaignList() {
         </div>
       </div>
 
-      <Dialog open={!!confirmStop} onClose={() => setConfirmStop(null)} title="Dừng campaign?">
+      <Dialog open={!!confirmStop} onClose={() => setConfirmStop(null)} title="Dừng chiến dịch?">
         <p className="text-sm text-slate-600">
           Tin nhắn đang trong hàng chờ sẽ bị hủy. Không thể hoàn tác.
         </p>
@@ -301,10 +301,10 @@ export function CampaignList() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={!!confirmActivatePending} onClose={() => setConfirmActivatePending(null)} title="Bật lại campaign?">
+      <Dialog open={!!confirmActivatePending} onClose={() => setConfirmActivatePending(null)} title="Bật lại chiến dịch?">
         <p className="text-sm text-slate-600">
-          Trigger đang dùng đã bị Admin sửa tham số/điều kiện lọc trong lúc campaign tạm dừng. Bật lại sẽ
-          chuyển campaign về <strong>Chờ duyệt</strong> để Admin xác nhận lại cấu hình mới, thay vì kích hoạt thẳng.
+          Sự kiện kích hoạt đang dùng đã bị Quản trị viên sửa tham số/điều kiện lọc trong lúc chiến dịch tạm dừng. Bật lại sẽ
+          chuyển chiến dịch về <strong>Chờ duyệt</strong> để Quản trị viên xác nhận lại cấu hình mới, thay vì kích hoạt thẳng.
         </p>
         <DialogActions>
           <Button variant="outline" onClick={() => setConfirmActivatePending(null)}>Hủy</Button>
@@ -314,7 +314,7 @@ export function CampaignList() {
 
       <Dialog open={!!confirmPriorityChange} onClose={() => setConfirmPriorityChange(null)} title="Thay đổi độ ưu tiên?">
         <p className="text-sm text-slate-600">
-          Thay đổi độ ưu tiên sẽ chuyển campaign về <strong>Chờ duyệt</strong> để Admin xác nhận lại
+          Thay đổi độ ưu tiên sẽ chuyển chiến dịch về <strong>Chờ duyệt</strong> để Quản trị viên xác nhận lại
           {confirmPriorityChange && (
             <> — từ <strong>{confirmPriorityChange.campaign.priority}</strong> thành <strong>{confirmPriorityChange.newPriority}</strong>.</>
           )}

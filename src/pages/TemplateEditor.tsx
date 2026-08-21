@@ -37,9 +37,9 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: ChannelCont
         <>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-blue-500 rounded-sm flex items-center justify-center text-white text-[10px]">A</div>
-            <span className="font-medium">{title || 'Title...'}</span>
+            <span className="font-medium">{title || 'Tiêu đề...'}</span>
           </div>
-          <div className="text-slate-500">{body || 'Body...'}</div>
+          <div className="text-slate-500">{body || 'Nội dung...'}</div>
         </>
       )}
       {ch === 'SMS' && (
@@ -57,14 +57,14 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: ChannelCont
       )}
       {ch === 'USSD' && (
         <div className="font-mono bg-black text-green-400 rounded p-2 text-[11px] whitespace-pre-wrap">
-          {body || 'USSD content...'}
+          {body || 'Nội dung USSD...'}
         </div>
       )}
       {ch === 'Banner' && (
         <>
-          <div className="bg-slate-200 rounded h-16 flex items-center justify-center text-slate-400 text-[10px]">Image 16:9</div>
-          <div className="font-medium">{title || 'Title...'}</div>
-          <div className="text-slate-500">{body || 'Body...'}</div>
+          <div className="bg-slate-200 rounded h-16 flex items-center justify-center text-slate-400 text-[10px]">Hình ảnh 16:9</div>
+          <div className="font-medium">{title || 'Tiêu đề...'}</div>
+          <div className="text-slate-500">{body || 'Nội dung...'}</div>
           {cta && <div className="bg-blue-500 text-white rounded px-2 py-0.5 text-center">{cta}</div>}
         </>
       )}
@@ -73,10 +73,10 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: ChannelCont
           <div className="text-[10px] text-slate-400">From: VietnamPost</div>
           {imageName
             ? <img src={imageName} alt="banner" className="w-full rounded object-cover max-h-20" />
-            : <div className="bg-slate-200 rounded h-12 flex items-center justify-center text-slate-400 text-[10px]">Banner (optional)</div>
+            : <div className="bg-slate-200 rounded h-12 flex items-center justify-center text-slate-400 text-[10px]">Banner (tùy chọn)</div>
           }
-          <div className="font-medium border-b border-slate-100 pb-1">{title || 'Subject...'}</div>
-          <div className="text-slate-500">{body || 'Body...'}</div>
+          <div className="font-medium border-b border-slate-100 pb-1">{title || 'Tiêu đề thư...'}</div>
+          <div className="text-slate-500">{body || 'Nội dung...'}</div>
         </>
       )}
     </div>
@@ -161,18 +161,18 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
     if (emptyChannels.length > 0) {
       toast(`Cảnh báo: kênh ${emptyChannels.join(', ')} chưa có nội dung`, 'warning')
     }
-    toast('Đã lưu template ✓', 'success')
+    toast('Đã lưu mẫu tin nhắn ✓', 'success')
     navigate('/templates')
   }
 
   const handleSave = () => {
     if (!tplName.trim()) {
-      toast('Tên template không được để trống', 'error')
+      toast('Tên mẫu tin nhắn không được để trống', 'error')
       return
     }
     if (!triggerCode) {
       setTriggerTouched(true)
-      toast('Vui lòng chọn trigger cho template này', 'error')
+      toast('Vui lòng chọn sự kiện kích hoạt cho mẫu tin nhắn này', 'error')
       return
     }
     if (tplStatus === 'Inactive' && activeCampaignsUsingThis.length > 0) {
@@ -188,7 +188,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
       <div className="bg-white border border-slate-200 rounded-lg px-6 py-4 space-y-3">
         <button onClick={() => navigate('/templates')}
           className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
-          <ArrowLeft size={14} /> Template
+          <ArrowLeft size={14} /> Mẫu tin nhắn
         </button>
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 space-y-2">
@@ -207,7 +207,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
               : <input
                   value={tplDesc}
                   onChange={e => setTplDesc(e.target.value)}
-                  placeholder="Mô tả ngắn về mục đích template này..."
+                  placeholder="Mô tả ngắn về mục đích mẫu tin nhắn này..."
                   maxLength={500}
                   className="text-sm text-slate-500 border-b border-slate-100 focus:border-blue-300 focus:outline-none w-full py-1 bg-transparent"
                 />
@@ -216,19 +216,19 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
             {/* Trigger — bắt buộc chọn đúng 1, dùng để lấy đúng tham số động của trigger đó (URD v4.4) */}
             <div>
               <label className="text-xs text-slate-500 font-medium block mb-1">
-                Trigger <span className="text-red-400">*</span>
+                Sự kiện kích hoạt <span className="text-red-400">*</span>
               </label>
               {readOnly ? (
                 selectedTrigger
                   ? <span className="bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-xs">{selectedTrigger.code} · {selectedTrigger.name}</span>
-                  : <span className="text-xs text-slate-400 italic">Chưa chọn trigger</span>
+                  : <span className="text-xs text-slate-400 italic">Chưa chọn sự kiện kích hoạt</span>
               ) : (
                 <div className="relative">
                   <button type="button" onClick={() => setTriggerPickerOpen(o => !o)}
                     className={`w-full flex items-center gap-1 px-2 py-1.5 border rounded text-left text-xs min-h-[34px] hover:border-blue-300 ${triggerTouched && !triggerCode ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}>
                     {selectedTrigger
                       ? <span className="bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">{selectedTrigger.code} · {selectedTrigger.name}</span>
-                      : <span className="text-slate-400">-- Chọn trigger --</span>}
+                      : <span className="text-slate-400">-- Chọn sự kiện kích hoạt --</span>}
                   </button>
                   {triggerPickerOpen && (
                     <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -239,11 +239,11 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                           <span className="text-slate-700">{t.name}</span>
                         </button>
                       ))}
-                      {activeTriggers.length === 0 && <div className="px-3 py-2 text-xs text-slate-400">Không có trigger Active nào</div>}
+                      {activeTriggers.length === 0 && <div className="px-3 py-2 text-xs text-slate-400">Không có sự kiện kích hoạt nào đang hoạt động</div>}
                     </div>
                   )}
                   {triggerTouched && !triggerCode && (
-                    <div className="text-xs text-red-500 mt-0.5">Vui lòng chọn trigger cho template này</div>
+                    <div className="text-xs text-red-500 mt-0.5">Vui lòng chọn sự kiện kích hoạt cho mẫu tin nhắn này</div>
                   )}
                 </div>
               )}
@@ -274,7 +274,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                 <Button variant="primary" onClick={() => navigate(`/templates/${id}`)}>Sửa</Button>
               </div>
             ) : (
-              <Button variant="primary" onClick={handleSave}>Lưu Template</Button>
+              <Button variant="primary" onClick={handleSave}>Lưu Mẫu tin nhắn</Button>
             )}
           </div>
         </div>
@@ -342,29 +342,29 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                   {guideOpen && (
                     <div className="text-xs text-slate-600 bg-blue-50 rounded p-3 space-y-1">
                       {activeTab === 'Push' && <>
-                        <div>• Title: tối đa 65 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
-                        <div>• Body: tối đa 240 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
-                        <div>• Image: optional, tỉ lệ 1:1, tối đa 1MB.</div>
+                        <div>• Tiêu đề: tối đa 65 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
+                        <div>• Nội dung: tối đa 240 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
+                        <div>• Hình ảnh: tùy chọn, tỉ lệ 1:1, tối đa 1MB.</div>
                       </>}
                       {activeTab === 'SMS' && <>
-                        <div>• Body: tối đa 160 ký tự/segment. Vượt 160 → tính thêm segment.</div>
-                        <div>• Chỉ plain text — không hỗ trợ ảnh.</div>
+                        <div>• Nội dung: tối đa 160 ký tự/đoạn. Vượt 160 → tính thêm đoạn.</div>
+                        <div>• Chỉ văn bản thuần — không hỗ trợ ảnh.</div>
                       </>}
                       {activeTab === 'Zalo OA' && <>
                         <div>• Nội dung: tối đa 1000 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
                         <div>• OA phải được liên kết và phê duyệt trước khi gửi.</div>
                       </>}
                       {activeTab === 'USSD' && <>
-                        <div>• Body: tối đa 182 ký tự. Chỉ plain text, không dấu tiếng Việt.</div>
+                        <div>• Nội dung: tối đa 182 ký tự. Chỉ văn bản thuần, không dấu tiếng Việt.</div>
                       </>}
                       {activeTab === 'Banner' && <>
-                        <div>• Image: BẮT BUỘC, tỉ lệ 16:9, tối đa 2MB.</div>
-                        <div>• Title: tối đa 65 ký tự. Body: tối đa 120 ký tự.</div>
-                        <div>• CTA Label + CTA URL: bắt buộc.</div>
+                        <div>• Hình ảnh: BẮT BUỘC, tỉ lệ 16:9, tối đa 2MB.</div>
+                        <div>• Tiêu đề: tối đa 65 ký tự. Nội dung: tối đa 120 ký tự.</div>
+                        <div>• Nhãn nút bấm + Đường dẫn nút bấm: bắt buộc.</div>
                       </>}
                       {activeTab === 'Email' && <>
-                        <div>• Subject: tối đa 100 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
-                        <div>• Body: plain text, không giới hạn.</div>
+                        <div>• Tiêu đề thư: tối đa 100 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
+                        <div>• Nội dung: văn bản thuần, không giới hạn.</div>
                       </>}
                     </div>
                   )}
@@ -376,7 +376,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                 <div>
                   <div className="text-xs text-slate-500 font-medium mb-1.5">THAM SỐ ĐỘNG:</div>
                   {!selectedTrigger ? (
-                    <div className="text-xs text-slate-400 italic">Chọn trigger để xem tham số khả dụng</div>
+                    <div className="text-xs text-slate-400 italic">Chọn sự kiện kích hoạt để xem tham số khả dụng</div>
                   ) : selectedTrigger.params.length > 0 ? (
                     <>
                       <div className="flex flex-wrap gap-1.5">
@@ -392,7 +392,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                       <div className="text-xs text-slate-400 mt-1">→ Click chip để chèn vào nội dung</div>
                     </>
                   ) : (
-                    <div className="text-xs text-slate-400 italic">Trigger này chưa khai báo tham số nào</div>
+                    <div className="text-xs text-slate-400 italic">Sự kiện kích hoạt này chưa khai báo tham số nào</div>
                   )}
                   {/* Cảnh báo tham số đã chèn không còn thuộc trigger đang chọn (ví dụ sau khi đổi trigger) */}
                   {selectedTrigger && (() => {
@@ -402,7 +402,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                     if (invalid.length === 0) return null
                     return (
                       <div className="text-xs text-orange-500 mt-1.5">
-                        ⚠ Tham số {invalid.map(n => `{{${n}}}`).join(', ')} không thuộc trigger đã chọn — kiểm tra lại nội dung trước khi lưu
+                        ⚠ Tham số {invalid.map(n => `{{${n}}}`).join(', ')} không thuộc sự kiện kích hoạt đã chọn — kiểm tra lại nội dung trước khi lưu
                       </div>
                     )
                   })()}
@@ -501,9 +501,9 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
         )}
       </div>
 
-      <Dialog open={inactiveConfirm} onClose={() => setInactiveConfirm(false)} title="Xác nhận lưu template">
+      <Dialog open={inactiveConfirm} onClose={() => setInactiveConfirm(false)} title="Xác nhận lưu mẫu tin nhắn">
         <p className="text-sm text-slate-600">
-          Template này đang được dùng trong <strong>{activeCampaignsUsingThis.length} chiến dịch đang hoạt động</strong>. Chuyển sang không hoạt động sẽ ảnh hưởng đến nội dung tin nhắn của các chiến dịch đó. Xác nhận?
+          Mẫu tin nhắn này đang được dùng trong <strong>{activeCampaignsUsingThis.length} chiến dịch đang hoạt động</strong>. Chuyển sang không hoạt động sẽ ảnh hưởng đến nội dung tin nhắn của các chiến dịch đó. Xác nhận?
         </p>
         <DialogActions>
           <Button variant="outline" onClick={() => setInactiveConfirm(false)}>Hủy</Button>

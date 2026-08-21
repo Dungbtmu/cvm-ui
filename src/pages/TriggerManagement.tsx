@@ -32,12 +32,14 @@ export function TriggerManagement() {
     setTimeout(() => setCopiedParam(null), 1800)
   }
 
+  const statusFilterValue: Record<string, 'Active' | 'Inactive'> = { 'Hoạt động': 'Active', 'Ngừng sử dụng': 'Inactive' }
+
   const filtered = mockTriggers.filter(t => {
     const matchSearch =
       !search ||
       t.code.toLowerCase().includes(search.toLowerCase()) ||
       t.name.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === 'Tất cả' || t.status === statusFilter
+    const matchStatus = statusFilter === 'Tất cả' || t.status === statusFilterValue[statusFilter]
     const matchType = typeFilter.length === 0 || typeFilter.includes(t.type)
     return matchSearch && matchStatus && matchType
   })
@@ -45,7 +47,7 @@ export function TriggerManagement() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">Trigger Management</h1>
+        <h1 className="text-xl font-bold text-slate-800">Quản lý Sự kiện kích hoạt</h1>
       </div>
 
       {/* Search + filter */}
@@ -56,7 +58,7 @@ export function TriggerManagement() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Tìm trigger code hoặc tên..."
+              placeholder="Tìm mã sự kiện kích hoạt hoặc tên..."
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400"
             />
           </div>
@@ -65,7 +67,7 @@ export function TriggerManagement() {
             onChange={e => setStatusFilter(e.target.value)}
             className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none"
           >
-            {['Tất cả', 'Active', 'Inactive'].map(s => <option key={s}>{s}</option>)}
+            {['Tất cả', 'Hoạt động', 'Ngừng sử dụng'].map(s => <option key={s}>{s}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -99,7 +101,7 @@ export function TriggerManagement() {
         <table className="w-full text-sm">
           <thead className="border-b border-slate-100">
             <tr className="text-xs text-slate-500">
-              <th className="text-left px-4 py-2 font-medium">Code</th>
+              <th className="text-left px-4 py-2 font-medium">Mã</th>
               <th className="text-left px-4 py-2 font-medium">Tên</th>
               <th className="text-left px-4 py-2 font-medium">Kiểu chạy</th>
               <th className="text-left px-4 py-2 font-medium">Nguồn sự kiện</th>
@@ -129,7 +131,7 @@ export function TriggerManagement() {
                 <td className="px-4 py-2.5 text-slate-500 text-xs">{t.source}</td>
                 <td className="px-4 py-2.5">
                   {t.status === 'Active' ? (
-                    <span className="text-xs font-medium text-green-600">● Active</span>
+                    <span className="text-xs font-medium text-green-600">● Hoạt động</span>
                   ) : (
                     <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>
                   )}
@@ -147,7 +149,7 @@ export function TriggerManagement() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-sm text-slate-400 text-center">
-                  Không tìm thấy trigger nào
+                  Không tìm thấy sự kiện kích hoạt nào
                 </td>
               </tr>
             )}
@@ -171,7 +173,7 @@ export function TriggerManagement() {
               <div className="bg-slate-50 rounded-lg p-3 space-y-2">
                 <div className="flex flex-wrap gap-x-6 gap-y-1.5">
                   <div>
-                    <span className="text-xs text-slate-400">Code</span>
+                    <span className="text-xs text-slate-400">Mã</span>
                     <div className="font-mono text-sm font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded mt-0.5 inline-block">
                       {viewTarget.code}
                     </div>
@@ -192,7 +194,7 @@ export function TriggerManagement() {
                     <span className="text-xs text-slate-400">Trạng thái</span>
                     <div className="mt-0.5">
                       {viewTarget.status === 'Active' ? (
-                        <span className="text-xs font-medium text-green-600">● Active</span>
+                        <span className="text-xs font-medium text-green-600">● Hoạt động</span>
                       ) : (
                         <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>
                       )}

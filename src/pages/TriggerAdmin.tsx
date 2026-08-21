@@ -396,12 +396,14 @@ export function TriggerAdmin() {
   const [createFilterFieldErrors, setCreateFilterFieldErrors] = useState<FfErrors>({})
   const [createFilterFieldFormOpen, setCreateFilterFieldFormOpen] = useState(false)
 
+  const statusFilterValue: Record<string, 'Active' | 'Inactive'> = { 'Hoạt động': 'Active', 'Ngừng sử dụng': 'Inactive' }
+
   const filtered = triggers.filter(t => {
     const matchSearch =
       !search ||
       t.code.toLowerCase().includes(search.toLowerCase()) ||
       t.name.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === 'Tất cả' || t.status === statusFilter
+    const matchStatus = statusFilter === 'Tất cả' || t.status === statusFilterValue[statusFilter]
     const matchType = typeFilter.length === 0 || typeFilter.includes(t.type)
     return matchSearch && matchStatus && matchType
   })
@@ -423,7 +425,7 @@ export function TriggerAdmin() {
     const errors: { code?: string; name?: string } = {}
     if (!form.code.trim()) errors.code = 'Bắt buộc'
     else if (!/^[A-Z0-9_]+$/.test(form.code.trim())) errors.code = 'Chỉ dùng chữ hoa, số, dấu gạch dưới'
-    else if (triggers.some(t => t.code === form.code.trim())) errors.code = 'Code đã tồn tại'
+    else if (triggers.some(t => t.code === form.code.trim())) errors.code = 'Mã đã tồn tại'
     if (!form.name.trim()) errors.name = 'Bắt buộc'
     setFormErrors(errors)
     return Object.keys(errors).length === 0
@@ -461,7 +463,7 @@ export function TriggerAdmin() {
       filterFields: createFilterFields,
     }
     setTriggers(prev => [...prev, newTrigger])
-    toast('Đã thêm trigger ✓', 'success')
+    toast('Đã thêm sự kiện kích hoạt ✓', 'success')
     setCreateOpen(false)
     setForm(EMPTY_FORM)
     setFormErrors({})
@@ -614,7 +616,7 @@ export function TriggerAdmin() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Tìm trigger code hoặc tên..."
+              placeholder="Tìm mã sự kiện kích hoạt hoặc tên..."
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400"
             />
           </div>
@@ -623,10 +625,10 @@ export function TriggerAdmin() {
             onChange={e => setStatusFilter(e.target.value)}
             className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none"
           >
-            {['Tất cả', 'Active', 'Inactive'].map(s => <option key={s}>{s}</option>)}
+            {['Tất cả', 'Hoạt động', 'Ngừng sử dụng'].map(s => <option key={s}>{s}</option>)}
           </select>
           <Button onClick={() => { setForm(EMPTY_FORM); setFormErrors({}); setCreateOpen(true) }}>
-            <Plus size={14} /> Thêm trigger
+            <Plus size={14} /> Thêm sự kiện kích hoạt
           </Button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -660,7 +662,7 @@ export function TriggerAdmin() {
         <table className="w-full text-sm">
           <thead className="border-b border-slate-100">
             <tr className="text-xs text-slate-500">
-              <th className="text-left px-4 py-2 font-medium">Code</th>
+              <th className="text-left px-4 py-2 font-medium">Mã</th>
               <th className="text-left px-4 py-2 font-medium">Tên</th>
               <th className="text-left px-4 py-2 font-medium">Kiểu chạy</th>
               <th className="text-left px-4 py-2 font-medium">Nguồn sự kiện</th>
@@ -687,7 +689,7 @@ export function TriggerAdmin() {
                 <td className="px-4 py-2.5 text-slate-500 text-xs">{t.source}</td>
                 <td className="px-4 py-2.5">
                   {t.status === 'Active'
-                    ? <span className="text-xs font-medium text-green-600">● Active</span>
+                    ? <span className="text-xs font-medium text-green-600">● Hoạt động</span>
                     : <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>}
                 </td>
                 <td className="px-4 py-2.5 text-right">
@@ -702,7 +704,7 @@ export function TriggerAdmin() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-sm text-slate-400 text-center">Không tìm thấy trigger nào</td>
+                <td colSpan={6} className="px-4 py-8 text-sm text-slate-400 text-center">Không tìm thấy sự kiện kích hoạt nào</td>
               </tr>
             )}
           </tbody>
@@ -725,7 +727,7 @@ export function TriggerAdmin() {
               <div className="bg-slate-50 rounded-lg p-3 space-y-2">
                 <div className="flex flex-wrap gap-x-6 gap-y-1.5">
                   <div>
-                    <span className="text-xs text-slate-400">Code</span>
+                    <span className="text-xs text-slate-400">Mã</span>
                     <div className="font-mono text-sm font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded mt-0.5 inline-block">
                       {editTarget.code}
                     </div>
@@ -746,7 +748,7 @@ export function TriggerAdmin() {
                     <span className="text-xs text-slate-400">Trạng thái</span>
                     <div className="mt-0.5">
                       {editTarget.status === 'Active'
-                        ? <span className="text-xs font-medium text-green-600">● Active</span>
+                        ? <span className="text-xs font-medium text-green-600">● Hoạt động</span>
                         : <span className="text-xs font-medium text-slate-400">○ Không còn sử dụng</span>}
                     </div>
                   </div>
@@ -872,7 +874,7 @@ export function TriggerAdmin() {
                   <Plus size={12} /> Thêm điều kiện lọc
                 </button>
               </div>
-              <p className="text-xs text-slate-400 mb-2">Thuộc tính dùng để lọc phân khúc khách hàng khi tạo campaign — không dùng để chèn vào nội dung tin nhắn. Toán tử hỗ trợ khai báo riêng cho từng thuộc tính.</p>
+              <p className="text-xs text-slate-400 mb-2">Thuộc tính dùng để lọc phân khúc khách hàng khi tạo chiến dịch — không dùng để chèn vào nội dung tin nhắn. Toán tử hỗ trợ khai báo riêng cho từng thuộc tính.</p>
 
               {addFilterFieldOpen && (
                 <FilterFieldForm
@@ -931,14 +933,14 @@ export function TriggerAdmin() {
       <Dialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        title="Thêm Trigger mới"
+        title="Thêm Sự kiện kích hoạt mới"
         className="max-w-lg"
       >
         <div className="space-y-4 text-sm">
           {/* Code */}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
-              Trigger Code <span className="text-red-400">*</span>
+              Mã sự kiện kích hoạt <span className="text-red-400">*</span>
               <span className="ml-1 text-slate-400 font-normal">(chữ hoa, số, dấu gạch dưới)</span>
             </label>
             <input
@@ -1076,7 +1078,7 @@ export function TriggerAdmin() {
                 <Plus size={12} /> Thêm điều kiện lọc
               </button>
             </div>
-            <p className="text-xs text-slate-400 mb-1.5">Thuộc tính dùng để lọc phân khúc khách hàng khi tạo campaign — không dùng để chèn vào nội dung tin nhắn. Toán tử hỗ trợ khai báo riêng cho từng thuộc tính.</p>
+            <p className="text-xs text-slate-400 mb-1.5">Thuộc tính dùng để lọc phân khúc khách hàng khi tạo chiến dịch — không dùng để chèn vào nội dung tin nhắn. Toán tử hỗ trợ khai báo riêng cho từng thuộc tính.</p>
 
             {createFilterFieldFormOpen && (
               <FilterFieldForm
@@ -1107,7 +1109,7 @@ export function TriggerAdmin() {
           >
             Hủy
           </button>
-          <Button onClick={handleCreate}>Lưu trigger</Button>
+          <Button onClick={handleCreate}>Lưu sự kiện kích hoạt</Button>
         </DialogActions>
       </Dialog>
     </div>

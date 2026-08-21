@@ -57,7 +57,7 @@ const campaignStats: Record<string, { sent: number; delivered: number; open: num
 
 const funnelSteps = [
   { label: 'Audience đủ điều kiện', value: 32100, pct: 100,  drop: '' },
-  { label: 'Đã gửi',                value: 29590, pct: 92.2, drop: '↓ rời bỏ 7.8% (DNC/Blacklist)' },
+  { label: 'Đã gửi',                value: 29590, pct: 92.2, drop: '↓ rời bỏ 7.8% (DNC/Danh sách chặn)' },
   { label: 'Đã tới đích',           value: 27310, pct: 85.1, drop: '↓ rời bỏ 7.7% (không đến nơi)' },
   { label: 'Đã mở / Đã nhấp',      value: 14380, pct: 44.8, drop: '↓ rời bỏ 47.3% (không mở) ← cao nhất' },
   { label: 'Đã cài app',            value: 9260,  pct: 28.8, drop: '↓ rời bỏ 35.6% (không hành động)' },
@@ -140,7 +140,7 @@ const engagementTrend = [
   { day: '13', open: 38.4, ctr: 12.1, conv: 8.3,  open_prev: 34.8, ctr_prev: 10.8, conv_prev: 7.1 },
 ]
 
-const tabs = ['Hiệu quả gửi tin', 'Tương tác', 'So sánh Campaign', 'Phân khúc', 'Phễu', 'Spam & Quá tải']
+const tabs = ['Hiệu quả gửi tin', 'Tương tác', 'So sánh Chiến dịch', 'Phân khúc', 'Phễu', 'Spam & Quá tải']
 
 export function Report() {
   const { toast } = useToast()
@@ -205,7 +205,7 @@ export function Report() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">Analytics &amp; Report</h1>
+        <h1 className="text-xl font-bold text-slate-800">Phân tích &amp; Báo cáo</h1>
         <Button variant="outline" onClick={handleExport}>
           <Download size={14} /> Xuất Excel
         </Button>
@@ -246,7 +246,7 @@ export function Report() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">Campaign:</span>
+          <span className="text-xs text-slate-500">Chiến dịch:</span>
           <select value={campaignFilter} onChange={e => setCampaignFilter(e.target.value)}
             className="text-sm border border-slate-200 rounded px-2 py-1.5 focus:outline-none">
             <option>Tất cả</option>
@@ -254,7 +254,7 @@ export function Report() {
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">Segment:</span>
+          <span className="text-xs text-slate-500">Phân khúc:</span>
           <select className="text-sm border border-slate-200 rounded px-2 py-1.5 focus:outline-none">
             <option>Tất cả</option>
             {segmentData.map(s => <option key={s.seg}>{s.seg}</option>)}
@@ -378,7 +378,7 @@ export function Report() {
                     {/* Conversion */}
                     <div className="flex items-center gap-1">
                       <div className="h-5 rounded bg-green-400" style={{ width: `${Math.max(row.conv, 4)}%`, minWidth: 8 }} />
-                      <span className="text-slate-600">{row.conv}% Conv</span>
+                      <span className="text-slate-600">{row.conv}% Chuyển đổi</span>
                     </div>
                   </div>
                 </div>
@@ -419,21 +419,21 @@ export function Report() {
           {/* 3.1 — Dropdown chọn campaign */}
           <Card>
             <div className="text-sm font-semibold text-slate-700 mb-2">
-              Chọn campaign so sánh
+              Chọn chiến dịch so sánh
               <span className="ml-2 text-xs font-normal text-slate-400">({selectedCampaigns.length}/{MAX_COMPARE})</span>
             </div>
             <div className="relative">
               <button
                 onClick={() => setDropdownOpen(o => !o)}
                 disabled={selectedCampaigns.length >= MAX_COMPARE}
-                title={selectedCampaigns.length >= MAX_COMPARE ? 'Tối đa 5 campaign' : undefined}
+                title={selectedCampaigns.length >= MAX_COMPARE ? 'Tối đa 5 chiến dịch' : undefined}
                 className={`text-sm border rounded px-3 py-1.5 focus:outline-none flex items-center gap-2 ${
                   selectedCampaigns.length >= MAX_COMPARE
                     ? 'border-slate-200 text-slate-300 cursor-not-allowed'
                     : 'border-slate-200 text-slate-600 hover:border-blue-400'
                 }`}
               >
-                + Thêm campaign
+                + Thêm chiến dịch
               </button>
               {dropdownOpen && (
                 <div className="absolute z-20 mt-1 w-80 bg-white border border-slate-200 rounded-lg shadow-lg">
@@ -442,13 +442,13 @@ export function Report() {
                       autoFocus
                       value={dropdownSearch}
                       onChange={e => setDropdownSearch(e.target.value)}
-                      placeholder="Tìm campaign..."
+                      placeholder="Tìm chiến dịch..."
                       className="w-full text-sm px-2 py-1.5 border border-slate-200 rounded focus:outline-none focus:border-blue-400"
                     />
                   </div>
                   <ul className="max-h-52 overflow-y-auto py-1">
                     {dropdownOptions.length === 0 && (
-                      <li className="px-3 py-2 text-xs text-slate-400">Không tìm thấy campaign</li>
+                      <li className="px-3 py-2 text-xs text-slate-400">Không tìm thấy chiến dịch</li>
                     )}
                     {dropdownOptions.map(c => {
                       const checked = selectedCampaigns.includes(c.name)
@@ -481,14 +481,14 @@ export function Report() {
               </div>
             )}
             {selectedCampaigns.length >= MAX_COMPARE && (
-              <div className="mt-2 text-xs text-amber-600">Đã đạt tối đa 5 campaign</div>
+              <div className="mt-2 text-xs text-amber-600">Đã đạt tối đa 5 chiến dịch</div>
             )}
           </Card>
 
           {/* Empty state */}
           {selectedCampaigns.length === 0 ? (
             <div className="bg-white border border-slate-200 rounded-lg px-4 py-12 text-center text-slate-400 text-sm">
-              Chọn ít nhất 1 campaign để xem so sánh
+              Chọn ít nhất 1 chiến dịch để xem so sánh
             </div>
           ) : (
             <div className="space-y-4 relative">
@@ -525,7 +525,7 @@ export function Report() {
                 <table className="w-full text-sm">
                   <thead className="text-xs text-slate-500 border-b border-slate-100">
                     <tr>
-                      <th className="text-left pb-2 font-medium">Campaign</th>
+                      <th className="text-left pb-2 font-medium">Chiến dịch</th>
                       <th className="text-right pb-2 font-medium">Đã gửi</th>
                       <th className="text-right pb-2 font-medium">Đã tới đích</th>
                       <th className="text-right pb-2 font-medium">Tỉ lệ mở</th>
@@ -658,9 +658,9 @@ export function Report() {
       {activeTab === 5 && (
         <div className="space-y-4">
           <Card>
-            <div className="text-sm font-semibold text-slate-700 mb-1">Xu hướng tỉ lệ opt-out & Blacklist mới theo ngày</div>
+            <div className="text-sm font-semibold text-slate-700 mb-1">Xu hướng tỉ lệ từ chối nhận tin &amp; Danh sách chặn mới theo ngày</div>
             <div className="text-xs text-slate-400 mb-3">
-              Tỉ lệ opt-out = Số KH opt-out / Đã tới đích × 100% · Ngưỡng: &lt; 3% bình thường, 3–4,9% cảnh báo, ≥ 5% nguy hiểm
+              Tỉ lệ từ chối nhận tin = Số KH từ chối nhận tin / Đã tới đích × 100% · Ngưỡng: &lt; 3% bình thường, 3–4,9% cảnh báo, ≥ 5% nguy hiểm
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={optOutData}>
@@ -671,12 +671,12 @@ export function Report() {
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <ReferenceLine y={3} stroke="#f97316" strokeDasharray="4 4" label={{ value: 'Cảnh báo 3%', position: 'insideTopRight', fontSize: 10, fill: '#f97316' }} />
                 <ReferenceLine y={5} stroke="#ef4444" strokeDasharray="4 4" label={{ value: 'Nguy hiểm 5%', position: 'insideTopRight', fontSize: 10, fill: '#ef4444' }} />
-                <Line type="monotone" dataKey="optoutRate" name="Opt-out Rate" stroke="#ef4444" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="blRate" name="Blacklist mới Rate" stroke="#f97316" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="optoutRate" name="Tỉ lệ từ chối nhận tin" stroke="#ef4444" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="blRate" name="Tỉ lệ vào Danh sách chặn mới" stroke="#f97316" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
             <div className="text-xs text-red-600 mt-2 bg-red-50 rounded px-2 py-1">
-              ⚠ Ngày 11: Opt-out Rate 5,1% và Blacklist mới Rate 5,2% — vượt ngưỡng nguy hiểm, cần điều tra
+              ⚠ Ngày 11: Tỉ lệ từ chối nhận tin 5,1% và Tỉ lệ vào Danh sách chặn mới 5,2% — vượt ngưỡng nguy hiểm, cần điều tra
             </div>
           </Card>
 

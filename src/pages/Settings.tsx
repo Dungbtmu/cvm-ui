@@ -73,15 +73,15 @@ export function Settings() {
   }
 
   const perms: [string, boolean, boolean][] = [
-    ['Xem Dashboard', true, true],
+    ['Xem Bảng điều hành', true, true],
     ['Xem tất cả màn hình', true, true],
-    ['Tạo / Sửa Campaign', false, true],
-    ['Gửi duyệt campaign', false, true],
-    ['Duyệt / Từ chối Campaign', true, false],
-    ['Xem Trigger catalog', true, true],
-    ['Quản lý Blacklist', true, true],
-    ['Xem Report', true, true],
-    ['Cài đặt hệ thống (Settings)', true, false],
+    ['Tạo / Sửa Chiến dịch', false, true],
+    ['Gửi duyệt chiến dịch', false, true],
+    ['Duyệt / Từ chối Chiến dịch', true, false],
+    ['Xem danh mục Sự kiện kích hoạt', true, true],
+    ['Quản lý Danh sách chặn', true, true],
+    ['Xem Báo cáo', true, true],
+    ['Cài đặt hệ thống', true, false],
   ]
 
   return (
@@ -89,7 +89,7 @@ export function Settings() {
       <h1 className="text-xl font-bold text-slate-800">Cài đặt hệ thống</h1>
 
       <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1 w-fit">
-        {['Frequency Cap', 'Phân quyền', 'Priority Matrix'].map((t, i) => (
+        {['Giới hạn tần suất', 'Phân quyền', 'Ma trận độ ưu tiên'].map((t, i) => (
           <button key={t} onClick={() => setActiveTab(i)}
             className={`px-4 py-1.5 text-sm rounded-md transition-colors ${activeTab === i ? 'bg-blue-500 text-white font-medium' : 'text-slate-600 hover:bg-slate-100'}`}>
             {t}
@@ -162,8 +162,8 @@ export function Settings() {
 
           <div className="text-xs text-slate-500 bg-slate-50 rounded px-2 py-1.5">
             ℹ Cấu hình "Nhắc lại" (gửi thêm tin cho KH đã nhận thành công nhưng chưa xử lý) nằm tại
-            màn hình <span className="font-medium">Tạo/Sửa Campaign</span> — mục Kênh &amp; Lịch gửi,
-            vì mỗi campaign cần tự bật/tắt và chỉnh riêng theo trigger của mình.
+            màn hình <span className="font-medium">Tạo/Sửa Chiến dịch</span> — mục Kênh &amp; Lịch gửi,
+            vì mỗi chiến dịch cần tự bật/tắt và chỉnh riêng theo sự kiện kích hoạt của mình.
           </div>
 
           <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1.5">
@@ -186,7 +186,7 @@ export function Settings() {
             <thead className="text-xs text-slate-500 border-b border-slate-100">
               <tr>
                 <th className="text-left pb-2 font-medium">Chức năng</th>
-                <th className="text-center pb-2 font-medium">Admin</th>
+                <th className="text-center pb-2 font-medium">Quản trị viên</th>
                 <th className="text-center pb-2 font-medium">QTV Marketing</th>
               </tr>
             </thead>
@@ -208,9 +208,9 @@ export function Settings() {
         <Card className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold text-slate-700">Priority Matrix — Thứ tự ưu tiên Campaign</div>
+              <div className="text-sm font-semibold text-slate-700">Ma trận độ ưu tiên — Thứ tự ưu tiên Chiến dịch</div>
               <div className="text-xs text-slate-500 mt-1">
-                Khi nhiều campaign cùng khớp một khách hàng, hệ thống chọn campaign có số ưu tiên nhỏ nhất.
+                Khi nhiều chiến dịch cùng khớp một khách hàng, hệ thống chọn chiến dịch có số ưu tiên nhỏ nhất.
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -239,7 +239,7 @@ export function Settings() {
             <thead className="text-xs text-slate-500 border-b border-slate-100">
               <tr>
                 <th className="w-8"></th>
-                <th className="text-left pb-2 font-medium">Tên campaign</th>
+                <th className="text-left pb-2 font-medium">Tên chiến dịch</th>
                 <th className="text-left pb-2 font-medium">Mã kịch bản</th>
                 <th className="text-center pb-2 font-medium w-24">Độ ưu tiên</th>
               </tr>
@@ -275,7 +275,7 @@ export function Settings() {
                 )
               })}
               {priorities.length === 0 && (
-                <tr><td colSpan={4} className="py-8 text-center text-slate-400 text-sm">Không có campaign Active</td></tr>
+                <tr><td colSpan={4} className="py-8 text-center text-slate-400 text-sm">Không có chiến dịch đang hoạt động</td></tr>
               )}
             </tbody>
           </table>
@@ -283,15 +283,15 @@ export function Settings() {
       )}
 
       {/* Help dialog */}
-      <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title="Priority Matrix — Hướng dẫn">
+      <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title="Ma trận độ ưu tiên — Hướng dẫn">
         <p className="text-sm text-slate-600">
-          Số ưu tiên nhỏ hơn = được chọn trước khi nhiều campaign cùng khớp với một KH.
+          Số ưu tiên nhỏ hơn = được chọn trước khi nhiều chiến dịch cùng khớp với một KH.
         </p>
         <ul className="mt-3 text-xs text-slate-500 space-y-1 list-disc pl-4">
           <li>Kéo icon ≡ để sắp xếp lại thứ tự</li>
           <li>Hoặc nhập số trực tiếp vào ô Độ ưu tiên</li>
-          <li>Campaign Active mới tự thêm vào cuối với priority = max + 1</li>
-          <li>Campaign Paused/Ended tự ẩn khỏi danh sách</li>
+          <li>Chiến dịch Đang chạy mới tự thêm vào cuối với độ ưu tiên = lớn nhất + 1</li>
+          <li>Chiến dịch Tạm dừng/Đã kết thúc tự ẩn khỏi danh sách</li>
         </ul>
         <DialogActions>
           <Button variant="outline" onClick={() => setHelpOpen(false)}>Đóng</Button>

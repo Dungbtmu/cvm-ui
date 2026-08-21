@@ -10,6 +10,10 @@ import type { Template, ChannelType } from '../types'
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const
 
+const campaignStatusLabel: Record<string, string> = {
+  Active: 'Đang chạy', Draft: 'Nháp', Pending: 'Chờ duyệt', Paused: 'Tạm dừng', Ended: 'Đã kết thúc',
+}
+
 export function TemplateManagement() {
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -48,14 +52,14 @@ export function TemplateManagement() {
       setDisableTarget(t)
     } else {
       setTemplates(prev => prev.map(x => x.id === t.id ? { ...x, status: 'Active' } : x))
-      toast('Đã bật template', 'success')
+      toast('Đã bật mẫu tin nhắn', 'success')
     }
   }
 
   const confirmDisable = () => {
     if (!disableTarget) return
     setTemplates(prev => prev.map(x => x.id === disableTarget.id ? { ...x, status: 'Inactive' } : x))
-    toast('Đã tắt template', 'success')
+    toast('Đã tắt mẫu tin nhắn', 'success')
     setDisableTarget(null)
   }
 
@@ -67,9 +71,9 @@ export function TemplateManagement() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">Template</h1>
+        <h1 className="text-xl font-bold text-slate-800">Mẫu tin nhắn</h1>
         <Button variant="primary" onClick={() => navigate('/templates/new')}>
-          <Plus size={14} /> Tạo Template
+          <Plus size={14} /> Tạo Mẫu tin nhắn
         </Button>
       </div>
 
@@ -77,7 +81,7 @@ export function TemplateManagement() {
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => handleFilter(() => setSearch(e.target.value))}
-            placeholder="Tìm tên template..."
+            placeholder="Tìm tên mẫu tin nhắn..."
             className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
         </div>
         <select
@@ -105,8 +109,8 @@ export function TemplateManagement() {
         <table className="w-full text-sm">
           <thead className="border-b border-slate-100">
             <tr className="text-xs text-slate-500">
-              <th className="text-left px-4 py-2 font-medium">Tên Template</th>
-              <th className="text-left px-4 py-2 font-medium">Trigger</th>
+              <th className="text-left px-4 py-2 font-medium">Tên Mẫu tin nhắn</th>
+              <th className="text-left px-4 py-2 font-medium">Sự kiện kích hoạt</th>
               <th className="text-left px-4 py-2 font-medium">Kênh hỗ trợ</th>
               <th className="text-left px-4 py-2 font-medium">Trạng thái</th>
               <th className="text-left px-4 py-2 font-medium">Dùng</th>
@@ -156,15 +160,15 @@ export function TemplateManagement() {
                       }
                       return (
                         <div className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-30 p-3 mt-1 w-72 text-xs">
-                          <div className="font-medium text-slate-700 mb-2">Campaign sử dụng template này:</div>
+                          <div className="font-medium text-slate-700 mb-2">Chiến dịch sử dụng mẫu tin nhắn này:</div>
                           <div className="space-y-1.5">
                             {campaigns.map(c => (
                               <div key={c.id} className="flex items-center justify-between gap-2">
                                 <span className="text-slate-700 truncate">{c.name}</span>
-                                <span className={`flex-shrink-0 font-medium ${statusColor[c.status]}`}>{c.status}</span>
+                                <span className={`flex-shrink-0 font-medium ${statusColor[c.status]}`}>{campaignStatusLabel[c.status] ?? c.status}</span>
                               </div>
                             ))}
-                            {campaigns.length === 0 && <div className="text-slate-400 italic">Chưa có campaign nào</div>}
+                            {campaigns.length === 0 && <div className="text-slate-400 italic">Chưa có chiến dịch nào</div>}
                           </div>
                           <button onClick={() => setUsagePopup(null)} className="mt-2.5 text-slate-400 hover:text-slate-600">Đóng</button>
                         </div>
@@ -197,14 +201,14 @@ export function TemplateManagement() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">
-                  Không có template nào phù hợp
+                  Không có mẫu tin nhắn nào phù hợp
                 </td>
               </tr>
             )}
           </tbody>
         </table>
         <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span>{filtered.length} template</span>
+          <span>{filtered.length} mẫu tin nhắn</span>
           <select
             value={pageSize}
             onChange={e => changePageSize(Number(e.target.value))}
@@ -215,9 +219,9 @@ export function TemplateManagement() {
         </div>
       </div>
 
-      <Dialog open={!!disableTarget} onClose={() => setDisableTarget(null)} title="Tắt template?">
+      <Dialog open={!!disableTarget} onClose={() => setDisableTarget(null)} title="Tắt mẫu tin nhắn?">
         <p className="text-sm text-slate-600">
-          Tắt mẫu nội dung? Mẫu sẽ không hiện trong danh sách chọn khi tạo campaign.
+          Tắt mẫu nội dung? Mẫu sẽ không hiện trong danh sách chọn khi tạo chiến dịch.
         </p>
         <DialogActions>
           <Button variant="outline" onClick={() => setDisableTarget(null)}>Hủy</Button>
@@ -225,22 +229,22 @@ export function TemplateManagement() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Xóa template?">
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Xóa mẫu tin nhắn?">
         {deleteTarget && deleteTarget.usageCount > 0 ? (
           <div className="text-sm text-slate-600 space-y-2">
             <p>
-              Template <strong>{deleteTarget.name}</strong> đang được <strong>{deleteTarget.usageCount} campaign</strong> sử dụng:
+              Mẫu tin nhắn <strong>{deleteTarget.name}</strong> đang được <strong>{deleteTarget.usageCount} chiến dịch</strong> sử dụng:
             </p>
             <ul className="list-disc pl-5 space-y-0.5 text-xs">
               {mockCampaigns.filter(c => c.templateIds?.includes(deleteTarget.id)).map(c => (
-                <li key={c.id}>{c.name} <span className="text-slate-400">({c.status})</span></li>
+                <li key={c.id}>{c.name} <span className="text-slate-400">({campaignStatusLabel[c.status] ?? c.status})</span></li>
               ))}
             </ul>
-            <p>Xóa template khỏi thư viện sẽ <strong>không ảnh hưởng</strong> đến nội dung các campaign này (nội dung đã được lưu riêng vào từng campaign khi chọn template). Xác nhận xóa?</p>
+            <p>Xóa mẫu tin nhắn khỏi thư viện sẽ <strong>không ảnh hưởng</strong> đến nội dung các chiến dịch này (nội dung đã được lưu riêng vào từng chiến dịch khi chọn mẫu tin nhắn). Xác nhận xóa?</p>
           </div>
         ) : (
           <p className="text-sm text-slate-600">
-            Xóa template <strong>{deleteTarget?.name}</strong>? Hành động này không thể hoàn tác.
+            Xóa mẫu tin nhắn <strong>{deleteTarget?.name}</strong>? Hành động này không thể hoàn tác.
           </p>
         )}
         <DialogActions>
@@ -248,7 +252,7 @@ export function TemplateManagement() {
           <Button variant="danger" onClick={() => {
             if (!deleteTarget) return
             setTemplates(prev => prev.filter(x => x.id !== deleteTarget.id))
-            toast('Đã xóa template ✓', 'success')
+            toast('Đã xóa mẫu tin nhắn ✓', 'success')
             setDeleteTarget(null)
           }}>Xóa</Button>
         </DialogActions>

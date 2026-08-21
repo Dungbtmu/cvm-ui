@@ -31,12 +31,12 @@ const CHANNEL_LIMITS: Record<ChannelType, { title?: number; body: number; hasIma
 }
 
 const CHANNEL_GUIDES: Record<ChannelType, string[]> = {
-  'Push': ['Title: tối đa 65 ký tự. Hỗ trợ biến {{...}}.', 'Body: tối đa 240 ký tự. Hỗ trợ biến {{...}}.', 'Image: optional, tỉ lệ 1:1, tối đa 1MB.', 'Nếu biến null/trống → hiển thị chuỗi rỗng.', 'Đầu mối: Team Mobile / Push Gateway'],
-  'Zalo OA': ['Nội dung: tối đa 1000 ký tự. Hỗ trợ biến {{...}}.', 'Image: optional, tỉ lệ tự do, khuyến nghị 16:9 hoặc 1:1.', 'OA phải được liên kết và phê duyệt trước khi gửi.', 'Đầu mối: Team Zalo OA'],
-  'SMS': ['Body: tối đa 160 ký tự/segment. Vượt 160 → tính thêm segment.', 'Chỉ plain text — không hỗ trợ ảnh.', 'Biến dài có thể đẩy tin vượt 160 ký tự — kiểm tra bộ đếm.', 'Đầu mối: Team SMS / SMSC'],
-  'USSD': ['Body: tối đa 182 ký tự. Chỉ plain text, không dấu tiếng Việt.', 'Không hỗ trợ ảnh, link, ký tự đặc biệt.', 'Giá trị biến cũng phải không dấu.', 'Đầu mối: Team USSD'],
-  'Banner': ['Image: BẮT BUỘC, tỉ lệ 16:9, tối đa 2MB.', 'Title: tối đa 65 ký tự. Body: tối đa 120 ký tự.', 'CTA Label + CTA URL: bắt buộc.', 'Đầu mối: Team App / Banner'],
-  'Email': ['Subject: tối đa 100 ký tự. Hỗ trợ biến {{...}}.', 'Body: plain text, không giới hạn. Hỗ trợ biến {{...}}.', 'Header image: optional, banner ngang, tối đa 1MB.', 'Đầu mối: Team Email'],
+  'Push': ['Tiêu đề: tối đa 65 ký tự. Hỗ trợ biến {{...}}.', 'Nội dung: tối đa 240 ký tự. Hỗ trợ biến {{...}}.', 'Hình ảnh: tùy chọn, tỉ lệ 1:1, tối đa 1MB.', 'Nếu biến null/trống → hiển thị chuỗi rỗng.', 'Đầu mối: Đội Mobile / Push Gateway'],
+  'Zalo OA': ['Nội dung: tối đa 1000 ký tự. Hỗ trợ biến {{...}}.', 'Hình ảnh: tùy chọn, tỉ lệ tự do, khuyến nghị 16:9 hoặc 1:1.', 'OA phải được liên kết và phê duyệt trước khi gửi.', 'Đầu mối: Đội Zalo OA'],
+  'SMS': ['Nội dung: tối đa 160 ký tự/đoạn. Vượt 160 → tính thêm đoạn.', 'Chỉ văn bản thuần — không hỗ trợ ảnh.', 'Biến dài có thể đẩy tin vượt 160 ký tự — kiểm tra bộ đếm.', 'Đầu mối: Đội SMS / SMSC'],
+  'USSD': ['Nội dung: tối đa 182 ký tự. Chỉ văn bản thuần, không dấu tiếng Việt.', 'Không hỗ trợ ảnh, link, ký tự đặc biệt.', 'Giá trị biến cũng phải không dấu.', 'Đầu mối: Đội USSD'],
+  'Banner': ['Hình ảnh: BẮT BUỘC, tỉ lệ 16:9, tối đa 2MB.', 'Tiêu đề: tối đa 65 ký tự. Nội dung: tối đa 120 ký tự.', 'Nhãn CTA + Đường dẫn CTA: bắt buộc.', 'Đầu mối: Đội App / Banner'],
+  'Email': ['Tiêu đề thư: tối đa 100 ký tự. Hỗ trợ biến {{...}}.', 'Nội dung: văn bản thuần, không giới hạn. Hỗ trợ biến {{...}}.', 'Hình ảnh đầu trang: tùy chọn, banner ngang, tối đa 1MB.', 'Đầu mối: Đội Email'],
 }
 
 interface TriggerEntry { id: string; code: string; name: string }
@@ -93,9 +93,9 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: VariantCont
         <>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-blue-500 rounded-sm flex items-center justify-center text-white text-[10px]">A</div>
-            <span className="font-medium">{title || 'Title...'}</span>
+            <span className="font-medium">{title || 'Tiêu đề...'}</span>
           </div>
-          <div className="text-slate-500">{body || 'Body...'}</div>
+          <div className="text-slate-500">{body || 'Nội dung...'}</div>
         </>
       )}
       {ch === 'SMS' && (
@@ -104,7 +104,7 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: VariantCont
           <div className="bg-slate-100 rounded p-2 text-slate-700">{body || 'Nội dung SMS...'}</div>
           {(() => {
             const info = smsSegmentInfo(body ?? '')
-            return <div className="text-slate-400">{info.length}/{info.limit} · {info.segments} SMS segment</div>
+            return <div className="text-slate-400">{info.length}/{info.limit} · {info.segments} đoạn SMS</div>
           })()}
         </>
       )}
@@ -116,22 +116,22 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: VariantCont
       )}
       {ch === 'USSD' && (
         <div className="font-mono bg-black text-green-400 rounded p-2 text-[11px] whitespace-pre-wrap">
-          {body || 'USSD content...'}
+          {body || 'Nội dung USSD...'}
         </div>
       )}
       {ch === 'Banner' && (
         <>
-          <div className="bg-slate-200 rounded h-16 flex items-center justify-center text-slate-400 text-[10px]">Image 16:9</div>
-          <div className="font-medium">{title || 'Title...'}</div>
-          <div className="text-slate-500">{body || 'Body...'}</div>
+          <div className="bg-slate-200 rounded h-16 flex items-center justify-center text-slate-400 text-[10px]">Hình ảnh 16:9</div>
+          <div className="font-medium">{title || 'Tiêu đề...'}</div>
+          <div className="text-slate-500">{body || 'Nội dung...'}</div>
           {cta && <div className="bg-blue-500 text-white rounded px-2 py-0.5 text-center">{cta}</div>}
         </>
       )}
       {ch === 'Email' && (
         <>
-          <div className="text-slate-400 text-[10px]">From: VietnamPost</div>
-          <div className="font-medium border-b border-slate-100 pb-1">{title || 'Subject...'}</div>
-          <div className="text-slate-500">{body || 'Body...'}</div>
+          <div className="text-slate-400 text-[10px]">Từ: VietnamPost</div>
+          <div className="font-medium border-b border-slate-100 pb-1">{title || 'Tiêu đề thư...'}</div>
+          <div className="text-slate-500">{body || 'Nội dung...'}</div>
         </>
       )}
     </div>
@@ -308,7 +308,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
           ở Section 3 (hoặc 1 accordion "toàn bộ audience" khi chưa chọn phân khúc nào) */}
       <div className="px-4 py-2 border-b border-slate-100 bg-slate-50 space-y-2">
         <div className="text-xs text-slate-500 font-medium">Điều kiện lọc theo Kênh ({ch}):</div>
-        {(availableSegments.length > 0 ? availableSegments : [{ id: NO_SEGMENT_KEY, name: 'Toàn bộ audience (chưa chọn phân khúc)', reach: 0 }]).map(seg => {
+        {(availableSegments.length > 0 ? availableSegments : [{ id: NO_SEGMENT_KEY, name: 'Toàn bộ đối tượng (chưa chọn phân khúc)', reach: 0 }]).map(seg => {
           const segKey = availableSegments.length > 0 ? seg.id : NO_SEGMENT_KEY
           return (
             <div key={segKey} className="space-y-1">
@@ -366,7 +366,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
 
           {/* Template picker */}
           <div>
-            <label className="text-xs text-slate-500 font-medium block mb-1">Template</label>
+            <label className="text-xs text-slate-500 font-medium block mb-1">Mẫu tin nhắn</label>
             <select
               className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-blue-400"
               onChange={e => {
@@ -375,7 +375,7 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
               }}
               defaultValue=""
             >
-              <option value="">Chọn template...</option>
+              <option value="">Chọn mẫu tin nhắn...</option>
               {mockTemplates.filter(t => t.status === 'Active' && t.channels.includes(ch)).map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
@@ -647,7 +647,7 @@ function FilterAccordion({ filters, onChange, fieldGroups, expanded, onToggle, r
           ) : disabledReason ? (
             <span className="text-slate-400 italic">{disabledReason}</span>
           ) : !hasAnyField ? (
-            <span className="text-slate-400 italic">Trigger đã chọn chưa khai báo điều kiện lọc nào — phân khúc dùng toàn bộ audience của trigger</span>
+            <span className="text-slate-400 italic">Sự kiện kích hoạt đã chọn chưa khai báo điều kiện lọc nào — phân khúc dùng toàn bộ đối tượng của sự kiện kích hoạt</span>
           ) : (
             <span className="text-slate-400">(chưa có)</span>
           )}
@@ -691,7 +691,7 @@ function FilterAccordion({ filters, onChange, fieldGroups, expanded, onToggle, r
                 {fieldGroups.length > 1 && f.triggerCode && (
                   <span
                     className="flex-shrink-0 text-xs font-mono bg-slate-200 text-slate-600 rounded px-1.5 py-0.5 max-w-[6rem] truncate"
-                    title={`Thuộc tính này thuộc trigger ${f.triggerCode}`}
+                    title={`Thuộc tính này thuộc sự kiện kích hoạt ${f.triggerCode}`}
                   >
                     {f.triggerCode}
                   </span>
@@ -863,7 +863,7 @@ function SuppressionSection({ title, mode, onMode, selected, onSelected, uploadD
       {mode === 'list' && (
         <div className="ml-4 border border-slate-200 rounded-lg overflow-hidden">
           {activeChannels.length === 0 ? (
-            <div className="px-3 py-3 text-xs text-slate-400 italic">Chưa có kênh nào — thêm kênh trong Message Matrix trước</div>
+            <div className="px-3 py-3 text-xs text-slate-400 italic">Chưa có kênh nào — thêm kênh trong Ma trận tin nhắn trước</div>
           ) : (
             <>
               {/* Tab kênh — clickable */}
@@ -1212,12 +1212,12 @@ export function CampaignBuilder() {
   if (!isInfinite && endDate && new Date(endDate) < new Date(new Date().toDateString())) {
     issues.push('Ngày kết thúc không được ở trong quá khứ')
   }
-  if (selectedTriggers.length === 0) issues.push('Chưa chọn trigger')
+  if (selectedTriggers.length === 0) issues.push('Chưa chọn sự kiện kích hoạt')
   if (activeChannels.length === 0) issues.push('Chưa chọn kênh gửi')
-  if (blMode !== 'none' && activeChannels.length === 0) issues.push('Blacklist: chưa có kênh nào được chọn')
+  if (blMode !== 'none' && activeChannels.length === 0) issues.push('Danh sách chặn: chưa có kênh nào được chọn')
   // Cờ vô hiệu là blocking issue độc lập — chặn Gửi duyệt cho đến khi QTV sửa (URD Khối 3)
-  if (existing?.paramInvalid) issues.push('Còn tham số không hợp lệ do trigger đã thay đổi — sửa nội dung message')
-  if (existing?.filterInvalid) issues.push('Còn điều kiện lọc không hợp lệ do trigger đã thay đổi — sửa điều kiện lọc ở mục 4 (Message Matrix)')
+  if (existing?.paramInvalid) issues.push('Còn tham số không hợp lệ do sự kiện kích hoạt đã thay đổi — sửa nội dung tin nhắn')
+  if (existing?.filterInvalid) issues.push('Còn điều kiện lọc không hợp lệ do sự kiện kích hoạt đã thay đổi — sửa điều kiện lọc ở mục 4 (Ma trận tin nhắn)')
   if (reminderIncompleteErr) issues.push('Nhắc lại: chưa nhập đầy đủ số lần và khoảng cách')
   if (reminderMaxErr || reminderGapErr) issues.push('Nhắc lại: giá trị không hợp lệ (phải là số nguyên từ 1 đến 9999)')
 
@@ -1446,7 +1446,7 @@ export function CampaignBuilder() {
 
   // Triggers to render in S4 (AND = single pseudo-trigger)
   const s4Triggers = triggerLogic === 'AND'
-    ? [{ id: '__AND__', code: '__AND__', name: 'Tất cả trigger (AND)' }]
+    ? [{ id: '__AND__', code: '__AND__', name: 'Tất cả sự kiện kích hoạt (AND)' }]
     : selectedTriggers
 
   return (
@@ -1459,7 +1459,7 @@ export function CampaignBuilder() {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-800">{name || 'Campaign mới'}</span>
+              <span className="font-semibold text-slate-800">{name || 'Chiến dịch mới'}</span>
               <StatusBadge status="Draft" />
             </div>
             <div className="text-xs text-slate-400 font-mono">CVM-{new Date().getFullYear()}{String(new Date().getMonth()+1).padStart(2,'0')}-NEW</div>
@@ -1495,8 +1495,8 @@ export function CampaignBuilder() {
         <div className="mt-6 -mb-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-start gap-2">
           <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
           <span>
-            Campaign đang có tham số không hợp lệ do trigger <strong>{existing.paramInvalid.triggerName}</strong> đã
-            thay đổi tham số <strong>{existing.paramInvalid.paramName}</strong> — vui lòng cập nhật nội dung message
+            Chiến dịch đang có tham số không hợp lệ do sự kiện kích hoạt <strong>{existing.paramInvalid.triggerName}</strong> đã
+            thay đổi tham số <strong>{existing.paramInvalid.paramName}</strong> — vui lòng cập nhật nội dung tin nhắn
             trước khi gửi duyệt lại.
           </span>
         </div>
@@ -1507,7 +1507,7 @@ export function CampaignBuilder() {
         <div className="mt-6 -mb-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-start gap-2">
           <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
           <span>
-            Campaign đang có điều kiện lọc không hợp lệ do trigger <strong>{existing.filterInvalid.triggerName}</strong> đã
+            Chiến dịch đang có điều kiện lọc không hợp lệ do sự kiện kích hoạt <strong>{existing.filterInvalid.triggerName}</strong> đã
             thay đổi thuộc tính lọc <strong>{existing.filterInvalid.filterFieldName}</strong> — vui lòng cập nhật điều kiện lọc
             ở mục 3 (Phân khúc) trước khi gửi duyệt lại.
           </span>
@@ -1521,12 +1521,12 @@ export function CampaignBuilder() {
 
           {/* S1 */}
           <Card amber>
-            <SectionHeader title="1. Thông tin Campaign" collapsed={s1Collapsed} onToggle={() => setS1Collapsed(!s1Collapsed)} />
+            <SectionHeader title="1. Thông tin Chiến dịch" collapsed={s1Collapsed} onToggle={() => setS1Collapsed(!s1Collapsed)} />
             {!s1Collapsed && (
               <div className="mt-4 space-y-4">
                 <div>
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">Tên campaign *</label>
-                  <input value={name} onChange={e => { setName(e.target.value); setTouched(true) }} placeholder="Nhập tên campaign..."
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Tên chiến dịch *</label>
+                  <input value={name} onChange={e => { setName(e.target.value); setTouched(true) }} placeholder="Nhập tên chiến dịch..."
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
                 </div>
                 <div>
@@ -1588,7 +1588,7 @@ export function CampaignBuilder() {
 
           {/* S2 */}
           <Card amber>
-            <SectionHeader title="2. Trigger & Logic" collapsed={s2Collapsed} onToggle={() => setS2Collapsed(!s2Collapsed)} />
+            <SectionHeader title="2. Sự kiện kích hoạt & Logic" collapsed={s2Collapsed} onToggle={() => setS2Collapsed(!s2Collapsed)} />
             {!s2Collapsed && (
               <div className="mt-4 space-y-4">
                 {/* Mode radio */}
@@ -1614,19 +1614,19 @@ export function CampaignBuilder() {
                     size="sm"
                     onClick={() => canAddTrigger && setTriggerDropdown(!triggerDropdown)}
                     disabled={!canAddTrigger}
-                    title={!canAddTrigger ? 'Chế độ cơ bản chỉ cho phép 1 trigger' : undefined}
+                    title={!canAddTrigger ? 'Chế độ cơ bản chỉ cho phép 1 sự kiện kích hoạt' : undefined}
                   >
-                    <Plus size={12} /> Chọn trigger
+                    <Plus size={12} /> Chọn sự kiện kích hoạt
                     <ChevronDown size={12} />
                   </Button>
                   {!canAddTrigger && (
-                    <span className="ml-2 text-xs text-slate-400">Chế độ cơ bản: chỉ 1 trigger</span>
+                    <span className="ml-2 text-xs text-slate-400">Chế độ cơ bản: chỉ 1 sự kiện kích hoạt</span>
                   )}
                   {triggerDropdown && (
                     <div className="absolute top-full left-0 mt-1 w-96 bg-white border border-slate-200 rounded-lg shadow-lg z-20">
                       <div className="p-2 border-b border-slate-100">
                         <input autoFocus value={triggerSearch} onChange={e => setTriggerSearch(e.target.value)}
-                          placeholder="Tìm trigger code hoặc tên..."
+                          placeholder="Tìm mã hoặc tên sự kiện kích hoạt..."
                           className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none" />
                       </div>
                       <div className="max-h-48 overflow-y-auto py-1">
@@ -1641,10 +1641,10 @@ export function CampaignBuilder() {
                           </button>
                         ))}
                         {activeTriggers.length === 0 && (
-                          <div className="px-3 py-2 text-sm text-slate-400">Không có trigger nào đang hoạt động</div>
+                          <div className="px-3 py-2 text-sm text-slate-400">Không có sự kiện kích hoạt nào đang hoạt động</div>
                         )}
                         {activeTriggers.length > 0 && filteredTriggers.length === 0 && (
-                          <div className="px-3 py-2 text-sm text-slate-400">Không tìm thấy trigger</div>
+                          <div className="px-3 py-2 text-sm text-slate-400">Không tìm thấy sự kiện kích hoạt</div>
                         )}
                       </div>
                     </div>
@@ -1654,7 +1654,7 @@ export function CampaignBuilder() {
                 {/* Trigger list */}
                 {selectedTriggers.length === 0 ? (
                   <div className="text-sm text-slate-400 text-center py-4 border border-dashed border-slate-200 rounded-lg">
-                    ⓘ Chưa có trigger. Nhấn "+ Chọn trigger" để bắt đầu.
+                    ⓘ Chưa có sự kiện kích hoạt. Nhấn "+ Chọn sự kiện kích hoạt" để bắt đầu.
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -1688,9 +1688,9 @@ export function CampaignBuilder() {
                     </div>
                     <div className="text-xs text-slate-500 bg-blue-50 rounded p-2">
                       {triggerLogic === 'OR'
-                        ? (<>Mỗi trigger có message riêng. KH match trigger nào → nhận message của trigger đó.<br />
-                            <span className="font-medium">Nếu KH khớp nhiều trigger cùng lúc → chỉ gửi trigger có thứ tự ưu tiên cao nhất (số 1).</span></>)
-                        : 'KH phải thỏa đồng thời tất cả trigger mới được gửi tin. Tất cả trigger dùng chung 1 message cho mỗi kênh.'}
+                        ? (<>Mỗi sự kiện kích hoạt có tin nhắn riêng. KH khớp sự kiện kích hoạt nào → nhận tin nhắn của sự kiện kích hoạt đó.<br />
+                            <span className="font-medium">Nếu KH khớp nhiều sự kiện kích hoạt cùng lúc → chỉ gửi sự kiện kích hoạt có thứ tự ưu tiên cao nhất (số 1).</span></>)
+                        : 'KH phải thỏa đồng thời tất cả sự kiện kích hoạt mới được gửi tin. Tất cả sự kiện kích hoạt dùng chung 1 tin nhắn cho mỗi kênh.'}
                     </div>
                   </div>
                 )}
@@ -1700,7 +1700,7 @@ export function CampaignBuilder() {
 
           {/* S4 */}
           <Card amber>
-            <SectionHeader title="4. Message Matrix · Trigger × Kênh" collapsed={s4Collapsed} onToggle={() => setS4Collapsed(!s4Collapsed)} />
+            <SectionHeader title="4. Ma trận tin nhắn · Sự kiện kích hoạt × Kênh" collapsed={s4Collapsed} onToggle={() => setS4Collapsed(!s4Collapsed)} />
             {!s4Collapsed && (
               <div className="mt-4 space-y-4">
                 <div className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1.5">
@@ -1786,7 +1786,7 @@ export function CampaignBuilder() {
                           const cardData = getCardData(activeChannelTab, trig.code)
                           // For AND mode, use a merged params list from all triggers
                           const displayTrig = triggerLogic === 'AND'
-                            ? { ...trig, code: 'ALL TRIGGERS (AND)', name: 'Dùng chung cho tất cả trigger' }
+                            ? { ...trig, code: 'TẤT CẢ SỰ KIỆN KÍCH HOẠT (AND)', name: 'Dùng chung cho tất cả sự kiện kích hoạt' }
                             : trig
                           // fieldGroups cho accordion điều kiện lọc: AND mode dùng chung 1 card → hợp nhất
                           // thuộc tính lọc của TẤT CẢ trigger đã chọn; OR mode → chỉ thuộc tính của trigger này
@@ -1854,7 +1854,7 @@ export function CampaignBuilder() {
 
                   {/* ── Blacklist ── */}
                   <SuppressionSection
-                    title="Blacklist campaign — theo kênh"
+                    title="Danh sách chặn chiến dịch — theo kênh"
                     mode={blMode}
                     onMode={setBlMode}
                     selected={blSelected}
@@ -1864,12 +1864,12 @@ export function CampaignBuilder() {
                     uploadDone={blUploadDone}
                     onUpload={() => setBlUploadDone(true)}
                     activeChannels={activeChannels}
-                    syncNote="Danh sách này sẽ tự đồng bộ sang Blacklist Management"
+                    syncNote="Danh sách này sẽ tự đồng bộ sang Danh sách chặn"
                   />
 
                   {/* ── Whitelist ── */}
                   <SuppressionSection
-                    title="Whitelist campaign — theo kênh"
+                    title="Danh sách cho phép chiến dịch — theo kênh"
                     mode={wlMode}
                     onMode={setWlMode}
                     selected={wlSelected}
@@ -1879,7 +1879,7 @@ export function CampaignBuilder() {
                     uploadDone={wlUploadDone}
                     onUpload={() => setWlUploadDone(true)}
                     activeChannels={activeChannels}
-                    syncNote="Chỉ gửi cho những số trong whitelist"
+                    syncNote="Chỉ gửi cho những số trong danh sách cho phép"
                   />
 
                   {/* Reach cuối */}
@@ -1910,7 +1910,7 @@ export function CampaignBuilder() {
 
           {/* Summary */}
           <Card className="space-y-2">
-            <div className="text-sm font-semibold text-slate-700">Tóm tắt Campaign</div>
+            <div className="text-sm font-semibold text-slate-700">Tóm tắt Chiến dịch</div>
             {!touched ? null : issues.length > 0 ? (
               <div className="space-y-1">
                 {issues.map((issue, i) => (
@@ -1932,7 +1932,7 @@ export function CampaignBuilder() {
 
           {/* S3 Audience */}
           <Card amber className="space-y-4">
-            <div className="text-sm font-semibold text-slate-700">3. Audience / Phân khúc</div>
+            <div className="text-sm font-semibold text-slate-700">3. Đối tượng / Phân khúc</div>
             <div className="text-xs text-slate-500">
               Nguồn: Customer 360 · Team Data · BSS · OCS
               <br />Reach ước tính tại: {new Date().toLocaleDateString('vi-VN')} {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
@@ -2012,7 +2012,7 @@ export function CampaignBuilder() {
 
             {activeChannels.length === 0 ? (
               <div className="text-xs text-slate-400 bg-slate-50 rounded px-3 py-2">
-                Chưa có kênh — thêm kênh trong Message Matrix để cấu hình lịch.
+                Chưa có kênh — thêm kênh trong Ma trận tin nhắn để cấu hình lịch.
               </div>
             ) : (
               <div className="text-xs text-slate-500">
@@ -2171,8 +2171,8 @@ export function CampaignBuilder() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={submitConfirm} onClose={() => setSubmitConfirm(false)} title="Gửi campaign để duyệt?">
-        <p className="text-sm text-slate-600">Campaign sẽ chuyển sang trạng thái Pending và gửi đến Admin để duyệt.</p>
+      <Dialog open={submitConfirm} onClose={() => setSubmitConfirm(false)} title="Gửi chiến dịch để duyệt?">
+        <p className="text-sm text-slate-600">Chiến dịch sẽ chuyển sang trạng thái Chờ duyệt và gửi đến Quản trị viên để duyệt.</p>
         <DialogActions>
           <Button variant="outline" onClick={() => setSubmitConfirm(false)}>Hủy</Button>
           <Button variant="primary" onClick={confirmSubmit}>Gửi duyệt</Button>

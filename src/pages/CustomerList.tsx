@@ -14,7 +14,11 @@ export function CustomerList() {
 
   const filtered = mockCustomers.filter(c => {
     const matchSearch = !search || c.phone.includes(search) || c.name.toLowerCase().includes(search.toLowerCase())
-    const matchSim = simFilter === 'Tất cả' || (simFilter === 'Tạm khóa' ? c.status === 'Suspended' : c.status === simFilter)
+    const matchSim = simFilter === 'Tất cả'
+      || (simFilter === 'Tạm khóa' ? c.status === 'Suspended'
+        : simFilter === 'Hoạt động' ? c.status === 'Active'
+        : simFilter === 'Không hoạt động' ? c.status === 'Inactive'
+        : false)
     const matchApp = appFilter === 'Tất cả' || (appFilter === 'Có' ? c.hasApp : !c.hasApp)
     return matchSearch && matchSim && matchApp
   })
@@ -42,7 +46,7 @@ export function CustomerList() {
           <span className="text-slate-500 text-xs">Trạng thái SIM:</span>
           <select value={simFilter} onChange={e => handleFilter(() => setSimFilter(e.target.value))}
             className="border border-slate-200 rounded px-2 py-1.5 text-sm focus:outline-none">
-            {['Tất cả', 'Active', 'Inactive', 'Tạm khóa'].map(o => <option key={o}>{o}</option>)}
+            {['Tất cả', 'Hoạt động', 'Không hoạt động', 'Tạm khóa'].map(o => <option key={o}>{o}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2 text-sm">

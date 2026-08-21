@@ -50,11 +50,11 @@ export function AdminScreen() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-slate-800">Admin</h1>
+      <h1 className="text-xl font-bold text-slate-800">Quản trị viên</h1>
 
       {/* Tab bar */}
       <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1 w-fit">
-        {['Duyệt Campaign', 'Trigger'].map((t, i) => (
+        {['Duyệt Chiến dịch', 'Sự kiện kích hoạt'].map((t, i) => (
           <button
             key={t}
             onClick={() => setActiveTab(i)}
@@ -73,24 +73,24 @@ export function AdminScreen() {
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Tìm campaign..."
+                placeholder="Tìm chiến dịch..."
                 className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
             </div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
             <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
-              <span className="text-sm font-semibold text-slate-700">Campaign chờ duyệt</span>
+              <span className="text-sm font-semibold text-slate-700">Chiến dịch chờ duyệt</span>
             </div>
             {filtered.length === 0 ? (
               <div className="px-4 py-12 text-center text-slate-400 text-sm">
-                Không có campaign nào chờ duyệt.
+                Không có chiến dịch nào chờ duyệt.
               </div>
             ) : (
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-100">
                   <tr className="text-xs text-slate-500">
-                    <th className="text-left px-4 py-2 font-medium">Tên / Mã Campaign</th>
+                    <th className="text-left px-4 py-2 font-medium">Tên / Mã Chiến dịch</th>
                     <th className="text-left px-4 py-2 font-medium">Người tạo</th>
                     <th className="text-left px-4 py-2 font-medium">Gửi duyệt</th>
                     <th className="text-right px-4 py-2 font-medium">Hành động</th>
@@ -120,7 +120,7 @@ export function AdminScreen() {
               </table>
             )}
             <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>{filtered.length} campaign</span>
+              <span>{filtered.length} chiến dịch</span>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1">
                   <button onClick={() => changePage(1)} disabled={currentPage === 1} className="px-1.5 py-1 rounded hover:bg-slate-100 disabled:opacity-30">«</button>
@@ -153,9 +153,9 @@ export function AdminScreen() {
       {activeTab === 1 && <TriggerAdmin />}
 
       {/* Approve dialog */}
-      <Dialog open={!!approveTarget} onClose={() => setApproveTarget(null)} title="Duyệt campaign?">
+      <Dialog open={!!approveTarget} onClose={() => setApproveTarget(null)} title="Duyệt chiến dịch?">
         <p className="text-sm text-slate-600">
-          Duyệt campaign <strong>{approveTarget?.name}</strong>? Campaign sẽ chuyển sang Active ngay.
+          Duyệt chiến dịch <strong>{approveTarget?.name}</strong>? Chiến dịch sẽ chuyển sang trạng thái Đang chạy ngay.
         </p>
         <DialogActions>
           <Button variant="outline" onClick={() => setApproveTarget(null)}>Hủy</Button>
@@ -164,7 +164,7 @@ export function AdminScreen() {
       </Dialog>
 
       {/* Reject dialog */}
-      <Dialog open={!!rejectTarget} onClose={() => setRejectTarget(null)} title="Từ chối campaign">
+      <Dialog open={!!rejectTarget} onClose={() => setRejectTarget(null)} title="Từ chối chiến dịch">
         <div className="space-y-3">
           <p className="text-sm text-slate-600">Nhập lý do từ chối:</p>
           <textarea

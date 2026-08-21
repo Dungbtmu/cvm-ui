@@ -24,7 +24,7 @@ export function Header({ breadcrumb }: HeaderProps) {
       <div className="flex items-center gap-4 text-sm text-slate-500">
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          LIVE · {dateStr} {timeStr}
+          TRỰC TIẾP · {dateStr} {timeStr}
         </span>
         <button className="p-1.5 hover:bg-slate-100 rounded-md transition-colors">
           <Bell size={16} />

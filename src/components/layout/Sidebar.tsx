@@ -6,15 +6,15 @@ import {
 } from 'lucide-react'
 
 const navItems = [
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'Campaign', to: '/campaigns', icon: Megaphone },
-  { label: 'Template', to: '/templates', icon: FileText },
-  { label: 'Trigger', to: '/triggers', icon: Zap },
+  { label: 'Bảng điều hành', to: '/dashboard', icon: LayoutDashboard },
+  { label: 'Chiến dịch', to: '/campaigns', icon: Megaphone },
+  { label: 'Mẫu tin nhắn', to: '/templates', icon: FileText },
+  { label: 'Sự kiện kích hoạt', to: '/triggers', icon: Zap },
   { label: 'Khách hàng', to: '/customers', icon: Users },
-  { label: 'Blacklist', to: '/blacklist', icon: ShieldOff },
-  { label: 'Report', to: '/report', icon: BarChart2 },
-  { label: 'Admin', to: '/admin', icon: ShieldCheck },
-  { label: 'Settings', to: '/settings', icon: Settings },
+  { label: 'Danh sách chặn', to: '/blacklist', icon: ShieldOff },
+  { label: 'Báo cáo', to: '/report', icon: BarChart2 },
+  { label: 'Quản trị viên', to: '/admin', icon: ShieldCheck },
+  { label: 'Cài đặt', to: '/settings', icon: Settings },
 ]
 
 export function Sidebar() {
