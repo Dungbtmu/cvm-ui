@@ -11,18 +11,31 @@ import type { ChannelType, CampaignStatus } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
-// Điều kiện lọc per phân khúc — mỗi điều kiện kèm trigger nguồn (đồng bộ với Campaign Builder Section 3:
-// thuộc tính lọc lấy theo trigger đã chọn; Advanced mode nhiều trigger cần badge để biết điều kiện thuộc trigger nào)
-const SEGMENT_FILTERS: { segment: string; conditions: { text: string; trigger: string }[] }[] = [
-  { segment: 'ARPU cao', conditions: [
-    { text: 'Phân khúc tuổi thuộc 25-34', trigger: 'E01' },
-    { text: 'Gói cước hiện tại thuộc D200', trigger: 'E01' },
-  ] },
-  { segment: 'Gen Z User', conditions: [
-    { text: 'Loại SIM thuộc eSIM', trigger: 'E02' },
-    { text: 'Loại thiết bị thuộc ANDROID', trigger: 'E02' },
-  ] },
-]
+// Điều kiện lọc theo Trigger × Phân khúc × Kênh (URD Screen 2B STT 7, đồng bộ Campaign Builder
+// Section 4 STT 4b từ V4.0/V4.5) — mỗi kênh có bộ điều kiện lọc riêng, không còn gộp chung tại
+// Section 3 như mô hình cũ trước V4.0. Key ngoài = kênh, key trong = tên phân khúc.
+type FilterEntry = { text: string; trigger: string }
+const CHANNEL_SEGMENT_FILTERS: Partial<Record<ChannelType, Record<string, FilterEntry[]>>> = {
+  Push: {
+    'ARPU cao': [
+      { text: 'Phân khúc tuổi thuộc 25-34', trigger: 'E01' },
+      { text: 'Gói cước hiện tại thuộc D200', trigger: 'E01' },
+    ],
+    'Gen Z User': [
+      { text: 'Loại SIM thuộc eSIM', trigger: 'E02' },
+      { text: 'Loại thiết bị thuộc ANDROID', trigger: 'E02' },
+    ],
+  },
+  SMS: {
+    'ARPU cao': [
+      { text: 'Data còn lại nhỏ hơn 10%', trigger: 'E01' },
+    ],
+    'Gen Z User': [
+      { text: 'Loại SIM thuộc eSIM', trigger: 'E02' },
+      { text: 'Loại thiết bị thuộc ANDROID', trigger: 'E02' },
+    ],
+  },
+}
 
 
 type SendTime =
@@ -108,6 +121,15 @@ const DEFAULT_SCHEDULE: ScheduleConfig = {
   },
   channels: {},
 }
+
+// Nhắc lại (Re-engagement, URD II.6.10) — cấu hình riêng theo từng campaign (V4.1, đổi đơn vị
+// khoảng cách sang ngày ở V4.7); keyed theo campaign id, mặc định Tắt nếu không có mock riêng.
+type ReminderConfig = { enabled: boolean; maxCount?: number; gapDays?: number }
+const MOCK_REMINDERS: Record<string, ReminderConfig> = {
+  '1': { enabled: true, maxCount: 2, gapDays: 3 },
+  '3': { enabled: true, maxCount: 1, gapDays: 7 },
+}
+const DEFAULT_REMINDER: ReminderConfig = { enabled: false }
 
 const BL_PHONES = [
   '0987 xxx 001',
@@ -309,38 +331,15 @@ export function CampaignDetail() {
             <div className="text-xs text-slate-500">
               Ưu tiên khi khớp nhiều sự kiện kích hoạt: Chỉ gửi sự kiện thứ tự 1
             </div>
-            <div className="text-xs text-slate-500">
-              Ước tính tin: ~6,800 KH × 2 kênh = ~13,600 tin
-            </div>
           </div>
         </section>
 
-        {/* S3 */}
+        {/* S3 — không hiển thị điều kiện lọc/Reach tại đây, xem Section 4 theo từng tab kênh (URD V4.0/V4.5) */}
         <section className="px-6 py-4 space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">3. Đối tượng / Phân khúc</h2>
           <dl className="text-sm space-y-1.5 text-slate-600">
             <div className="flex gap-2"><dt className="text-slate-500 w-32">Phân khúc:</dt><dd>Gen Z User (18–25) · Sắp hết data</dd></div>
             <div className="flex gap-2"><dt className="text-slate-500 w-32">Logic:</dt><dd>Bất kỳ phân khúc nào (OR)</dd></div>
-            <div className="flex gap-2 items-start">
-              <dt className="text-slate-500 w-32 pt-0.5">Điều kiện lọc:</dt>
-              <dd className="flex-1 space-y-1.5">
-                {SEGMENT_FILTERS.map(sf => (
-                  <div key={sf.segment} className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-medium text-slate-700">[{sf.segment}]</span>
-                    {sf.conditions.map((c, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-xs">
-                        {c.text}
-                        <span className="font-mono text-slate-400" title={`Thuộc tính của trigger ${c.trigger}`}>· {c.trigger}</span>
-                      </span>
-                    ))}
-                  </div>
-                ))}
-              </dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-slate-500 w-32">Độ phủ ước tính:</dt>
-              <dd className="font-semibold text-blue-600">~6,800 KH</dd>
-            </div>
           </dl>
         </section>
 
@@ -406,16 +405,41 @@ export function CampaignDetail() {
                     )}
                     <div><span className="text-slate-500">Nội dung: </span>{currentVariant?.body}</div>
                   </div>
+
+                  {/* Điều kiện lọc theo Kênh (chỉ đọc) — theo đúng phân khúc đang xem trong tab kênh
+                      này (URD Screen 2B STT 7, V4.0/V4.5); AND giữa các điều kiện trong cùng khối */}
+                  {(() => {
+                    const segmentName = currentVariant?.segmentName ?? 'Tất cả (dự phòng)'
+                    const conditions = CHANNEL_SEGMENT_FILTERS[activeTab]?.[segmentName] ?? []
+                    return (
+                      <div className="px-3 py-2 border-t border-slate-100 bg-slate-50 text-xs">
+                        <span className="text-slate-500">Điều kiện lọc: </span>
+                        {conditions.length === 0 ? (
+                          <span className="text-slate-400 italic">(chưa có điều kiện lọc)</span>
+                        ) : (
+                          <span className="inline-flex flex-wrap gap-1 align-middle">
+                            {conditions.map((c, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded px-1.5 py-0.5">
+                                {c.text}
+                                <span className="font-mono text-slate-400" title={`Thuộc tính của trigger ${c.trigger}`}>· {c.trigger}</span>
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               )
             })}
           </div>
-          <div className="text-xs text-slate-400">(Nhấn tab kênh để xem nội dung từng kênh)</div>
+          <div className="text-xs text-slate-400">(Nhấn tab kênh để xem nội dung và điều kiện lọc từng kênh)</div>
         </section>
 
         {/* S5 */}
         {(() => {
           const schedule = MOCK_SCHEDULES[id ?? ''] ?? DEFAULT_SCHEDULE
+          const reminder = MOCK_REMINDERS[id ?? ''] ?? DEFAULT_REMINDER
           return (
             <section className="px-6 py-4 space-y-3">
               <h2 className="text-sm font-semibold text-slate-700">5. Kênh &amp; Lịch gửi</h2>
@@ -466,16 +490,34 @@ export function CampaignDetail() {
                   </tbody>
                 </table>
               )}
+
+              {/* Nhắc lại (Re-engagement) — URD II.6.10, cấu hình riêng theo campaign (V4.1) */}
+              <div className="flex gap-2 text-sm pt-1 border-t border-slate-100">
+                <span className="text-slate-500 w-40 flex-shrink-0">Cho phép nhắc lại:</span>
+                <span className="font-medium text-slate-700">{reminder.enabled ? 'Bật' : 'Tắt'}</span>
+              </div>
+              {reminder.enabled && (
+                <>
+                  <div className="flex gap-2 text-sm">
+                    <span className="text-slate-500 w-40 flex-shrink-0">Số lần nhắc lại tối đa:</span>
+                    <span className="font-medium text-slate-700">{reminder.maxCount}</span>
+                  </div>
+                  <div className="flex gap-2 text-sm">
+                    <span className="text-slate-500 w-40 flex-shrink-0">Khoảng cách tối thiểu:</span>
+                    <span className="font-medium text-slate-700">{reminder.gapDays} ngày</span>
+                  </div>
+                </>
+              )}
             </section>
           )
         })()}
 
-        {/* S6 */}
+        {/* S6 — không có khối Blackout riêng tại đây (đã dời sang Section 5 Kênh & Lịch gửi từ
+            trước V4.0); không hiển thị "Độ phủ cuối cùng" (Reach đã bỏ khỏi campaign từ V4.5) */}
         <section className="px-6 py-4 space-y-2">
           <h2 className="text-sm font-semibold text-slate-700">6. An toàn</h2>
           <dl className="text-sm space-y-1.5 text-slate-600">
             {[
-              ['Giờ giới nghiêm', 'Bật · 22:00 – 08:00 · Hủy luôn'],
               ['DNC toàn hệ thống', 'Bật'],
             ].map(([label, value]) => (
               <div key={label} className="flex gap-2">
@@ -507,14 +549,6 @@ export function CampaignDetail() {
                 </button>
               </dd>
             </div>
-            {[
-              ['Độ phủ cuối cùng', '~6,480 KH'],
-            ].map(([label, value]) => (
-              <div key={label} className="flex gap-2">
-                <dt className="text-slate-500 w-40 flex-shrink-0">{label}:</dt>
-                <dd className="font-medium">{value}</dd>
-              </div>
-            ))}
           </dl>
         </section>
       </div>
