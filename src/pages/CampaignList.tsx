@@ -26,6 +26,7 @@ export function CampaignList() {
   const [confirmActivatePending, setConfirmActivatePending] = useState<Campaign | null>(null)
   const [editingPriority, setEditingPriority] = useState<string | null>(null)
   const [priorityDraft, setPriorityDraft] = useState('')
+  const [priorityErr, setPriorityErr] = useState('')
   const [confirmPriorityChange, setConfirmPriorityChange] = useState<{ campaign: Campaign; newPriority: number } | null>(null)
 
   const toggleFilter = (f: CampaignStatus) =>
@@ -74,11 +75,19 @@ export function CampaignList() {
   const startEditPriority = (c: Campaign) => {
     setEditingPriority(c.id)
     setPriorityDraft(String(c.priority))
+    setPriorityErr('')
   }
+  // Validate: số nguyên dương 1–9999, cùng ngưỡng với Campaign Builder (URD Screen 3 STT 5,
+  // Screen 2 STT 7 v4.11) — sai định dạng/ngoài khoảng thì giữ edit mode, không âm thầm bỏ qua.
   const commitPriorityEdit = (c: Campaign) => {
     const newPriority = Number(priorityDraft)
+    if (!Number.isInteger(newPriority) || newPriority < 1 || newPriority > 9999) {
+      setPriorityErr('Độ ưu tiên phải là số nguyên từ 1 đến 9999')
+      return
+    }
     setEditingPriority(null)
-    if (!Number.isInteger(newPriority) || newPriority < 1 || newPriority === c.priority) return
+    setPriorityErr('')
+    if (newPriority === c.priority) return
     if (c.status === 'Draft') {
       setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, priority: newPriority } : x))
       toast('Đã cập nhật độ ưu tiên ✓', 'success')
@@ -206,16 +215,20 @@ export function CampaignList() {
                 <td className="px-4 py-3">
                   {c.status === 'Active' || c.status === 'Draft' ? (
                     editingPriority === c.id ? (
-                      <input
-                        type="number"
-                        autoFocus
-                        value={priorityDraft}
-                        min={1}
-                        onChange={e => setPriorityDraft(e.target.value)}
-                        onBlur={() => commitPriorityEdit(c)}
-                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-                        className="w-16 px-1.5 py-1 text-xs border border-blue-300 rounded focus:outline-none"
-                      />
+                      <div>
+                        <input
+                          type="number"
+                          autoFocus
+                          value={priorityDraft}
+                          min={1}
+                          max={9999}
+                          onChange={e => { setPriorityDraft(e.target.value); setPriorityErr('') }}
+                          onBlur={() => commitPriorityEdit(c)}
+                          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                          className={`w-16 px-1.5 py-1 text-xs border rounded focus:outline-none ${priorityErr ? 'border-red-400 bg-red-50' : 'border-blue-300'}`}
+                        />
+                        {priorityErr && <div className="text-[10px] text-red-500 mt-0.5 w-32">{priorityErr}</div>}
+                      </div>
                     ) : (
                       <button
                         onClick={() => startEditPriority(c)}

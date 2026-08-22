@@ -150,11 +150,13 @@ export function BlacklistManagement() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
-  // Add form (theo Campaign) — multi-select Campaign + Kênh (URD Screen 6B STT 2, 3)
+  // Add form (theo Campaign) — multi-select Campaign + Kênh, cả 2 đều bắt buộc (URD Screen 6B STT 2, 3)
   const [addPhone, setAddPhone] = useState('')
   const [addPhoneErr, setAddPhoneErr] = useState('')
   const [addCampaigns, setAddCampaigns] = useState<string[]>([])
+  const [addCampaignErr, setAddCampaignErr] = useState('')
   const [addChannels, setAddChannels] = useState<ChannelType[]>(['Push'])
+  const [addChannelErr, setAddChannelErr] = useState('')
   const [addModalErr, setAddModalErr] = useState('')
 
   // Upload form (theo Campaign) — multi-select Campaign + Kênh (URD Screen 6C STT 1, 2)
@@ -196,11 +198,15 @@ export function BlacklistManagement() {
   // đã tồn tại; parse nhiều số cách nhau bởi dấu phẩy/xuống dòng (URD Screen 6B STT 1, 4, 6).
   const handleAdd = () => {
     setAddModalErr('')
+    setAddCampaignErr('')
+    setAddChannelErr('')
     const phones = addPhone.split(/[,\n]/).map(p => p.trim()).filter(Boolean)
     const validPhones = phones.filter(p => !validatePhone(p))
     if (validPhones.length === 0) { setAddPhoneErr('Số điện thoại không được để trống'); return }
-    if (addCampaigns.length === 0) return
-    if (addChannels.length === 0) return
+    let hasError = false
+    if (addCampaigns.length === 0) { setAddCampaignErr('Vui lòng chọn ít nhất 1 chiến dịch'); hasError = true }
+    if (addChannels.length === 0) { setAddChannelErr('Vui lòng chọn ít nhất 1 kênh'); hasError = true }
+    if (hasError) return
 
     const toAdd: BlacklistEntry[] = []
     for (const phone of validPhones) {
@@ -220,7 +226,7 @@ export function BlacklistManagement() {
     setList(prev => [...toAdd, ...prev])
     toast(`Đã thêm ${toAdd.length} bản ghi vào danh sách chặn ✓`, 'success')
     setAddOpen(false)
-    setAddPhone(''); setAddCampaigns([]); setAddChannels(['Push']); setAddPhoneErr(''); setAddModalErr('')
+    setAddPhone(''); setAddCampaigns([]); setAddChannels(['Push']); setAddPhoneErr(''); setAddCampaignErr(''); setAddChannelErr(''); setAddModalErr('')
   }
 
   // Xóa 1 chip — gỡ đúng 1 tổ hợp (số, campaign, kênh); dòng còn chip khác vẫn giữ nguyên
@@ -416,7 +422,7 @@ export function BlacklistManagement() {
       </div>
 
       {/* Add dialog */}
-      <Dialog open={addOpen} onClose={() => { setAddOpen(false); setAddPhoneErr(''); setAddModalErr('') }} title="Thêm vào Danh sách chặn" className="max-w-md">
+      <Dialog open={addOpen} onClose={() => { setAddOpen(false); setAddPhoneErr(''); setAddCampaignErr(''); setAddChannelErr(''); setAddModalErr('') }} title="Thêm vào Danh sách chặn" className="max-w-md">
         <div className="space-y-3 text-sm">
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Số điện thoại *</label>
@@ -431,12 +437,14 @@ export function BlacklistManagement() {
             <CheckboxMultiSelect
               options={mockCampaigns.map(c => c.name)}
               selected={addCampaigns}
-              onToggle={v => setAddCampaigns(prev => toggleInArray(prev, v))} />
+              onToggle={v => { setAddCampaigns(prev => toggleInArray(prev, v)); setAddCampaignErr('') }} />
+            {addCampaignErr && <div className="text-xs text-red-500 mt-1">{addCampaignErr}</div>}
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Kênh * <span className="font-normal text-slate-400">(chọn nhiều)</span></label>
             <CheckboxMultiSelect options={CHANNELS} selected={addChannels}
-              onToggle={v => setAddChannels(prev => toggleInArray(prev, v))} />
+              onToggle={v => { setAddChannels(prev => toggleInArray(prev, v)); setAddChannelErr('') }} />
+            {addChannelErr && <div className="text-xs text-red-500 mt-1">{addChannelErr}</div>}
           </div>
           {addModalErr && <div className="text-xs text-red-600 bg-red-50 rounded px-2 py-1.5">{addModalErr}</div>}
         </div>
