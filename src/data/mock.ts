@@ -2043,6 +2043,11 @@ export const mockBlacklist: BlacklistEntry[] = [
   { phone: '0934567013', campaign: 'Giữ chân KH có nguy cơ rời mạng', channel: 'Push', source: 'campaign' },
   { phone: '0945678014', campaign: 'Giữ chân KH có nguy cơ rời mạng', channel: 'Email', source: 'manual' },
   { phone: '0956789015', campaign: 'Tết Nguyên Đán 2026',        channel: 'Banner',  source: 'upload' },
+  // Số bị chặn ở nhiều campaign/kênh — minh họa gộp bảng theo Số điện thoại (URD V4.9, Screen 6A):
+  // 1 dòng/số, cột Campaign/Kênh liệt kê chip tối đa 2 + "+N ⓘ".
+  { phone: '0987654001', campaign: 'Welcome eSIM Q2/2026',        channel: 'SMS',     source: 'manual' },
+  { phone: '0987654001', campaign: 'Hết hạn gói data',           channel: 'Email',   source: 'upload' },
+  { phone: '0987654001', campaign: 'Chào mừng du lịch',          channel: 'Zalo OA', source: 'campaign' },
   // Blacklist toàn hệ thống (UC-BL-04/UC-BL-05) — scope='global', campaign/channel giữ placeholder cố định
   // để tái dùng đúng field hiện có mà không phải sửa kiểu dữ liệu của các entry theo campaign.
   { phone: '0900000016', campaign: 'Toàn hệ thống', channel: 'Push', source: 'manual', scope: 'global' },

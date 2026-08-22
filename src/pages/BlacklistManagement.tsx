@@ -37,6 +37,101 @@ function toggleInArray<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
 }
 
+// Gộp bảng theo Số điện thoại (URD Screen 6A V4.9) — 1 dòng/số trong đúng 1 phạm vi (campaign/global);
+// dữ liệu lưu trữ vẫn theo từng tổ hợp (BlacklistEntry[] phẳng), chỉ gộp ở tầng hiển thị. Blacklist
+// toàn hệ thống luôn tách dòng riêng, không gộp chung với dòng Theo Campaign của cùng số.
+interface BlacklistRow {
+  phone: string
+  scope: BlacklistScope
+  entries: BlacklistEntry[]
+  campaigns: string[]
+  channels: ChannelType[]
+}
+
+function groupBlacklist(entries: BlacklistEntry[]): BlacklistRow[] {
+  const rows = new Map<string, BlacklistRow>()
+  for (const e of entries) {
+    const scope: BlacklistScope = e.scope ?? 'campaign'
+    const key = `${scope}::${e.phone}`
+    let row = rows.get(key)
+    if (!row) {
+      row = { phone: e.phone, scope, entries: [], campaigns: [], channels: [] }
+      rows.set(key, row)
+    }
+    row.entries.push(e)
+    if (!row.campaigns.includes(e.campaign)) row.campaigns.push(e.campaign)
+    if (!row.channels.includes(e.channel)) row.channels.push(e.channel)
+  }
+  return Array.from(rows.values())
+}
+
+// Chip Campaign/Kênh cho 1 dòng đã gộp — tối đa 2 chip + "+N ⓘ" (popover đầy đủ), mỗi chip có [×] riêng
+// để gỡ đúng tổ hợp (số, campaign, kênh) — cùng pattern chip "+N" đã dùng ở Campaign List/Template List.
+function EntryChipList({ row, kind, canDelete, onDeleteEntry }: {
+  row: BlacklistRow
+  kind: 'campaign' | 'channel'
+  canDelete: boolean
+  onDeleteEntry: (e: BlacklistEntry) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const values = kind === 'campaign' ? row.campaigns : row.channels
+  const visible = values.slice(0, 2)
+  const hidden = values.length - 2
+
+  const entryFor = (val: string) => row.entries.find(e => (kind === 'campaign' ? e.campaign : e.channel) === val)
+
+  return (
+    <div className="flex flex-wrap gap-1 items-center relative">
+      {visible.map(v => (
+        <span key={v} className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 rounded px-2 py-0.5 text-xs">
+          {v}
+          {canDelete && (
+            <button
+              onClick={() => { const e = entryFor(v); if (e) onDeleteEntry(e) }}
+              className="text-slate-400 hover:text-red-500"
+              title={`Xóa khỏi ${kind === 'campaign' ? 'chiến dịch' : 'kênh'} ${v}`}
+            >
+              ×
+            </button>
+          )}
+        </span>
+      ))}
+      {hidden > 0 && (
+        <div className="relative">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-slate-500 hover:text-blue-600 border border-slate-200 rounded-full px-1.5 py-0.5"
+          >
+            +{hidden} ⓘ
+          </button>
+          {expanded && (
+            <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 min-w-56">
+              <div className="px-3 pt-2 pb-1 border-b border-slate-100 text-xs font-medium text-slate-500">
+                Tất cả {kind === 'campaign' ? 'chiến dịch' : 'kênh'} ({values.length})
+              </div>
+              <div className="max-h-48 overflow-y-auto divide-y divide-slate-50">
+                {values.map(v => (
+                  <div key={v} className="px-3 py-1.5 text-xs text-slate-600 flex items-center justify-between gap-2">
+                    <span>{v}</span>
+                    {canDelete && (
+                      <button
+                        onClick={() => { const e = entryFor(v); if (e) onDeleteEntry(e) }}
+                        className="text-slate-400 hover:text-red-500"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function BlacklistManagement() {
   const { toast } = useToast()
   const { isAdmin } = useRole()
@@ -45,12 +140,13 @@ export function BlacklistManagement() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [globalOpen, setGlobalOpen] = useState(false)
   const [globalTab, setGlobalTab] = useState<'manual' | 'upload'>('manual')
-  const [deleteTarget, setDeleteTarget] = useState<BlacklistEntry | null>(null)
+  // Xóa 1 chip (gỡ đúng 1 tổ hợp) hoặc xóa toàn dòng (gỡ mọi tổ hợp của số trong phạm vi đang xem)
+  const [deleteEntryTarget, setDeleteEntryTarget] = useState<BlacklistEntry | null>(null)
+  const [deleteRowTarget, setDeleteRowTarget] = useState<BlacklistRow | null>(null)
   const [search, setSearch] = useState('')
   const [filterScope, setFilterScope] = useState<'' | BlacklistScope>('')
   const [filterCampaign, setFilterCampaign] = useState('')
   const [filterChannel, setFilterChannel] = useState('')
-  const [filterSource, setFilterSource] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
@@ -73,14 +169,13 @@ export function BlacklistManagement() {
   // Blacklist toàn hệ thống — Upload CSV (không có Campaign/Kênh — UC-BL-05)
   const [gUpParsed, setGUpParsed] = useState<{ valid: number; duplicate: number; invalid: number } | null>(null)
 
-  const filtered = list.filter(e => {
-    const scope: BlacklistScope = e.scope ?? 'campaign'
-    const matchSearch = !search || e.phone.includes(search) || e.campaign.toLowerCase().includes(search.toLowerCase())
-    const matchScope = !filterScope || scope === filterScope
-    const matchCampaign = !filterCampaign || e.campaign === filterCampaign
-    const matchChannel = !filterChannel || e.channel === filterChannel
-    const matchSource = !filterSource || e.source === filterSource
-    return matchSearch && matchScope && matchCampaign && matchChannel && matchSource
+  const rows = groupBlacklist(list)
+  const filtered = rows.filter(r => {
+    const matchSearch = !search || r.phone.includes(search) || r.campaigns.some(c => c.toLowerCase().includes(search.toLowerCase()))
+    const matchScope = !filterScope || r.scope === filterScope
+    const matchCampaign = !filterCampaign || r.campaigns.includes(filterCampaign)
+    const matchChannel = !filterChannel || r.channels.includes(filterChannel as ChannelType)
+    return matchSearch && matchScope && matchCampaign && matchChannel
   })
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
@@ -128,11 +223,21 @@ export function BlacklistManagement() {
     setAddPhone(''); setAddCampaigns([]); setAddChannels(['Push']); setAddPhoneErr(''); setAddModalErr('')
   }
 
-  const handleDelete = () => {
-    if (!deleteTarget) return
-    setList(prev => prev.filter(x => x !== deleteTarget))
+  // Xóa 1 chip — gỡ đúng 1 tổ hợp (số, campaign, kênh); dòng còn chip khác vẫn giữ nguyên
+  const handleDeleteEntry = () => {
+    if (!deleteEntryTarget) return
+    setList(prev => prev.filter(x => x !== deleteEntryTarget))
     toast('Đã xóa ✓', 'success')
-    setDeleteTarget(null)
+    setDeleteEntryTarget(null)
+  }
+
+  // Xóa toàn dòng — gỡ mọi tổ hợp của số đó trong đúng phạm vi đang thao tác, không đụng phạm vi kia
+  const handleDeleteRow = () => {
+    if (!deleteRowTarget) return
+    const toRemove = new Set(deleteRowTarget.entries)
+    setList(prev => prev.filter(x => !toRemove.has(x)))
+    toast('Đã xóa ✓', 'success')
+    setDeleteRowTarget(null)
   }
 
   const handleFileSimulate = () => {
@@ -190,17 +295,6 @@ export function BlacklistManagement() {
     setGlobalTab('manual')
   }
 
-  const sourceLabel = (e: BlacklistEntry) => {
-    if ((e.scope ?? 'campaign') === 'global') {
-      return e.source === 'upload' ? 'Tải lên tệp (Toàn hệ thống)' : 'Thêm thủ công (Toàn hệ thống)'
-    }
-    return ({
-      campaign: 'Chọn trong chiến dịch',
-      upload: 'Tải lên tệp',
-      manual: 'Thêm thủ công',
-    } as Record<string, string>)[e.source] ?? e.source
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -245,13 +339,6 @@ export function BlacklistManagement() {
           <option value="">Kênh: Tất cả</option>
           {CHANNELS.map(ch => <option key={ch} value={ch}>{ch}</option>)}
         </select>
-        <select value={filterSource} onChange={e => { setFilterSource(e.target.value); setPage(1) }}
-          className="text-sm border border-slate-200 rounded px-2 py-2 focus:outline-none">
-          <option value="">Nguồn: Tất cả</option>
-          <option value="manual">Thêm thủ công</option>
-          <option value="upload">Tải lên tệp</option>
-          <option value="campaign">Từ chiến dịch</option>
-        </select>
       </div>
 
       {/* Table */}
@@ -262,30 +349,31 @@ export function BlacklistManagement() {
               <th className="text-left px-4 py-3 font-medium">Số điện thoại</th>
               <th className="text-left px-4 py-3 font-medium">Chiến dịch</th>
               <th className="text-left px-4 py-3 font-medium">Kênh</th>
-              <th className="text-left px-4 py-3 font-medium">Nguồn</th>
               <th className="text-right px-4 py-3 font-medium">Hành động</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {paged.map((e, i) => {
-              const isGlobal = (e.scope ?? 'campaign') === 'global'
+            {paged.map(row => {
+              const isGlobal = row.scope === 'global'
+              const canDelete = !isGlobal || isAdmin
               return (
-                <tr key={i} className="hover:bg-slate-50">
-                  <td className="px-4 py-2.5 font-mono text-sm">{e.phone}</td>
+                <tr key={`${row.scope}::${row.phone}`} className="hover:bg-slate-50">
+                  <td className="px-4 py-2.5 font-mono text-sm">{row.phone}</td>
                   <td className="px-4 py-2.5 text-slate-700">
                     {isGlobal
                       ? <span className="font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5 text-xs">Toàn hệ thống</span>
-                      : e.campaign}
+                      : <EntryChipList row={row} kind="campaign" canDelete={canDelete} onDeleteEntry={setDeleteEntryTarget} />}
                   </td>
                   <td className="px-4 py-2.5">
-                    <span className="bg-slate-100 text-slate-600 rounded px-2 py-0.5 text-xs">{isGlobal ? 'Tất cả kênh' : e.channel}</span>
+                    {isGlobal
+                      ? <span className="bg-slate-100 text-slate-600 rounded px-2 py-0.5 text-xs">Tất cả kênh</span>
+                      : <EntryChipList row={row} kind="channel" canDelete={canDelete} onDeleteEntry={setDeleteEntryTarget} />}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-slate-500">{sourceLabel(e)}</td>
                   <td className="px-4 py-2.5 text-right">
-                    {isGlobal && !isAdmin ? (
+                    {!canDelete ? (
                       <span className="text-xs text-slate-400">Chỉ đọc</span>
                     ) : (
-                      <Button size="sm" variant="danger" onClick={() => setDeleteTarget(e)}>
+                      <Button size="sm" variant="danger" onClick={() => setDeleteRowTarget(row)}>
                         <Trash2 size={12} /> Xóa
                       </Button>
                     )}
@@ -294,12 +382,12 @@ export function BlacklistManagement() {
               )
             })}
             {paged.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">Danh sách chặn đang trống</td></tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">Danh sách chặn đang trống</td></tr>
             )}
           </tbody>
         </table>
         <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span>{filtered.length} bản ghi</span>
+          <span>{filtered.length} số</span>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
               <button onClick={() => changePage(1)} disabled={currentPage === 1} className="px-1.5 py-1 rounded hover:bg-slate-100 disabled:opacity-30">«</button>
@@ -503,16 +591,27 @@ export function BlacklistManagement() {
         </DialogActions>
       </Dialog>
 
-      {/* Delete confirm */}
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Xác nhận xóa">
+      {/* Delete 1 chip — gỡ đúng 1 tổ hợp (số, campaign, kênh) */}
+      <Dialog open={!!deleteEntryTarget} onClose={() => setDeleteEntryTarget(null)} title="Xác nhận xóa">
         <p className="text-sm text-slate-600">
-          {(deleteTarget?.scope ?? 'campaign') === 'global'
-            ? <>Xóa <strong>{deleteTarget?.phone}</strong> khỏi Danh sách chặn toàn hệ thống? Số này sẽ có thể nhận tin từ mọi chiến dịch (trừ khi vẫn còn trong danh sách chặn riêng của chiến dịch nào đó).</>
-            : <>Xóa <strong>{deleteTarget?.phone}</strong> khỏi danh sách chặn của chiến dịch <strong>{deleteTarget?.campaign}</strong> kênh <strong>{deleteTarget?.channel}</strong>? Số này sẽ có thể nhận tin từ chiến dịch này.</>}
+          Xóa <strong>{deleteEntryTarget?.phone}</strong> khỏi danh sách chặn của chiến dịch <strong>{deleteEntryTarget?.campaign}</strong> kênh <strong>{deleteEntryTarget?.channel}</strong>? Số này sẽ có thể nhận tin từ chiến dịch này.
         </p>
         <DialogActions>
-          <Button variant="outline" onClick={() => setDeleteTarget(null)}>Hủy</Button>
-          <Button variant="danger" onClick={handleDelete}>Xóa</Button>
+          <Button variant="outline" onClick={() => setDeleteEntryTarget(null)}>Hủy</Button>
+          <Button variant="danger" onClick={handleDeleteEntry}>Xóa</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete toàn dòng — gỡ mọi tổ hợp của số trong đúng phạm vi đang xem */}
+      <Dialog open={!!deleteRowTarget} onClose={() => setDeleteRowTarget(null)} title="Xác nhận xóa">
+        <p className="text-sm text-slate-600">
+          {deleteRowTarget?.scope === 'global'
+            ? <>Xóa <strong>{deleteRowTarget?.phone}</strong> khỏi Danh sách chặn toàn hệ thống? Số này sẽ có thể nhận tin từ mọi chiến dịch (trừ khi vẫn còn trong danh sách chặn riêng của chiến dịch nào đó).</>
+            : <>Xóa <strong>{deleteRowTarget?.phone}</strong> khỏi TẤT CẢ {deleteRowTarget?.entries.length} chiến dịch-kênh đang chặn: {deleteRowTarget?.entries.map(e => `${e.campaign} (${e.channel})`).join(', ')}?</>}
+        </p>
+        <DialogActions>
+          <Button variant="outline" onClick={() => setDeleteRowTarget(null)}>Hủy</Button>
+          <Button variant="danger" onClick={handleDeleteRow}>Xóa</Button>
         </DialogActions>
       </Dialog>
     </div>
