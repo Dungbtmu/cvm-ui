@@ -1144,15 +1144,15 @@ export function CampaignBuilder() {
   // Khác Retry kỹ thuật: chỉ nhắc khi lần gửi trước THÀNH CÔNG và KH vẫn còn thoả điều kiện trigger.
   const [allowReminder, setAllowReminder] = useState(false)
   const [reminderMaxCount, setReminderMaxCount] = useState('')
-  const [reminderGapHours, setReminderGapHours] = useState('')
-  const reminderFieldError = (v: string) => {
+  const [reminderGapDays, setReminderGapDays] = useState('')
+  const inRange = (v: string, max: number) => {
     if (v === '') return false
     const n = Number(v)
-    return !Number.isInteger(n) || n <= 0 || n > 9999
+    return !Number.isInteger(n) || n <= 0 || n > max
   }
-  const reminderMaxErr = reminderFieldError(reminderMaxCount)
-  const reminderGapErr = reminderFieldError(reminderGapHours)
-  const reminderIncompleteErr = allowReminder && (reminderMaxCount === '' || reminderGapHours === '')
+  const reminderMaxErr = inRange(reminderMaxCount, 9999)
+  const reminderGapErr = inRange(reminderGapDays, 365)
+  const reminderIncompleteErr = allowReminder && (reminderMaxCount === '' || reminderGapDays === '')
 
   // S4
   const [activeChannelTab, setActiveChannelTab] = useState<ChannelType>('Push')
@@ -1208,7 +1208,8 @@ export function CampaignBuilder() {
   if (existing?.paramInvalid) issues.push('Còn tham số không hợp lệ do sự kiện kích hoạt đã thay đổi — sửa nội dung tin nhắn')
   if (existing?.filterInvalid) issues.push('Còn điều kiện lọc không hợp lệ do sự kiện kích hoạt đã thay đổi — sửa điều kiện lọc ở mục 4 (Ma trận tin nhắn)')
   if (reminderIncompleteErr) issues.push('Nhắc lại: chưa nhập đầy đủ số lần và khoảng cách')
-  if (reminderMaxErr || reminderGapErr) issues.push('Nhắc lại: giá trị không hợp lệ (phải là số nguyên từ 1 đến 9999)')
+  if (reminderMaxErr) issues.push('Nhắc lại: số lần nhắc lại tối đa phải là số nguyên từ 1 đến 9999')
+  if (reminderGapErr) issues.push('Nhắc lại: khoảng cách tối thiểu phải là số nguyên từ 1 đến 365 ngày')
 
   // ---- Trigger helpers ----
   const canAddTrigger = triggerMode === 'advanced' || selectedTriggers.length === 0
@@ -2055,9 +2056,9 @@ export function CampaignBuilder() {
                       className={`w-24 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-400 ${reminderMaxErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
                   </div>
                   <div className="flex items-center gap-3">
-                    <label className="text-xs text-slate-600 w-48">Khoảng cách tối thiểu (giờ):</label>
-                    <input type="number" min="1" max="9999" value={reminderGapHours}
-                      onChange={e => setReminderGapHours(e.target.value)} placeholder="VD: 24"
+                    <label className="text-xs text-slate-600 w-48">Khoảng cách tối thiểu (ngày):</label>
+                    <input type="number" min="1" max="365" value={reminderGapDays}
+                      onChange={e => setReminderGapDays(e.target.value)} placeholder="VD: 3"
                       className={`w-24 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-400 ${reminderGapErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
                   </div>
                   {reminderIncompleteErr && (
