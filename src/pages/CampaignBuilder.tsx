@@ -458,11 +458,25 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
           )}
         </div>
 
-        {/* RIGHT: preview */}
+        {/* RIGHT: preview — có ≥ 2 biến thể → hiển thị đồng thời N card xếp dọc, không theo tab
+            (URD Screen 3 Section 4 STT 11, V4.8); 0-1 biến thể → 1 card như cũ */}
         <div className="p-4 bg-slate-50 space-y-3">
           <div className="text-xs text-slate-500 font-medium">XEM TRƯỚC</div>
           {showPreview ? (
-            <ChannelPreview ch={ch} content={content} />
+            data.variants.length > 1 ? (
+              <div className="space-y-3">
+                {data.variants.map((v, idx) => (
+                  <div key={idx}>
+                    <div className="text-[11px] text-slate-400 font-medium mb-1">
+                      Biến thể {idx + 1} · {v.segmentName}
+                    </div>
+                    <ChannelPreview ch={ch} content={v.content} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ChannelPreview ch={ch} content={content} />
+            )
           ) : (
             <div className="bg-white border border-slate-200 rounded-lg p-4 flex items-center justify-center text-xs text-slate-400 h-24">
               Nhấn [↻ Xem trước] để làm mới
