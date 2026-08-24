@@ -2,19 +2,23 @@ import { type ClassValue, clsx } from 'clsx'
 import type { Campaign, CampaignStatus } from '../types'
 
 // Lý do khóa nút [Bật] (kích hoạt lại) của campaign Paused do cờ vô hiệu — null nếu không bị khóa.
-// URD Khối 3: campaign còn cờ PARAM_INVALID / FILTER_INVALID không được bật thẳng, phải [Sửa] → gửi duyệt lại.
+// URD Khối 3 + UC-CAM-07: chỉ khóa khi param/điều kiện lọc VẪN đang bị Khóa (locked = true); nếu Admin
+// đã Mở khóa lại (locked = false) thì [Bật] hoạt động lại — xem reactivateFlow nhánh 'toPrePauseStatus'.
 export function reactivateBlockReason(c: Campaign): string | null {
-  if (c.paramInvalid) return 'Campaign đang có tham số không hợp lệ do trigger đã thay đổi — vui lòng vào [Sửa] để cập nhật nội dung message trước khi gửi duyệt lại'
-  if (c.filterInvalid) return 'Campaign đang có điều kiện lọc không hợp lệ do trigger đã thay đổi thuộc tính lọc — vui lòng vào [Sửa] để cập nhật điều kiện lọc trước khi gửi duyệt lại'
+  if (c.paramInvalid?.locked) return 'Campaign đang có tham số không hợp lệ do trigger đã thay đổi — vui lòng vào [Sửa] để cập nhật nội dung message trước khi gửi duyệt lại'
+  if (c.filterInvalid?.locked) return 'Campaign đang có điều kiện lọc không hợp lệ do trigger đã thay đổi thuộc tính lọc — vui lòng vào [Sửa] để cập nhật điều kiện lọc trước khi gửi duyệt lại'
   return null
 }
 
-// Kết quả bấm [Bật] trên campaign Paused — 3 nhánh theo URD UC-CAM-07:
-// 'blocked'   — còn cờ PARAM_INVALID/FILTER_INVALID, nút [Bật] disabled vĩnh viễn (dùng reactivateBlockReason)
-// 'toPending' — param/điều kiện lọc trigger bị SỬA (không Khóa) trong lúc Paused → phải confirm, chuyển về Pending
-// 'toActive'  — không có thay đổi gì → bật thẳng Active, không cần confirm (hành vi cũ)
-export function reactivateFlow(c: Campaign): 'blocked' | 'toPending' | 'toActive' {
+// Kết quả bấm [Bật] trên campaign Paused — 4 nhánh theo URD UC-CAM-07 (V4.13 bổ sung nhánh Mở khóa):
+// 'blocked'            — param/điều kiện lọc VẪN đang Khóa, nút [Bật] disabled vĩnh viễn (dùng reactivateBlockReason)
+// 'toPrePauseStatus'   — còn cờ PARAM_INVALID/FILTER_INVALID nhưng đã được Admin MỞ KHÓA lại → confirm,
+//                        trả về đúng trạng thái gốc trước khi tự Paused (prePauseStatus), không tự Active thẳng
+// 'toPending'          — param/điều kiện lọc trigger bị SỬA (không Khóa) trong lúc Paused → phải confirm, về Pending
+// 'toActive'           — không có thay đổi gì → bật thẳng Active, không cần confirm (hành vi cũ)
+export function reactivateFlow(c: Campaign): 'blocked' | 'toPrePauseStatus' | 'toPending' | 'toActive' {
   if (reactivateBlockReason(c)) return 'blocked'
+  if (c.paramInvalid || c.filterInvalid) return 'toPrePauseStatus'
   if (c.pausedConfigChanged) return 'toPending'
   return 'toActive'
 }

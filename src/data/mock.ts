@@ -41,7 +41,7 @@ export const mockCampaigns: Campaign[] = [
     priority: 3,
     owner: 'QTV Marketing',
     createdAt: '28/04/2026 11:00',
-    paramInvalid: { triggerName: 'U_PRE_EXPIRY', paramName: 'ten_goi' },
+    paramInvalid: { triggerName: 'U_PRE_EXPIRY', paramName: 'ten_goi', locked: true },
   },
   {
     id: '4',
@@ -55,7 +55,7 @@ export const mockCampaigns: Campaign[] = [
     priority: 4,
     owner: 'QTV Marketing',
     createdAt: '14/05/2026 08:00',
-    filterInvalid: { triggerName: 'U09', filterFieldName: 'Số ngày gắn bó' },
+    filterInvalid: { triggerName: 'U09', filterFieldName: 'Số ngày gắn bó', locked: true },
   },
   {
     // Dính CẢ 2 cờ cùng lúc — dùng để test tooltip [Bật] + banner Builder hiện đồng thời
@@ -71,8 +71,27 @@ export const mockCampaigns: Campaign[] = [
     priority: 12,
     owner: 'QTV Marketing',
     createdAt: '20/08/2026 09:30',
-    paramInvalid: { triggerName: 'E01', paramName: 'package_code' },
-    filterInvalid: { triggerName: 'E01', filterFieldName: 'Loại SIM' },
+    paramInvalid: { triggerName: 'E01', paramName: 'package_code', locked: true },
+    filterInvalid: { triggerName: 'E01', filterFieldName: 'Loại SIM', locked: true },
+  },
+  {
+    // Nhánh Mở khóa (UC-CAM-07 nhánh 1c, V4.13): campaign đang Chờ duyệt bị Admin khóa param →
+    // tự Paused + cờ; Admin đã Mở khóa lại (locked: false) nhưng cờ vẫn còn tồn tại để hệ thống
+    // biết cần confirm resume — [Bật] phải trả về đúng prePauseStatus = 'Pending', không Active thẳng.
+    id: '13',
+    name: 'Test mở khóa param — resume về Chờ duyệt',
+    code: 'CVM-TEST-UNLOCK-RESUME',
+    status: 'Paused',
+    triggers: ['E01'],
+    templateIds: ['1'],
+    startDate: '01/07/2026',
+    endDate: '31/12/2026',
+    priority: 13,
+    owner: 'QTV Marketing',
+    createdAt: '22/08/2026 09:00',
+    submittedAt: '22/08/2026 09:00',
+    paramInvalid: { triggerName: 'E01', paramName: 'package_code', locked: false },
+    prePauseStatus: 'Pending',
   },
   {
     id: '7',

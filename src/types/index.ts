@@ -21,9 +21,16 @@ export interface Campaign {
   createdAt: string
   submittedAt?: string
   goal?: string
-  // Cờ campaign bị vô hiệu do trigger thay đổi — xem policy PARAM_INVALID / FILTER_INVALID (URD Khối 3)
-  paramInvalid?: { triggerName: string; paramName: string }
-  filterInvalid?: { triggerName: string; filterFieldName: string }
+  // Cờ campaign bị vô hiệu do trigger thay đổi — xem policy PARAM_INVALID / FILTER_INVALID (URD Khối 3).
+  // locked = true: param/điều kiện lọc VẪN đang bị Khóa — [Bật] khóa vĩnh viễn, chỉ resume qua [Sửa].
+  // locked = false: param/điều kiện lọc đã được Admin MỞ KHÓA lại (cờ còn tồn tại) — [Bật] hoạt động lại,
+  // trả về đúng trạng thái gốc trước khi tự Paused (prePauseStatus), không tự động chạy thẳng Active
+  // (URD UC-CAM-07 nhánh 1c, V4.13).
+  paramInvalid?: { triggerName: string; paramName: string; locked: boolean }
+  filterInvalid?: { triggerName: string; filterFieldName: string; locked: boolean }
+  // Trạng thái campaign trước khi tự động chuyển Paused do PARAM_INVALID/FILTER_INVALID — dùng để trả
+  // đúng trạng thái gốc khi nhánh Mở khóa resume (URD UC-CAM-07 nhánh 1c, V4.13).
+  prePauseStatus?: CampaignStatus
   // true = param/điều kiện lọc của trigger đang dùng bị Admin SỬA (không phải Khóa) trong lúc campaign Paused
   // — khác paramInvalid/filterInvalid (đó là do Khóa/Xóa, khóa vĩnh viễn nút Bật). Trường hợp này chỉ bắt buộc
   // Bật lại phải quay về Chờ duyệt thay vì Active thẳng (xem URD UC-CAM-07).

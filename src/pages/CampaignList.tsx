@@ -24,6 +24,7 @@ export function CampaignList() {
   const [confirmStop, setConfirmStop] = useState<Campaign | null>(null)
   const [tooltipCampaign, setTooltipCampaign] = useState<string | null>(null)
   const [confirmActivatePending, setConfirmActivatePending] = useState<Campaign | null>(null)
+  const [confirmUnlockResume, setConfirmUnlockResume] = useState<Campaign | null>(null)
   const [editingPriority, setEditingPriority] = useState<string | null>(null)
   const [priorityDraft, setPriorityDraft] = useState('')
   const [priorityErr, setPriorityErr] = useState('')
@@ -49,12 +50,15 @@ export function CampaignList() {
     toast('Chiến dịch đã dừng', 'warning')
     setConfirmStop(null)
   }
-  // [Bật] campaign Paused — 3 nhánh theo UC-CAM-07: blocked (còn cờ vô hiệu, xử lý ở nút disabled),
-  // toPending (param/điều kiện lọc trigger bị Sửa trong lúc Paused → confirm rồi về Chờ duyệt),
-  // toActive (không thay đổi gì → bật thẳng, không cần confirm — hành vi cũ)
+  // [Bật] campaign Paused — 4 nhánh theo UC-CAM-07 (V4.13 bổ sung nhánh Mở khóa): blocked (param/điều
+  // kiện lọc VẪN đang Khóa, xử lý ở nút disabled), toPrePauseStatus (còn cờ nhưng đã Mở khóa lại →
+  // confirm rồi về đúng trạng thái gốc trước khi tự Paused, không tự Active thẳng), toPending (param/
+  // điều kiện lọc trigger bị Sửa trong lúc Paused → confirm rồi về Chờ duyệt), toActive (không thay
+  // đổi gì → bật thẳng, không cần confirm — hành vi cũ)
   const handleActivate = (c: Campaign) => {
     const flow = reactivateFlow(c)
     if (flow === 'blocked') return
+    if (flow === 'toPrePauseStatus') { setConfirmUnlockResume(c); return }
     if (flow === 'toPending') { setConfirmActivatePending(c); return }
     setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: 'Active' as CampaignStatus } : x))
     toast('Chiến dịch đã kích hoạt lại', 'success')
@@ -66,6 +70,18 @@ export function CampaignList() {
       : x))
     toast('Đã chuyển về Chờ duyệt để Quản trị viên xác nhận lại', 'warning')
     setConfirmActivatePending(null)
+  }
+  // Nhánh Mở khóa (URD UC-CAM-07 nhánh 1c, V4.13) — trả về đúng trạng thái gốc trước khi tự Paused,
+  // gỡ cờ paramInvalid/filterInvalid; không tự động Active thẳng nếu gốc là Pending.
+  const confirmActivateUnlockResume = () => {
+    if (!confirmUnlockResume) return
+    const target = confirmUnlockResume.prePauseStatus ?? 'Active'
+    setCampaigns(prev => prev.map(x => x.id === confirmUnlockResume.id
+      ? { ...x, status: target, paramInvalid: undefined, filterInvalid: undefined, prePauseStatus: undefined }
+      : x))
+    toast(target === 'Pending' ? 'Đã chuyển về Chờ duyệt để Quản trị viên xác nhận lại' : 'Chiến dịch đã kích hoạt lại',
+      target === 'Pending' ? 'warning' : 'success')
+    setConfirmUnlockResume(null)
   }
 
   // Sửa priority inline trên Campaign List — áp dụng cho campaign Active và Draft.
@@ -322,6 +338,20 @@ export function CampaignList() {
         <DialogActions>
           <Button variant="outline" onClick={() => setConfirmActivatePending(null)}>Hủy</Button>
           <Button variant="primary" onClick={confirmActivateToPending}>Xác nhận</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Nhánh Mở khóa (UC-CAM-07 nhánh 1c, V4.13) — param/điều kiện lọc đã được Admin mở khóa lại,
+          [Bật] trả về đúng trạng thái gốc trước khi tự tạm dừng, không tự động Active thẳng */}
+      <Dialog open={!!confirmUnlockResume} onClose={() => setConfirmUnlockResume(null)} title="Bật lại chiến dịch?">
+        <p className="text-sm text-slate-600">
+          Tham số/điều kiện lọc đã được Quản trị viên mở khóa. Chiến dịch sẽ quay về{' '}
+          <strong>{confirmUnlockResume?.prePauseStatus === 'Pending' ? 'Chờ duyệt' : 'Đang chạy'}</strong>{' '}
+          — trạng thái trước khi tạm dừng.
+        </p>
+        <DialogActions>
+          <Button variant="outline" onClick={() => setConfirmUnlockResume(null)}>Hủy</Button>
+          <Button variant="primary" onClick={confirmActivateUnlockResume}>Xác nhận</Button>
         </DialogActions>
       </Dialog>
 

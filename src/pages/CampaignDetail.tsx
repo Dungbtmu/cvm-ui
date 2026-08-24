@@ -212,6 +212,7 @@ export function CampaignDetail() {
   const [blPreviewOpen, setBlPreviewOpen] = useState(false)
   const [wlPreviewOpen, setWlPreviewOpen] = useState(false)
   const [activatePendingConfirm, setActivatePendingConfirm] = useState(false)
+  const [unlockResumeConfirm, setUnlockResumeConfirm] = useState(false)
 
   const handleStop = () => {
     setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: 'Paused' as CampaignStatus } : c))
@@ -219,10 +220,11 @@ export function CampaignDetail() {
     setStopConfirm(false)
   }
 
-  // [Bật] — 3 nhánh theo UC-CAM-07, xem giải thích chi tiết ở CampaignList.tsx
+  // [Bật] — 4 nhánh theo UC-CAM-07 (V4.13 bổ sung nhánh Mở khóa), xem giải thích chi tiết ở CampaignList.tsx
   const handleActivate = () => {
     const flow = reactivateFlow(campaign)
     if (flow === 'blocked') return
+    if (flow === 'toPrePauseStatus') { setUnlockResumeConfirm(true); return }
     if (flow === 'toPending') { setActivatePendingConfirm(true); return }
     setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: 'Active' as CampaignStatus } : c))
     toast('Chiến dịch đã kích hoạt lại', 'success')
@@ -233,6 +235,16 @@ export function CampaignDetail() {
       : c))
     toast('Đã chuyển về Chờ duyệt để Quản trị viên xác nhận lại', 'warning')
     setActivatePendingConfirm(false)
+  }
+  // Nhánh Mở khóa (URD UC-CAM-07 nhánh 1c, V4.13) — trả về đúng trạng thái gốc trước khi tự Paused.
+  const confirmActivateUnlockResume = () => {
+    const target = campaign.prePauseStatus ?? 'Active'
+    setCampaigns(prev => prev.map(c => c.id === campaign.id
+      ? { ...c, status: target, paramInvalid: undefined, filterInvalid: undefined, prePauseStatus: undefined }
+      : c))
+    toast(target === 'Pending' ? 'Đã chuyển về Chờ duyệt để Quản trị viên xác nhận lại' : 'Chiến dịch đã kích hoạt lại',
+      target === 'Pending' ? 'warning' : 'success')
+    setUnlockResumeConfirm(false)
   }
   const activateBlock = reactivateBlockReason(campaign)
 
@@ -573,6 +585,20 @@ export function CampaignDetail() {
         <DialogActions>
           <Button variant="outline" onClick={() => setActivatePendingConfirm(false)}>Hủy</Button>
           <Button variant="primary" onClick={confirmActivateToPending}>Xác nhận</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Nhánh Mở khóa (UC-CAM-07 nhánh 1c, V4.13) — param/điều kiện lọc đã được Admin mở khóa lại,
+          [Bật] trả về đúng trạng thái gốc trước khi tự tạm dừng, không tự động Active thẳng */}
+      <Dialog open={unlockResumeConfirm} onClose={() => setUnlockResumeConfirm(false)} title="Bật lại chiến dịch?">
+        <p className="text-sm text-slate-600">
+          Tham số/điều kiện lọc đã được Quản trị viên mở khóa. Chiến dịch sẽ quay về{' '}
+          <strong>{campaign.prePauseStatus === 'Pending' ? 'Chờ duyệt' : 'Đang chạy'}</strong>{' '}
+          — trạng thái trước khi tạm dừng.
+        </p>
+        <DialogActions>
+          <Button variant="outline" onClick={() => setUnlockResumeConfirm(false)}>Hủy</Button>
+          <Button variant="primary" onClick={confirmActivateUnlockResume}>Xác nhận</Button>
         </DialogActions>
       </Dialog>
 
