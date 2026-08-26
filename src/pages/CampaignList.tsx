@@ -101,6 +101,16 @@ export function CampaignList() {
       setPriorityErr('Độ ưu tiên phải là số nguyên từ 1 đến 9999')
       return
     }
+    if (newPriority !== c.priority) {
+      // Không cho trùng độ ưu tiên với campaign Active khác (URD UC-CAM-01 V4.14) — thống nhất với
+      // Campaign Builder (chặn tại Gửi duyệt) và Priority Matrix (chặn cứng). Draft không tham gia
+      // so trùng vì chưa giữ vị trí xếp hạng thật.
+      const dup = campaigns.find(x => x.id !== c.id && x.status === 'Active' && x.priority === newPriority)
+      if (dup) {
+        setPriorityErr(`Độ ưu tiên ${newPriority} đã được dùng bởi campaign ${dup.name} — vui lòng chọn số khác`)
+        return
+      }
+    }
     setEditingPriority(null)
     setPriorityErr('')
     if (newPriority === c.priority) return

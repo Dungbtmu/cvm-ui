@@ -1224,6 +1224,13 @@ export function CampaignBuilder() {
   if (reminderIncompleteErr) issues.push('Nhắc lại: chưa nhập đầy đủ số lần và khoảng cách')
   if (reminderMaxErr) issues.push('Nhắc lại: số lần nhắc lại tối đa phải là số nguyên từ 1 đến 9999')
   if (reminderGapErr) issues.push('Nhắc lại: khoảng cách tối thiểu phải là số nguyên từ 1 đến 365 ngày')
+  // Không cho trùng độ ưu tiên với campaign Active khác (URD UC-CAM-02 V4.14) — chỉ chặn tại Gửi
+  // duyệt, không chặn Lưu Nháp; thống nhất với Campaign List và Priority Matrix.
+  const priorityNum = Number(priority)
+  if (priority !== '' && Number.isInteger(priorityNum)) {
+    const dupCampaign = mockCampaigns.find(c => c.id !== id && c.status === 'Active' && c.priority === priorityNum)
+    if (dupCampaign) issues.push(`Độ ưu tiên ${priorityNum} đã được dùng bởi campaign ${dupCampaign.name} — vui lòng chọn số khác`)
+  }
 
   // ---- Trigger helpers ----
   const canAddTrigger = triggerMode === 'advanced' || selectedTriggers.length === 0
