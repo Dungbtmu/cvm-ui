@@ -105,41 +105,25 @@ export function AdminScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {paged.map(c => {
-                    const conflict = findPriorityConflict(c)
-                    return (
+                  {paged.map(c => (
                     <tr key={c.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
                         <div className="font-medium text-slate-800">{c.name}</div>
                         <div className="text-xs text-slate-400 font-mono">{c.code}</div>
-                        {conflict && (
-                          <div className="text-xs text-red-500 mt-0.5">
-                            ⚠ Độ ưu tiên {c.priority} đang trùng campaign Active "{conflict.name}"
-                          </div>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-slate-600">{c.owner}</td>
                       <td className="px-4 py-3 text-xs text-slate-500">{c.submittedAt ?? '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2 justify-end">
                           <Button size="sm" onClick={() => navigate(`/campaigns/${c.id}/detail`)}>Xem</Button>
-                          <Button
-                            size="sm"
-                            variant="success"
-                            disabled={!!conflict}
-                            title={conflict ? `Độ ưu tiên đang trùng campaign "${conflict.name}" đang Active — Từ chối để QTV điều chỉnh trước khi duyệt lại` : undefined}
-                            onClick={() => setApproveTarget(c)}
-                          >
-                            Duyệt
-                          </Button>
+                          <Button size="sm" variant="success" onClick={() => setApproveTarget(c)}>Duyệt</Button>
                           <Button size="sm" variant="danger" onClick={() => { setRejectTarget(c); setRejectReason('') }}>
                             Từ chối
                           </Button>
                         </div>
                       </td>
                     </tr>
-                    )
-                  })}
+                  ))}
                 </tbody>
               </table>
             )}
@@ -176,16 +160,37 @@ export function AdminScreen() {
 
       {activeTab === 1 && <TriggerAdmin />}
 
-      {/* Approve dialog */}
-      <Dialog open={!!approveTarget} onClose={() => setApproveTarget(null)} title="Duyệt chiến dịch?">
-        <p className="text-sm text-slate-600">
-          Duyệt chiến dịch <strong>{approveTarget?.name}</strong>? Chiến dịch sẽ chuyển sang trạng thái Đang chạy ngay.
-        </p>
-        <DialogActions>
-          <Button variant="outline" onClick={() => setApproveTarget(null)}>Hủy</Button>
-          <Button variant="success" onClick={handleApprove}>Duyệt</Button>
-        </DialogActions>
-      </Dialog>
+      {/* Approve dialog — check trùng độ ưu tiên với campaign Active khác trước khi cho xác nhận
+          (URD UC-CAM-05 V4.15, lỗ hổng thứ 4 trong chuỗi chặn trùng priority). Trùng thì đổi hẳn
+          nội dung dialog sang cảnh báo, không có nút xác nhận duyệt — chỉ [Đóng]; Admin quay về
+          Từ chối để QTV tự sửa priority, không sửa priority ngay tại đây. */}
+      {approveTarget && (() => {
+        const conflict = findPriorityConflict(approveTarget)
+        return (
+          <Dialog open onClose={() => setApproveTarget(null)} title={conflict ? 'Không thể duyệt — trùng độ ưu tiên' : 'Duyệt chiến dịch?'}>
+            {conflict ? (
+              <p className="text-sm text-slate-600">
+                Độ ưu tiên <strong>{approveTarget.priority}</strong> của <strong>{approveTarget.name}</strong> đang trùng với campaign <strong>{conflict.name}</strong> đang Active.
+                Vui lòng Từ chối để QTV quay về sửa lại độ ưu tiên trước khi gửi duyệt lại.
+              </p>
+            ) : (
+              <p className="text-sm text-slate-600">
+                Duyệt chiến dịch <strong>{approveTarget.name}</strong>? Chiến dịch sẽ chuyển sang trạng thái Đang chạy ngay.
+              </p>
+            )}
+            <DialogActions>
+              {conflict ? (
+                <Button variant="outline" onClick={() => setApproveTarget(null)}>Đóng</Button>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => setApproveTarget(null)}>Hủy</Button>
+                  <Button variant="success" onClick={handleApprove}>Duyệt</Button>
+                </>
+              )}
+            </DialogActions>
+          </Dialog>
+        )
+      })()}
 
       {/* Reject dialog */}
       <Dialog open={!!rejectTarget} onClose={() => setRejectTarget(null)} title="Từ chối chiến dịch">
