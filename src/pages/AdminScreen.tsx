@@ -37,6 +37,14 @@ export function AdminScreen() {
     setApproveTarget(null)
   }
 
+  // Không cho Phê duyệt (Pending → Active) nếu độ ưu tiên trùng campaign Active khác — lỗ hổng thứ 4
+  // trong chuỗi chặn trùng priority (URD UC-CAM-05 V4.15): thời điểm campaign thực sự tham gia xếp
+  // hạng là lúc Phê duyệt, không phải lúc Gửi duyệt (đã chặn ở Campaign Builder, V4.14). Admin không
+  // tự sửa priority tại đây — chỉ [Từ chối] để QTV sửa lại, [Từ chối] vẫn là action tự quyết định
+  // bình thường, không bị ép buộc.
+  const findPriorityConflict = (c: Campaign) =>
+    mockCampaigns.find(x => x.id !== c.id && x.status === 'Active' && x.priority === c.priority)
+
   const rejectReasonErr = rejectReason.trim().length > 0 && rejectReason.trim().length < 10
   const canReject = rejectReason.trim().length >= 10
 
@@ -97,25 +105,41 @@ export function AdminScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {paged.map(c => (
+                  {paged.map(c => {
+                    const conflict = findPriorityConflict(c)
+                    return (
                     <tr key={c.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
                         <div className="font-medium text-slate-800">{c.name}</div>
                         <div className="text-xs text-slate-400 font-mono">{c.code}</div>
+                        {conflict && (
+                          <div className="text-xs text-red-500 mt-0.5">
+                            ⚠ Độ ưu tiên {c.priority} đang trùng campaign Active "{conflict.name}"
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-slate-600">{c.owner}</td>
                       <td className="px-4 py-3 text-xs text-slate-500">{c.submittedAt ?? '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2 justify-end">
                           <Button size="sm" onClick={() => navigate(`/campaigns/${c.id}/detail`)}>Xem</Button>
-                          <Button size="sm" variant="success" onClick={() => setApproveTarget(c)}>Duyệt</Button>
+                          <Button
+                            size="sm"
+                            variant="success"
+                            disabled={!!conflict}
+                            title={conflict ? `Độ ưu tiên đang trùng campaign "${conflict.name}" đang Active — Từ chối để QTV điều chỉnh trước khi duyệt lại` : undefined}
+                            onClick={() => setApproveTarget(c)}
+                          >
+                            Duyệt
+                          </Button>
                           <Button size="sm" variant="danger" onClick={() => { setRejectTarget(c); setRejectReason('') }}>
                             Từ chối
                           </Button>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             )}
