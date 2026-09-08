@@ -307,10 +307,16 @@ function TriggerCard({ trig, ti, ch, availableSegments, data, onChange, guideOpe
       )}
 
       {/* Điều kiện lọc theo Trigger × Phân khúc × Kênh — accordion riêng cho từng phân khúc đã chọn
-          ở Section 3 (hoặc 1 accordion "toàn bộ audience" khi chưa chọn phân khúc nào) */}
+          ở Section 3 (hoặc 1 accordion "toàn bộ audience" khi chưa chọn phân khúc nào).
+          Có ≥ 2 Audience Variant: chỉ hiện đúng khối của phân khúc đang gán cho tab biến thể đang mở
+          — tránh conflict khi QTV đang soạn cho 1 phân khúc mà vẫn thấy điều kiện lọc của phân khúc
+          khác không liên quan. Chưa bật Variant (0-1 biến thể): không có "phân khúc đang soạn" cụ
+          thể nào để lọc theo, giữ hiện tất cả như cũ. */}
       <div className="px-4 py-2 border-b border-slate-100 bg-slate-50 space-y-2">
         <div className="text-xs text-slate-500 font-medium">Điều kiện lọc theo Kênh ({ch}):</div>
-        {(availableSegments.length > 0 ? availableSegments : [{ id: NO_SEGMENT_KEY, name: 'Toàn bộ đối tượng (chưa chọn phân khúc)', reach: 0 }]).map(seg => {
+        {(availableSegments.length > 0 ? availableSegments : [{ id: NO_SEGMENT_KEY, name: 'Toàn bộ đối tượng (chưa chọn phân khúc)', reach: 0 }])
+          .filter(seg => data.variants.length <= 1 || !variant?.segmentId || seg.id === variant.segmentId)
+          .map(seg => {
           const segKey = availableSegments.length > 0 ? seg.id : NO_SEGMENT_KEY
           return (
             <div key={segKey} className="space-y-1">

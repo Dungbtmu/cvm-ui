@@ -162,16 +162,16 @@ export function AdminScreen() {
 
       {/* Approve dialog — check trùng độ ưu tiên với campaign Active khác trước khi cho xác nhận
           (URD UC-CAM-05 V4.15, lỗ hổng thứ 4 trong chuỗi chặn trùng priority). Trùng thì đổi hẳn
-          nội dung dialog sang cảnh báo, không có nút xác nhận duyệt — chỉ [Đóng]; Admin quay về
-          Từ chối để QTV tự sửa priority, không sửa priority ngay tại đây. */}
+          nội dung dialog sang cảnh báo, không có nút xác nhận duyệt — chỉ [Đóng]; yêu cầu sửa lại
+          độ ưu tiên trước khi gửi duyệt lại, không sửa priority ngay tại đây. */}
       {approveTarget && (() => {
         const conflict = findPriorityConflict(approveTarget)
         return (
           <Dialog open onClose={() => setApproveTarget(null)} title={conflict ? 'Không thể duyệt — trùng độ ưu tiên' : 'Duyệt chiến dịch?'}>
             {conflict ? (
               <p className="text-sm text-slate-600">
-                Độ ưu tiên <strong>{approveTarget.priority}</strong> của <strong>{approveTarget.name}</strong> đang trùng với campaign <strong>{conflict.name}</strong> đang Active.
-                Vui lòng Từ chối để QTV quay về sửa lại độ ưu tiên trước khi gửi duyệt lại.
+                Độ ưu tiên <strong>{approveTarget.priority}</strong> của <strong>{approveTarget.name}</strong> đang được dùng bởi campaign <strong>{conflict.name}</strong> đang chạy.
+                Vui lòng sửa lại độ ưu tiên trước khi gửi duyệt lại.
               </p>
             ) : (
               <p className="text-sm text-slate-600">

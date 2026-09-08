@@ -102,7 +102,9 @@ export const mockCampaigns: Campaign[] = [
     templateIds: ['1'],
     startDate: '20/05/2026',
     endDate: '31/08/2026',
-    priority: 7,
+    // Test case: trùng priority với campaign Active "Nhắc nạp tiền" (id 2) — dùng để kiểm tra
+    // dialog Duyệt tại AdminScreen chặn đúng khi phát hiện trùng (URD UC-CAM-05 V4.15).
+    priority: 2,
     owner: 'QTV Marketing',
     createdAt: '19/05/2026 10:15',
     submittedAt: '19/05/2026 14:00',
