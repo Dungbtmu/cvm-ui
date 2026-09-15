@@ -2069,6 +2069,24 @@ export const mockBlacklist: BlacklistEntry[] = [
   { phone: '0987654001', campaign: 'Welcome eSIM Q2/2026',        channel: 'SMS',     source: 'manual' },
   { phone: '0987654001', campaign: 'Hết hạn gói data',           channel: 'Email',   source: 'upload' },
   { phone: '0987654001', campaign: 'Chào mừng du lịch',          channel: 'Zalo OA', source: 'campaign' },
+  // Ma trận nhiều-nhiều thật (2 campaign x 2 kênh = 4 tổ hợp) — minh họa "Xem chi tiết tổ hợp": chip
+  // "Push" và "SMS" đều gộp 2 campaign (Nhắc nạp tiền, Welcome eSIM), xóa 1 chip gỡ cả 2 tổ hợp cùng lúc;
+  // nút "Xem chi tiết tổ hợp" cho xóa lẻ đúng 1 trong 4 tổ hợp.
+  { phone: '0999888777', campaign: 'Nhắc nạp tiền',        channel: 'Push', source: 'manual' },
+  { phone: '0999888777', campaign: 'Nhắc nạp tiền',        channel: 'SMS',  source: 'manual' },
+  { phone: '0999888777', campaign: 'Welcome eSIM Q2/2026', channel: 'Push', source: 'manual' },
+  { phone: '0999888777', campaign: 'Welcome eSIM Q2/2026', channel: 'SMS',  source: 'manual' },
+  // Ma trận lớn hơn (3 campaign x 3 kênh = 9 tổ hợp) — minh họa "+N ⓘ" khi vượt quá 2 chip và popover
+  // "Xem chi tiết tổ hợp" khi danh sách dài.
+  { phone: '0977111222', campaign: 'Nhắc nạp tiền',              channel: 'Push',    source: 'manual' },
+  { phone: '0977111222', campaign: 'Nhắc nạp tiền',              channel: 'SMS',     source: 'manual' },
+  { phone: '0977111222', campaign: 'Nhắc nạp tiền',              channel: 'Zalo OA', source: 'manual' },
+  { phone: '0977111222', campaign: 'Welcome eSIM Q2/2026',       channel: 'Push',    source: 'manual' },
+  { phone: '0977111222', campaign: 'Welcome eSIM Q2/2026',       channel: 'SMS',     source: 'manual' },
+  { phone: '0977111222', campaign: 'Welcome eSIM Q2/2026',       channel: 'Zalo OA', source: 'manual' },
+  { phone: '0977111222', campaign: 'Hết hạn gói data',           channel: 'Push',    source: 'manual' },
+  { phone: '0977111222', campaign: 'Hết hạn gói data',           channel: 'SMS',     source: 'manual' },
+  { phone: '0977111222', campaign: 'Hết hạn gói data',           channel: 'Zalo OA', source: 'manual' },
   // Blacklist toàn hệ thống (UC-BL-04/UC-BL-05) — scope='global', campaign/channel giữ placeholder cố định
   // để tái dùng đúng field hiện có mà không phải sửa kiểu dữ liệu của các entry theo campaign.
   { phone: '0900000016', campaign: 'Toàn hệ thống', channel: 'Push', source: 'manual', scope: 'global' },

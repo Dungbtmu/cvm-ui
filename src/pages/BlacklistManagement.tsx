@@ -65,20 +65,32 @@ function groupBlacklist(entries: BlacklistEntry[]): BlacklistRow[] {
   return Array.from(rows.values())
 }
 
-// Chip Campaign/Kênh cho 1 dòng đã gộp — tối đa 2 chip + "+N ⓘ" (popover đầy đủ), mỗi chip có [×] riêng
-// để gỡ đúng tổ hợp (số, campaign, kênh) — cùng pattern chip "+N" đã dùng ở Campaign List/Template List.
-function EntryChipList({ row, kind, canDelete, onDeleteEntry }: {
+// Chip Campaign/Kênh cho 1 dòng đã gộp — tối đa 2 chip + "+N ⓘ" (popover đầy đủ). Mỗi chip đại diện cho
+// TẤT CẢ tổ hợp chứa giá trị đó (ví dụ chip "Push" gộp chung Push-A và Push-B nếu cả 2 tồn tại) — bấm [×]
+// xóa hết các tổ hợp đó cùng lúc, không phải 1 tổ hợp ngẫu nhiên. Để xóa đúng 1 tổ hợp cụ thể (chỉ Push-A,
+// giữ Push-B) khi dòng là ma trận nhiều-nhiều, dùng nút "Xem chi tiết tổ hợp" (xem DetailPopover bên dưới).
+function EntryChipList({ row, kind, canDelete, onDeleteEntry, onDeleteChipGroup }: {
   row: BlacklistRow
   kind: 'campaign' | 'channel'
   canDelete: boolean
   onDeleteEntry: (e: BlacklistEntry) => void
+  onDeleteChipGroup: (group: { row: BlacklistRow; kind: 'campaign' | 'channel'; value: string; entries: BlacklistEntry[] }) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const values = kind === 'campaign' ? row.campaigns : row.channels
   const visible = values.slice(0, 2)
   const hidden = values.length - 2
 
-  const entryFor = (val: string) => row.entries.find(e => (kind === 'campaign' ? e.campaign : e.channel) === val)
+  const entriesFor = (val: string) => row.entries.filter(e => (kind === 'campaign' ? e.campaign : e.channel) === val)
+
+  const handleClick = (v: string) => {
+    const matched = entriesFor(v)
+    if (matched.length <= 1) {
+      if (matched[0]) onDeleteEntry(matched[0])
+    } else {
+      onDeleteChipGroup({ row, kind, value: v, entries: matched })
+    }
+  }
 
   return (
     <div className="flex flex-wrap gap-1 items-center relative">
@@ -87,7 +99,7 @@ function EntryChipList({ row, kind, canDelete, onDeleteEntry }: {
           {v}
           {canDelete && (
             <button
-              onClick={() => { const e = entryFor(v); if (e) onDeleteEntry(e) }}
+              onClick={() => handleClick(v)}
               className="text-slate-400 hover:text-red-500"
               title={`Xóa khỏi ${kind === 'campaign' ? 'chiến dịch' : 'kênh'} ${v}`}
             >
@@ -115,7 +127,7 @@ function EntryChipList({ row, kind, canDelete, onDeleteEntry }: {
                     <span>{v}</span>
                     {canDelete && (
                       <button
-                        onClick={() => { const e = entryFor(v); if (e) onDeleteEntry(e) }}
+                        onClick={() => handleClick(v)}
                         className="text-slate-400 hover:text-red-500"
                       >
                         ×
@@ -132,6 +144,37 @@ function EntryChipList({ row, kind, canDelete, onDeleteEntry }: {
   )
 }
 
+// Popover "Xem chi tiết tổ hợp" — chỉ hiện khi dòng là ma trận thật (≥2 campaign VÀ ≥2 kênh), liệt kê
+// từng tổ hợp (campaign × kênh) cụ thể với nút [×] riêng để xóa đúng 1 tổ hợp, việc chip đơn lẻ không
+// làm được (chip "Push" luôn xóa hết mọi campaign gắn Push, không chỉ riêng 1 campaign).
+function DetailPopover({ row, canDelete, onClose, onDeleteEntry }: {
+  row: BlacklistRow
+  canDelete: boolean
+  onClose: () => void
+  onDeleteEntry: (e: BlacklistEntry) => void
+}) {
+  return (
+    <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 min-w-72">
+      <div className="px-3 pt-2 pb-1.5 border-b border-slate-100 flex items-center justify-between">
+        <span className="text-xs font-medium text-slate-500">Chi tiết tổ hợp — {row.phone} ({row.entries.length})</span>
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xs">Đóng</button>
+      </div>
+      <div className="max-h-56 overflow-y-auto divide-y divide-slate-50">
+        {row.entries.map((e, i) => (
+          <div key={i} className="px-3 py-1.5 text-xs text-slate-600 flex items-center justify-between gap-2">
+            <span>{e.campaign} · {e.channel}</span>
+            {canDelete && (
+              <button onClick={() => onDeleteEntry(e)} className="text-slate-400 hover:text-red-500" title="Xóa đúng tổ hợp này">
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function BlacklistManagement() {
   const { toast } = useToast()
   const { isAdmin } = useRole()
@@ -143,6 +186,13 @@ export function BlacklistManagement() {
   // Xóa 1 chip (gỡ đúng 1 tổ hợp) hoặc xóa toàn dòng (gỡ mọi tổ hợp của số trong phạm vi đang xem)
   const [deleteEntryTarget, setDeleteEntryTarget] = useState<BlacklistEntry | null>(null)
   const [deleteRowTarget, setDeleteRowTarget] = useState<BlacklistRow | null>(null)
+  // Xóa 1 chip khi dòng là ma trận nhiều-nhiều (≥2 campaign × ≥2 kênh): chip "Push" đại diện cho NHIỀU
+  // tổ hợp (Push-A, Push-B...) — xóa chip nghĩa là xóa TẤT CẢ tổ hợp chứa giá trị đó, không phải 1 tổ hợp
+  // ngẫu nhiên. Xem UC-BL-03 (đang bổ sung định nghĩa cho case ma trận — chưa có trong URD hiện tại).
+  const [deleteChipTarget, setDeleteChipTarget] = useState<{ row: BlacklistRow; kind: 'campaign' | 'channel'; value: string; entries: BlacklistEntry[] } | null>(null)
+  // Popover "Xem chi tiết tổ hợp" — chỉ hiện khi dòng là ma trận thật (≥2 campaign VÀ ≥2 kênh), cho phép
+  // xóa đúng 1 tổ hợp cụ thể (ví dụ chỉ Push-A, giữ nguyên Push-B) — điều chip đơn lẻ không làm được.
+  const [detailRowKey, setDetailRowKey] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [filterScope, setFilterScope] = useState<'' | BlacklistScope>('')
   const [filterCampaign, setFilterCampaign] = useState('')
@@ -235,6 +285,16 @@ export function BlacklistManagement() {
     setList(prev => prev.filter(x => x !== deleteEntryTarget))
     toast('Đã xóa ✓', 'success')
     setDeleteEntryTarget(null)
+  }
+
+  // Xóa 1 chip Campaign/Kênh khi giá trị đó xuất hiện ở NHIỀU tổ hợp (ma trận nhiều-nhiều) — gỡ hết
+  // các tổ hợp chứa giá trị đó cùng lúc (ví dụ xóa chip "Push" → gỡ cả Push-A và Push-B).
+  const handleDeleteChipGroup = () => {
+    if (!deleteChipTarget) return
+    const toRemove = new Set(deleteChipTarget.entries)
+    setList(prev => prev.filter(x => !toRemove.has(x)))
+    toast(`Đã xóa ${deleteChipTarget.entries.length} bản ghi ✓`, 'success')
+    setDeleteChipTarget(null)
   }
 
   // Xóa toàn dòng — gỡ mọi tổ hợp của số đó trong đúng phạm vi đang thao tác, không đụng phạm vi kia
@@ -362,27 +422,46 @@ export function BlacklistManagement() {
             {paged.map(row => {
               const isGlobal = row.scope === 'global'
               const canDelete = !isGlobal || isAdmin
+              const rowKey = `${row.scope}::${row.phone}`
+              // Ma trận nhiều-nhiều thật sự (≥2 campaign VÀ ≥2 kênh) — chip đơn lẻ không đủ để xóa
+              // đúng 1 tổ hợp cụ thể (ví dụ chỉ Push-A, giữ Push-B), cần popover chi tiết per-entry.
+              const isMatrix = !isGlobal && row.campaigns.length >= 2 && row.channels.length >= 2
               return (
-                <tr key={`${row.scope}::${row.phone}`} className="hover:bg-slate-50">
+                <tr key={rowKey} className="hover:bg-slate-50">
                   <td className="px-4 py-2.5 font-mono text-sm">{row.phone}</td>
                   <td className="px-4 py-2.5 text-slate-700">
                     {isGlobal
                       ? <span className="font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5 text-xs">Toàn hệ thống</span>
-                      : <EntryChipList row={row} kind="campaign" canDelete={canDelete} onDeleteEntry={setDeleteEntryTarget} />}
+                      : <EntryChipList row={row} kind="campaign" canDelete={canDelete} onDeleteEntry={setDeleteEntryTarget} onDeleteChipGroup={setDeleteChipTarget} />}
                   </td>
                   <td className="px-4 py-2.5">
                     {isGlobal
                       ? <span className="bg-slate-100 text-slate-600 rounded px-2 py-0.5 text-xs">Tất cả kênh</span>
-                      : <EntryChipList row={row} kind="channel" canDelete={canDelete} onDeleteEntry={setDeleteEntryTarget} />}
+                      : <EntryChipList row={row} kind="channel" canDelete={canDelete} onDeleteEntry={setDeleteEntryTarget} onDeleteChipGroup={setDeleteChipTarget} />}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    {!canDelete ? (
-                      <span className="text-xs text-slate-400">Chỉ đọc</span>
-                    ) : (
-                      <Button size="sm" variant="danger" onClick={() => setDeleteRowTarget(row)}>
-                        <Trash2 size={12} /> Xóa
-                      </Button>
-                    )}
+                    <div className="flex items-center justify-end gap-2 relative">
+                      {isMatrix && (
+                        <>
+                          <button
+                            onClick={() => setDetailRowKey(detailRowKey === rowKey ? null : rowKey)}
+                            className="text-xs text-slate-500 hover:text-blue-600 border border-slate-200 rounded px-2 py-1"
+                          >
+                            Xem chi tiết tổ hợp
+                          </button>
+                          {detailRowKey === rowKey && (
+                            <DetailPopover row={row} canDelete={canDelete} onClose={() => setDetailRowKey(null)} onDeleteEntry={setDeleteEntryTarget} />
+                          )}
+                        </>
+                      )}
+                      {!canDelete ? (
+                        <span className="text-xs text-slate-400">Chỉ đọc</span>
+                      ) : (
+                        <Button size="sm" variant="danger" onClick={() => setDeleteRowTarget(row)}>
+                          <Trash2 size={12} /> Xóa
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )
@@ -599,7 +678,22 @@ export function BlacklistManagement() {
         </DialogActions>
       </Dialog>
 
-      {/* Delete 1 chip — gỡ đúng 1 tổ hợp (số, campaign, kênh) */}
+      {/* Delete 1 chip khi chip đại diện cho NHIỀU tổ hợp (ma trận nhiều-nhiều) — gỡ hết các tổ hợp
+          chứa giá trị chip đó cùng lúc, ví dụ xóa chip "Push" gỡ cả Push-A và Push-B */}
+      <Dialog open={!!deleteChipTarget} onClose={() => setDeleteChipTarget(null)} title="Xác nhận xóa">
+        <p className="text-sm text-slate-600">
+          Xóa {deleteChipTarget?.kind === 'campaign' ? 'chiến dịch' : 'kênh'} <strong>{deleteChipTarget?.value}</strong> khỏi danh sách chặn của <strong>{deleteChipTarget?.row.phone}</strong>?
+          Thao tác này gỡ <strong>{deleteChipTarget?.entries.length}</strong> tổ hợp: {deleteChipTarget?.entries.map(e => `${e.campaign} · ${e.channel}`).join(', ')}.
+          Số này sẽ có thể nhận tin từ các chiến dịch/kênh trên.
+        </p>
+        <DialogActions>
+          <Button variant="outline" onClick={() => setDeleteChipTarget(null)}>Hủy</Button>
+          <Button variant="danger" onClick={handleDeleteChipGroup}>Xóa</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete 1 chip — gỡ đúng 1 tổ hợp (số, campaign, kênh); dùng cho case đơn giản (chip khớp đúng
+          1 entry) và cho popover chi tiết tổ hợp (chọn đúng 1 dòng cụ thể trong ma trận) */}
       <Dialog open={!!deleteEntryTarget} onClose={() => setDeleteEntryTarget(null)} title="Xác nhận xóa">
         <p className="text-sm text-slate-600">
           Xóa <strong>{deleteEntryTarget?.phone}</strong> khỏi danh sách chặn của chiến dịch <strong>{deleteEntryTarget?.campaign}</strong> kênh <strong>{deleteEntryTarget?.channel}</strong>? Số này sẽ có thể nhận tin từ chiến dịch này.
