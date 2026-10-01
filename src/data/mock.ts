@@ -338,6 +338,28 @@ export const mockCampaigns: Campaign[] = [
     createdAt: '10/07/2026 09:00',
     pausedConfigChanged: true,
   },
+  {
+    // Nhóm trigger E06 — campaign "Có thời hạn" MỚI Active nhất, dùng để minh họa Badge "Mới"
+    // (Assumption A2 solution doc Mục 2.3 + 8): mới tự động thêm vào cuối nhóm (#5) trong vòng 24h
+    // gần nhất ("hôm nay" = 01/10/2026 theo môi trường chạy prototype) — nên hiện badge "Mới" cạnh
+    // tên campaign tại Settings → Tab Độ ưu tiên. Dùng tạm createdAt làm xấp xỉ cho added_to_group_at
+    // vì mock data chưa có timestamp riêng cho "thời điểm vào nhóm" — xem priorityDisplayInfo/isNewInGroup.
+    id: '19',
+    name: 'Tri ân khách hàng tháng 10',
+    code: 'CVM-THANKS-OCT-2026',
+    status: 'Active',
+    triggers: ['E06'],
+    templateIds: ['2'],
+    startDate: '01/10/2026',
+    endDate: '31/10/2026',
+    priority: 19,
+    campaignType: 'limited',
+    groupPositions: { E06: 5 },
+    owner: 'QTV Marketing',
+    createdAt: '30/09/2026 15:00',
+    submittedAt: '30/09/2026 16:00',
+    goal: 'Tri ân khách hàng dùng dịch vụ lâu năm trong tháng 10',
+  },
 ]
 
 // ── DEMO SCRIPT 2 — pausedConfigChanged (Bật lại → Chờ duyệt, khác PARAM_INVALID/FILTER_INVALID) ──

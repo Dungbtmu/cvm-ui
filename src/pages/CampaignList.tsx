@@ -9,14 +9,17 @@ import { mockCampaigns, mockTriggers } from '../data/mock'
 import { reactivateBlockReason, reactivateFlow, sortCampaignsForList, isBeforeStart, priorityDisplayInfo } from '../lib/utils'
 import type { Campaign, CampaignStatus } from '../types'
 
-const campaignTypeLabel: Record<'ongoing' | 'limited', string> = {
-  ongoing: 'Thường trực',
-  limited: 'Có thời hạn',
-}
-const campaignTypeClass: Record<'ongoing' | 'limited', string> = {
-  ongoing: 'bg-purple-100 text-purple-700',
-  limited: 'bg-blue-100 text-blue-700',
-}
+// TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — không còn render cột "Loại hình chiến dịch" ở
+// bảng danh sách nên 2 map label/class dưới đây tạm không dùng tới. Giữ nguyên định nghĩa (không xóa)
+// để bật lại ngay khi gỡ comment ở cell <td> bên dưới.
+// const campaignTypeLabel: Record<'ongoing' | 'limited', string> = {
+//   ongoing: 'Thường trực',
+//   limited: 'Có thời hạn',
+// }
+// const campaignTypeClass: Record<'ongoing' | 'limited', string> = {
+//   ongoing: 'bg-purple-100 text-purple-700',
+//   limited: 'bg-blue-100 text-blue-700',
+// }
 
 const statusFilters: CampaignStatus[] = ['Active', 'Draft', 'Pending', 'Paused', 'Ended']
 const statusLabel: Record<CampaignStatus, string> = {
@@ -133,7 +136,9 @@ export function CampaignList() {
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Tên / Mã Chiến dịch</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Sự kiện kích hoạt</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Hiệu lực</th>
+              {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — cột "Loại hình chiến dịch":
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Loại hình</th>
+              */}
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Ưu tiên</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Trạng thái</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Hành động</th>
@@ -197,6 +202,9 @@ export function CampaignList() {
                 <td className="px-4 py-3 text-xs text-slate-500">
                   {c.startDate} – {c.isInfinite ? 'Vô hạn' : c.endDate}
                 </td>
+                {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — cell cột "Loại hình chiến dịch".
+                    campaignType vẫn giữ nguyên trong data, chỉ không render ở đây nữa. Code gốc giữ
+                    nguyên trong comment để bật lại nguyên trạng, không cần viết lại:
                 <td className="px-4 py-3">
                   {c.campaignType && (
                     <span className={`text-xs rounded px-2 py-0.5 font-medium ${campaignTypeClass[c.campaignType]}`}>
@@ -204,6 +212,7 @@ export function CampaignList() {
                     </span>
                   )}
                 </td>
+                */}
                 <td className="px-4 py-3">
                   {/* [CR Priority Redesign] Cột Ưu tiên đổi từ inline-edit sang HIỂN THỊ theo trạng thái
                       (solution Mục 2.7, 3.4) — sắp xếp thật diễn ra duy nhất tại Cài đặt → Tab "Độ ưu tiên". */}
@@ -262,7 +271,8 @@ export function CampaignList() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-slate-400 text-sm">
+                {/* TODO(OQ-4): colSpan giảm từ 7 → 6 vì cột "Loại hình" đang ẩn tạm; trả về 7 khi bật lại */}
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">
                   Không có chiến dịch nào phù hợp.
                 </td>
               </tr>

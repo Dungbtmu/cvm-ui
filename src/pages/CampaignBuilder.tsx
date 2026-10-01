@@ -12,6 +12,11 @@ import type { ChannelType, TriggerLogic, BlackoutAction, TriggerFilterField, Fil
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
+// TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — feature flag ẩn radio "Loại hình chiến dịch" khỏi
+// Section 1 (xem solution doc OQ-4: CNTT đặt câu hỏi ranh giới CVM/Core). Đổi thành `true` để hiện
+// lại ngay khi OQ-4 được chốt — không cần viết lại JSX.
+const SHOW_CAMPAIGN_TYPE_SELECTOR = false
+
 const MOCK_SUBSCRIBERS = [
   { phone: '0987 xxx 001', name: 'Nguyễn Văn A', status: 'Active' },
   { phone: '0912 xxx 002', name: 'Trần Thị B', status: 'Active' },
@@ -1128,7 +1133,11 @@ export function CampaignBuilder() {
   const [endDate, setEndDate] = useState('')
   // Loại hình chiến dịch (CR Priority Redesign, solution Mục 3.2) — radio bắt buộc chọn, KHÔNG
   // pre-select (null khi Tạo mới). Quyết định field Ngày kết thúc ẩn/hiện (Mục 3.3).
-  const [campaignType, setCampaignType] = useState<CampaignType | null>(existing?.campaignType ?? null)
+  // TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — radio chọn loại hình đang ẩn khỏi UI (xem JSX bên
+  // dưới), nên mặc định ngầm ở đây đổi từ `null` sang `'limited'` để hành vi Ngày kết thúc (bắt buộc +
+  // hiện) hoạt động đúng như case "Có thời hạn" bình thường. Logic `campaignType`/'ongoing' KHÔNG bị xóa
+  // — chỉ không cho user chọn 'ongoing' qua UI nữa. Khi OQ-4 chốt: trả lại `existing?.campaignType ?? null`.
+  const [campaignType, setCampaignType] = useState<CampaignType | null>(existing?.campaignType ?? 'limited')
   const [s1Collapsed, setS1Collapsed] = useState(false)
 
   // S2
@@ -1218,7 +1227,8 @@ export function CampaignBuilder() {
   // Issues
   const issues: string[] = []
   if (!name.trim()) issues.push('Chưa nhập tên campaign')
-  if (!campaignType) issues.push('Chưa chọn loại hình chiến dịch')
+  // TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — bỏ validate "chưa chọn loại hình" vì radio đang ẩn
+  // khỏi UI và campaignType luôn có giá trị ngầm ('limited'), không còn trạng thái null để chặn.
   if (!startDate) issues.push('Chưa chọn ngày bắt đầu')
   if (!isInfinite && !endDate) issues.push('Chưa chọn ngày kết thúc (bắt buộc với chiến dịch Có thời hạn)')
   // Ngày kết thúc quá khứ là blocking issue — KHÔNG áp dụng cho campaign Vận hành thường trực (không có endDate để so sánh)
@@ -1583,6 +1593,12 @@ export function CampaignBuilder() {
                     })()}
                   </div>
                 </div>
+                {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — radio "Loại hình chiến dịch" ẩn khỏi
+                    UI (CNTT đặt câu hỏi ranh giới CVM/Core, xem solution doc OQ-4). campaignType vẫn tồn
+                    tại ngầm (mặc định 'limited' ở state init trên) để các logic khác (Ngày kết thúc,
+                    priorityDisplayInfo, nhóm ở Settings...) không bị vỡ. Không xóa nhánh 'ongoing' —
+                    chỉ không cho chọn qua UI. Khi OQ-4 chốt: bỏ comment khối JSX dưới đây để hiện lại. */}
+                {SHOW_CAMPAIGN_TYPE_SELECTOR && (
                 <div>
                   <label className="text-xs font-medium text-slate-600 mb-2 block">Loại hình chiến dịch *</label>
                   <div className="flex gap-6 text-sm">
@@ -1613,6 +1629,7 @@ export function CampaignBuilder() {
                     <div className="text-xs text-red-500 mt-1">Vui lòng chọn loại hình chiến dịch</div>
                   )}
                 </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-slate-600 mb-1 block">Ngày bắt đầu *</label>

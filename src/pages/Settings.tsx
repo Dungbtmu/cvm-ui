@@ -1,12 +1,22 @@
 import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { HelpCircle, ChevronUp, ChevronDown, Info } from 'lucide-react'
+// TODO(OQ-4): `Info` chỉ dùng trong khối ghi chú "Vận hành thường trực" hiện đang comment-out bên
+// dưới — thêm lại vào import khi bật lại khối đó.
+import { HelpCircle, GripVertical } from 'lucide-react'
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockCampaigns, mockTriggers } from '../data/mock'
-import { buildPriorityGroups, groupsForCampaign, type PriorityGroup } from '../lib/utils'
+import { buildPriorityGroups, groupsForCampaign, isRecentlyAddedToGroup, type PriorityGroup, type PriorityGroupMember } from '../lib/utils'
 import type { ChannelType, Campaign } from '../types'
 
 const CAP_CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'USSD', 'Banner', 'Email']
@@ -20,6 +30,54 @@ function capFieldError(v: string): boolean {
 }
 
 const TAB_LABELS = ['Giới hạn tần suất', 'Phân quyền', 'Độ ưu tiên']
+
+// ── SortablePriorityRow: 1 dòng trong bàn kéo-thả Tab Độ ưu tiên (nâng cấp từ nút ▲▼ sang kéo-thả
+// thật — @dnd-kit/sortable). Chỉ kéo-thả trong PHẠM VI 1 nhóm trigger (SortableContext bọc riêng
+// từng nhóm ở component Settings bên dưới) — không kéo chéo giữa các nhóm khác nhau. ──
+interface SortablePriorityRowProps {
+  member: PriorityGroupMember
+  index: number
+  isNew: boolean
+}
+
+function SortablePriorityRow({ member, index, isNew }: SortablePriorityRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: member.campaign.id,
+  })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`border-b border-slate-50 ${isDragging ? 'bg-blue-50 shadow-lg opacity-80 relative z-10' : 'hover:bg-slate-50'}`}
+    >
+      <td className="py-2 w-10">
+        <button
+          {...attributes}
+          {...listeners}
+          className="text-slate-400 hover:text-blue-600 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center w-full"
+          title="Kéo để đổi vị trí"
+        >
+          <GripVertical size={16} />
+        </button>
+      </td>
+      <td className="py-2 text-slate-700">
+        {index === 0 && <span className="mr-1">★</span>}
+        {member.campaign.name}
+        {isNew && (
+          <span className="ml-2 text-[10px] font-medium bg-emerald-100 text-emerald-700 rounded-full px-1.5 py-0.5 align-middle">
+            Mới
+          </span>
+        )}
+      </td>
+      <td className="py-2 text-xs text-slate-400 font-mono">{member.campaign.code}</td>
+      <td className="py-2 text-center text-slate-600 font-medium">#{index + 1}</td>
+    </tr>
+  )
+}
 
 export function Settings() {
   const { toast } = useToast()
@@ -67,31 +125,41 @@ export function Settings() {
   const [triggerFilter, setTriggerFilter] = useState<string>('')
   const [campaignFilter, setCampaignFilter] = useState<string>(() => searchParams.get('campaign') ?? '')
 
-  const allGroups = useMemo(() => buildPriorityGroups(localCampaigns), [localCampaigns])
+  // TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — `buildPriorityGroups` vẫn trả về nhóm "toàn Vận
+  // hành thường trực" (group.limited rỗng, group.ongoing có dữ liệu) vì logic/dữ liệu campaignType
+  // KHÔNG đổi (chỉ ẩn ở tầng render). Lọc bỏ các nhóm đó ở đây — nếu không, Card của nhóm sẽ render
+  // với thân rỗng (cả 2 nhánh hiển thị liên quan ongoing-only đã comment-out bên dưới). Khi OQ-4
+  // chốt và bật lại các nhánh render đó, bỏ luôn `.filter(g => g.limited.length > 0)` ở đây.
+  const allGroups = useMemo(
+    () => buildPriorityGroups(localCampaigns).filter(g => g.limited.length > 0),
+    [localCampaigns]
+  )
 
   // 2 chế độ filter độc lập (solution Mục 2.1): theo Trigger (1 trigger → 1 nhóm) hoặc theo Campaign
   // (hiện TẤT CẢ nhóm mà campaign đó tham gia — phục vụ link điều hướng từ Builder/List Mục 2.7).
   const displayedGroups: PriorityGroup[] = campaignFilter
-    ? groupsForCampaign(localCampaigns, campaignFilter)
+    ? groupsForCampaign(localCampaigns, campaignFilter).filter(g => g.limited.length > 0)
     : triggerFilter
       ? allGroups.filter(g => g.triggerCode === triggerFilter)
       : allGroups
 
   const filteredCampaignName = campaignFilter ? localCampaigns.find(c => c.id === campaignFilter)?.name : undefined
 
-  // Kéo-thả đơn giản hóa bằng nút lên/xuống (project chưa có sẵn lib kéo-thả) — chỉ hoán đổi vị trí
+  // Kéo-thả thật (nâng cấp từ nút ▲▼ — @dnd-kit/core + @dnd-kit/sortable) — chỉ hoán đổi vị trí
   // trong PHẠM VI 1 nhóm trigger, không ảnh hưởng vị trí của campaign đó ở các nhóm trigger khác
-  // (đúng mô hình "N vị trí độc lập theo nhóm", solution Mục 2.4).
-  const moveInGroup = (triggerCode: string, campaignId: string, direction: -1 | 1) => {
+  // (đúng mô hình "N vị trí độc lập theo nhóm", solution Mục 2.4). Giữ nguyên logic nghiệp vụ cũ
+  // (cập nhật groupPositions theo index mới) — chỉ đổi cách người dùng tương tác.
+  const reorderGroup = (triggerCode: string, fromId: string, toId: string) => {
+    if (fromId === toId) return
     setLocalCampaigns(prev => {
       const group = buildPriorityGroups(prev).find(g => g.triggerCode === triggerCode)
       if (!group) return prev
-      const ordered = [...group.limited]
-      const idx = ordered.findIndex(m => m.campaign.id === campaignId)
-      const targetIdx = idx + direction
-      if (idx < 0 || targetIdx < 0 || targetIdx >= ordered.length) return prev
-      ;[ordered[idx], ordered[targetIdx]] = [ordered[targetIdx], ordered[idx]]
-      const newPositionById = new Map(ordered.map((m, i) => [m.campaign.id, i + 1]))
+      const ordered = group.limited.map(m => m.campaign.id)
+      const fromIdx = ordered.indexOf(fromId)
+      const toIdx = ordered.indexOf(toId)
+      if (fromIdx < 0 || toIdx < 0) return prev
+      const moved = arrayMove(ordered, fromIdx, toIdx)
+      const newPositionById = new Map(moved.map((id, i) => [id, i + 1]))
       return prev.map(c =>
         newPositionById.has(c.id)
           ? { ...c, groupPositions: { ...c.groupPositions, [triggerCode]: newPositionById.get(c.id)! } }
@@ -99,6 +167,13 @@ export function Settings() {
       )
     })
   }
+
+  // Sensor dùng chung cho mọi bàn kéo-thả trong trang — PointerSensor cho chuột/touch, KeyboardSensor
+  // để vẫn thao tác được bằng bàn phím (a11y) theo đúng pattern chuẩn của dnd-kit.
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const confirmSave = () => {
     toast('Đã cập nhật thứ tự ưu tiên ✓', 'success')
@@ -324,62 +399,61 @@ export function Settings() {
                 </div>
 
                 {group.limited.length >= 2 && (
-                  // ≥ 2 campaign "Có thời hạn" cạnh tranh → bàn kéo-thả (nút lên/xuống — project chưa
-                  // có sẵn lib kéo-thả, đơn giản hóa theo đúng gợi ý trong yêu cầu).
-                  <table className="w-full text-sm">
-                    <thead className="text-xs text-slate-500 border-b border-slate-100">
-                      <tr>
-                        <th className="w-16"></th>
-                        <th className="text-left pb-2 font-medium">Tên chiến dịch</th>
-                        <th className="text-left pb-2 font-medium">Mã kịch bản</th>
-                        <th className="text-center pb-2 font-medium w-20">Vị trí</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.limited.map((m, i) => (
-                        <tr key={m.campaign.id} className="border-b border-slate-50 hover:bg-slate-50">
-                          <td className="py-2">
-                            <div className="flex items-center justify-center gap-0.5">
-                              <button
-                                disabled={i === 0}
-                                onClick={() => moveInGroup(group.triggerCode, m.campaign.id, -1)}
-                                className="text-slate-400 hover:text-blue-600 disabled:opacity-20 disabled:pointer-events-none"
-                                title="Tăng ưu tiên (lên trên)"
-                              >
-                                <ChevronUp size={16} />
-                              </button>
-                              <button
-                                disabled={i === group.limited.length - 1}
-                                onClick={() => moveInGroup(group.triggerCode, m.campaign.id, 1)}
-                                className="text-slate-400 hover:text-blue-600 disabled:opacity-20 disabled:pointer-events-none"
-                                title="Giảm ưu tiên (xuống dưới)"
-                              >
-                                <ChevronDown size={16} />
-                              </button>
-                            </div>
-                          </td>
-                          <td className="py-2 text-slate-700">
-                            {i === 0 && <span className="mr-1">★</span>}
-                            {m.campaign.name}
-                          </td>
-                          <td className="py-2 text-xs text-slate-400 font-mono">{m.campaign.code}</td>
-                          <td className="py-2 text-center text-slate-600 font-medium">#{i + 1}</td>
+                  // ≥ 2 campaign "Có thời hạn" cạnh tranh → bàn kéo-thả THẬT (nâng cấp từ nút ▲▼ sang
+                  // @dnd-kit/core + @dnd-kit/sortable). SortableContext bọc riêng per-nhóm (items = id
+                  // campaign của ĐÚNG nhóm này) nên kéo-thả chỉ hoán vị trong phạm vi 1 nhóm, không thể
+                  // kéo chéo sang nhóm trigger khác (đúng mô hình N vị trí độc lập, solution Mục 2.4).
+                  <DndContext
+                    sensors={dndSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(event: DragEndEvent) => {
+                      const { active, over } = event
+                      if (over && active.id !== over.id) {
+                        reorderGroup(group.triggerCode, String(active.id), String(over.id))
+                      }
+                    }}
+                  >
+                    <table className="w-full text-sm">
+                      <thead className="text-xs text-slate-500 border-b border-slate-100">
+                        <tr>
+                          <th className="w-10"></th>
+                          <th className="text-left pb-2 font-medium">Tên chiến dịch</th>
+                          <th className="text-left pb-2 font-medium">Mã kịch bản</th>
+                          <th className="text-center pb-2 font-medium w-20">Vị trí</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <SortableContext items={group.limited.map(m => m.campaign.id)} strategy={verticalListSortingStrategy}>
+                        <tbody>
+                          {group.limited.map((m, i) => (
+                            <SortablePriorityRow key={m.campaign.id} member={m} index={i} isNew={isRecentlyAddedToGroup(m.campaign)} />
+                          ))}
+                        </tbody>
+                      </SortableContext>
+                    </table>
+                  </DndContext>
                 )}
 
                 {group.limited.length === 1 && (
                   // Mục 5.3 — chỉ 1 campaign "Có thời hạn", không cạnh tranh: hiển thị đơn giản, không kéo-thả.
-                  <div className="text-sm text-slate-600 bg-slate-50 rounded px-3 py-2">
-                    Campaign <strong>{group.limited[0].campaign.name}</strong> — vị trí #1 (không có campaign{' '}
-                    <strong>Có thời hạn</strong> nào khác cạnh tranh cùng trigger này)
+                  <div className="text-sm text-slate-600 bg-slate-50 rounded px-3 py-2 flex items-center gap-2">
+                    <span>
+                      Campaign <strong>{group.limited[0].campaign.name}</strong> — vị trí #1 (không có campaign{' '}
+                      <strong>Có thời hạn</strong> nào khác cạnh tranh cùng trigger này)
+                    </span>
+                    {isRecentlyAddedToGroup(group.limited[0].campaign) && (
+                      <span className="text-[10px] font-medium bg-emerald-100 text-emerald-700 rounded-full px-1.5 py-0.5">
+                        Mới
+                      </span>
+                    )}
                   </div>
                 )}
 
+                {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — case "nhóm toàn Vận hành thường trực"
+                    (Mục 2.5 solution doc). Không còn ai tạo được loại 'ongoing' qua UI (radio đã ẩn ở
+                    CampaignBuilder), nhưng dữ liệu mock cũ (id17, id18 — trigger U_PRE_EXPIRY) vẫn giữ
+                    nguyên trong mock.ts để dễ bật lại — chỉ ẩn ở tầng render này. Logic buildPriorityGroups
+                    (group.ongoing) KHÔNG đổi, vẫn tính toán bình thường, chỉ không render ra UI nữa.
                 {group.limited.length === 0 && group.ongoing.length > 0 && (
-                  // Mục 2.5 — toàn bộ nhóm là "Vận hành thường trực": chỉ liệt kê, tiebreak createdAt, không thao tác.
                   <div className="space-y-1.5">
                     <div className="text-xs text-slate-500">
                       {group.ongoing.length} campaign vận hành thường trực dùng chung trigger này, tự động xếp theo
@@ -396,10 +470,12 @@ export function Settings() {
                     </ul>
                   </div>
                 )}
+                */}
 
+                {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — khối ghi chú phụ "Vận hành thường trực"
+                    trong mỗi nhóm có cả limited + ongoing (Mục 2.1, 2.6 solution doc). Giữ Info import
+                    (dùng lại khi bật) — logic group.ongoing vẫn tính, chỉ không render.
                 {group.limited.length > 0 && group.ongoing.length > 0 && (
-                  // Campaign "Vận hành thường trực" trùng trigger với nhóm có "Có thời hạn" → khối ghi chú
-                  // phụ riêng, KHÔNG lẫn vào bàn kéo-thả (solution Mục 2.1, 2.6).
                   <div className="flex items-start gap-2 text-xs text-slate-500 bg-slate-50 rounded px-3 py-2">
                     <Info size={14} className="flex-shrink-0 mt-0.5" />
                     <span>
@@ -409,6 +485,7 @@ export function Settings() {
                     </span>
                   </div>
                 )}
+                */}
               </Card>
             )
           })}
@@ -422,11 +499,15 @@ export function Settings() {
           thứ tự Admin sắp xếp trong nhóm của trigger đó.
         </p>
         <ul className="mt-3 text-xs text-slate-500 space-y-1 list-disc pl-4">
-          <li>Dùng nút ▲▼ để đổi vị trí trong nhóm — chỉ ảnh hưởng nhóm trigger đang xem</li>
+          <li>Kéo-thả dòng (biểu tượng ⠿) để đổi vị trí trong nhóm — chỉ ảnh hưởng nhóm trigger đang xem</li>
+          {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — 2 dòng hướng dẫn nhắc khái niệm "Vận hành
+              thường trực", vốn không còn hiển thị ở đâu khác trong UI khi radio Loại hình đã ẩn.
           <li>Chiến dịch "Có thời hạn" luôn được xử lý trước "Vận hành thường trực" cùng trigger, mặc định</li>
           <li>Giữa các campaign "Vận hành thường trực": xếp theo ngày tạo sớm hơn, không cấu hình được</li>
+          */}
           <li>Chiến dịch Đang chạy mới luôn tự thêm vào CUỐI nhóm — không chèn giữa</li>
           <li>Chiến dịch Tạm dừng/Đã kết thúc tự gỡ khỏi mọi nhóm</li>
+          <li>Badge <strong>"Mới"</strong> đánh dấu chiến dịch vừa tự động thêm vào nhóm trong 24 giờ gần nhất — cần Admin rà soát</li>
         </ul>
         <DialogActions>
           <Button variant="outline" onClick={() => setHelpOpen(false)}>Đóng</Button>

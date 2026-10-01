@@ -26,6 +26,18 @@ function parseVnDateTime(d: string): number {
   return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min)).getTime()
 }
 
+// Badge "Mới" (Assumption A2, solution Mục 2.3 + Mục 8) — campaign vừa được tự động thêm vào 1 nhóm
+// trigger trong 24 giờ gần nhất. Solution doc dùng timestamp riêng `added_to_group_at`, nhưng mock
+// data hiện tại chưa có field này — xấp xỉ bằng `createdAt` của campaign (assumption, không phải
+// hành vi chốt: nếu 1 campaign đổi loại hình/gỡ-thêm lại nhóm nhiều lần, createdAt KHÔNG phản ánh
+// đúng lần thêm gần nhất; SA/Dev cần field `added_to_group_at` riêng khi lên production thật).
+export function isRecentlyAddedToGroup(campaign: Campaign, now: Date = new Date()): boolean {
+  const addedAt = parseVnDateTime(campaign.createdAt)
+  if (!addedAt) return false
+  const diffMs = now.getTime() - addedAt
+  return diffMs >= 0 && diffMs <= 24 * 60 * 60 * 1000
+}
+
 // Quét toàn bộ campaign Active → gom nhóm theo trigger (solution Mục 2.1, 2.2, 2.5).
 // Chỉ campaign Active mới được tính vào nhóm (Draft/Pending/Paused/Ended không tham gia — Mục 2.2, 2.3).
 // Trigger không có campaign Active nào dùng → không tạo nhóm (ẩn khỏi màn Cài đặt).
