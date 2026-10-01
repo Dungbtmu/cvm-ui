@@ -7,8 +7,8 @@ import { StatusBadge, TriggerChip, ParamChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockTriggers, mockSegments, mockCampaigns, mockTemplates } from '../data/mock'
-import { removeVietnameseTones, smsSegmentInfo } from '../lib/utils'
-import type { ChannelType, TriggerLogic, BlackoutAction, TriggerFilterField, FilterFieldDataType } from '../types'
+import { removeVietnameseTones, smsSegmentInfo, priorityDisplayInfo } from '../lib/utils'
+import type { ChannelType, TriggerLogic, BlackoutAction, TriggerFilterField, FilterFieldDataType, CampaignType, Campaign } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
@@ -1126,8 +1126,9 @@ export function CampaignBuilder() {
   const [goal, setGoal] = useState(existing?.goal ?? '')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [isInfinite, setIsInfinite] = useState(existing?.isInfinite ?? false)
-  const [priority, setPriority] = useState('12')
+  // Loại hình chiến dịch (CR Priority Redesign, solution Mục 3.2) — radio bắt buộc chọn, KHÔNG
+  // pre-select (null khi Tạo mới). Quyết định field Ngày kết thúc ẩn/hiện (Mục 3.3).
+  const [campaignType, setCampaignType] = useState<CampaignType | null>(existing?.campaignType ?? null)
   const [s1Collapsed, setS1Collapsed] = useState(false)
 
   // S2
@@ -1211,13 +1212,16 @@ export function CampaignBuilder() {
   const hasVariants = Object.values(channelCards).some(byTrig =>
     Object.values(byTrig).some(card => card.variants.length > 1)
   )
+  // Vận hành thường trực tự coi là Vô hạn — không còn checkbox "Vô hạn" riêng (solution Mục 3.3).
+  const isInfinite = campaignType === 'ongoing'
 
   // Issues
   const issues: string[] = []
   if (!name.trim()) issues.push('Chưa nhập tên campaign')
+  if (!campaignType) issues.push('Chưa chọn loại hình chiến dịch')
   if (!startDate) issues.push('Chưa chọn ngày bắt đầu')
-  if (!isInfinite && !endDate) issues.push('Chưa chọn ngày kết thúc (hoặc chọn Vô hạn)')
-  // Ngày kết thúc quá khứ là blocking issue — KHÔNG áp dụng cho campaign chọn Vô hạn (không có endDate để so sánh)
+  if (!isInfinite && !endDate) issues.push('Chưa chọn ngày kết thúc (bắt buộc với chiến dịch Có thời hạn)')
+  // Ngày kết thúc quá khứ là blocking issue — KHÔNG áp dụng cho campaign Vận hành thường trực (không có endDate để so sánh)
   if (!isInfinite && endDate && new Date(endDate) < new Date(new Date().toDateString())) {
     issues.push('Ngày kết thúc không được ở trong quá khứ')
   }
@@ -1230,13 +1234,10 @@ export function CampaignBuilder() {
   if (reminderIncompleteErr) issues.push('Nhắc lại: chưa nhập đầy đủ số lần và khoảng cách')
   if (reminderMaxErr) issues.push('Nhắc lại: số lần nhắc lại tối đa phải là số nguyên từ 1 đến 9999')
   if (reminderGapErr) issues.push('Nhắc lại: khoảng cách tối thiểu phải là số nguyên từ 1 đến 365 ngày')
-  // Không cho trùng độ ưu tiên với campaign Active khác (URD UC-CAM-02 V4.14) — chỉ chặn tại Gửi
-  // duyệt, không chặn Lưu Nháp; thống nhất với Campaign List và Priority Matrix.
-  const priorityNum = Number(priority)
-  if (priority !== '' && Number.isInteger(priorityNum)) {
-    const dupCampaign = mockCampaigns.find(c => c.id !== id && c.status === 'Active' && c.priority === priorityNum)
-    if (dupCampaign) issues.push(`Độ ưu tiên ${priorityNum} đã được dùng bởi campaign ${dupCampaign.name} — vui lòng chọn số khác`)
-  }
+  // [CR Priority Redesign] Đã bỏ hẳn check trùng độ ưu tiên (URD UC-CAM-02 V4.14) — không còn khái
+  // niệm "trùng" trong mô hình nhóm theo trigger (solution Mục 1.2). Độ ưu tiên giờ chỉ hiển thị
+  // theo trạng thái (xem field read-only bên dưới, priorityDisplayInfo) — sắp xếp thật diễn ra tại
+  // Cài đặt → Tab "Độ ưu tiên" sau khi campaign Active.
 
   // ---- Trigger helpers ----
   const canAddTrigger = triggerMode === 'advanced' || selectedTriggers.length === 0
@@ -1558,14 +1559,59 @@ export function CampaignBuilder() {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-slate-600 mb-1 block">Độ ưu tiên</label>
-                    <input type="number" value={priority} onChange={e => setPriority(e.target.value)} placeholder="VD: 1"
-                      min="1" max="9999"
-                      className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:border-blue-400 ${priority !== '' && (Number(priority) < 1 || Number(priority) > 9999 || !Number.isInteger(Number(priority))) ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
-                    {priority !== '' && (Number(priority) < 1 || Number(priority) > 9999 || !Number.isInteger(Number(priority))) && (
-                      <div className="text-xs text-red-500 mt-1">Độ ưu tiên phải là số nguyên từ 1 đến 9999</div>
-                    )}
-                    <div className="text-xs text-slate-400 mt-1">Số nhỏ hơn = ưu tiên cao hơn · mặc định = max+1</div>
+                    {/* [CR Priority Redesign] Field đổi từ ô nhập tay sang vùng hiển thị READ-ONLY theo
+                        đúng trạng thái campaign (solution Mục 2.7, Assumption A8) — không bao giờ cho nhập
+                        tay. Sắp xếp thật diễn ra duy nhất tại Cài đặt → Tab "Độ ưu tiên" (Admin only). */}
+                    {(() => {
+                      const info = priorityDisplayInfo({
+                        status: existing?.status ?? 'Draft',
+                        campaignType: campaignType ?? undefined,
+                      } as Campaign)
+                      return info.kind === 'link' ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/settings?tab=priority&campaign=${existing?.id ?? ''}`)}
+                          className="w-full text-left px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-blue-600 hover:underline"
+                        >
+                          {info.text}
+                        </button>
+                      ) : (
+                        <div className="w-full px-3 py-2 text-sm border border-slate-100 rounded-md bg-slate-50 text-slate-500 italic">
+                          {info.text}
+                        </div>
+                      )
+                    })()}
                   </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-2 block">Loại hình chiến dịch *</label>
+                  <div className="flex gap-6 text-sm">
+                    {([
+                      ['ongoing', 'Vận hành thường trực'],
+                      ['limited', 'Có thời hạn'],
+                    ] as const).map(([val, label]) => (
+                      <label key={val} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="campaignType"
+                          checked={campaignType === val}
+                          onChange={() => {
+                            // Đổi ý khi đang Draft: xóa dữ liệu Ngày kết thúc không cảnh báo khi chuyển
+                            // sang Vận hành thường trực; hiện lại trống khi chuyển sang Có thời hạn
+                            // (solution Mục 3.3 — không khôi phục giá trị cũ).
+                            setCampaignType(val)
+                            if (val === 'ongoing') setEndDate('')
+                            else setEndDate('')
+                            setTouched(true)
+                          }}
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  {!campaignType && touched && (
+                    <div className="text-xs text-red-500 mt-1">Vui lòng chọn loại hình chiến dịch</div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1577,25 +1623,19 @@ export function CampaignBuilder() {
                     <label className="text-xs font-medium text-slate-600 mb-1 block">
                       Ngày kết thúc {!isInfinite && '*'}
                     </label>
-                    {!isInfinite ? (
-                      <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setTouched(true) }}
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
-                    ) : (
+                    {campaignType === 'ongoing' ? (
+                      // Vận hành thường trực: field ẨN HẲN (không phải disabled) — hệ thống tự gán Vô hạn,
+                      // chạy đến khi QTV/Admin chủ động [Dừng] (solution Mục 3.3).
                       <div className="w-full px-3 py-2 text-sm border border-slate-100 rounded-md bg-slate-50 text-slate-400 italic">
-                        Không giới hạn — chạy đến khi [Dừng]
+                        Không áp dụng — chạy đến khi [Dừng] (Vận hành thường trực)
                       </div>
+                    ) : (
+                      <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setTouched(true) }}
+                        disabled={!campaignType}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300" />
                     )}
                   </div>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isInfinite}
-                    onChange={e => { setIsInfinite(e.target.checked); if (e.target.checked) setEndDate(''); setTouched(true) }}
-                    className="accent-blue-500"
-                  />
-                  Không giới hạn ngày kết thúc (Vô hạn)
-                </label>
                 <div className="text-xs text-slate-500">Người tạo: QTV Marketing</div>
               </div>
             )}

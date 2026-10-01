@@ -6,8 +6,13 @@ import { StatusBadge, TriggerChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockCampaigns } from '../data/mock'
-import { reactivateBlockReason, reactivateFlow, isBeforeStart } from '../lib/utils'
+import { reactivateBlockReason, reactivateFlow, isBeforeStart, priorityDisplayInfo } from '../lib/utils'
 import type { ChannelType, CampaignStatus } from '../types'
+
+const campaignTypeLabel: Record<'ongoing' | 'limited', string> = {
+  ongoing: 'Vận hành thường trực',
+  limited: 'Có thời hạn',
+}
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
@@ -310,8 +315,8 @@ export function CampaignDetail() {
               ['Tên chiến dịch', campaign.name],
               ['Mã kịch bản', campaign.code],
               ['Mục tiêu', campaign.goal ?? '—'],
+              ['Loại hình chiến dịch', campaign.campaignType ? campaignTypeLabel[campaign.campaignType] : '—'],
               ['Thời gian', `${campaign.startDate} – ${campaign.isInfinite ? 'Vô hạn' : campaign.endDate}`],
-              ['Độ ưu tiên', String(campaign.priority)],
               ['Người tạo', campaign.owner],
               ['Ngày tạo', campaign.createdAt],
               ['Ngày gửi duyệt', campaign.submittedAt ?? '—'],
@@ -321,6 +326,26 @@ export function CampaignDetail() {
                 <dd className="text-slate-800 font-medium">{value}</dd>
               </div>
             ))}
+            {/* [CR Priority Redesign] Độ ưu tiên — hiển thị theo trạng thái (solution Mục 2.7), tách
+                riêng khỏi mảng trên vì cần render link khi Active, không chỉ text tĩnh. */}
+            <div className="flex gap-2">
+              <dt className="text-slate-500 w-36 flex-shrink-0">Độ ưu tiên:</dt>
+              <dd className="text-slate-800 font-medium">
+                {(() => {
+                  const info = priorityDisplayInfo(campaign)
+                  return info.kind === 'link' ? (
+                    <button
+                      onClick={() => navigate(`/settings?tab=priority&campaign=${campaign.id}`)}
+                      className="text-blue-600 hover:underline font-normal"
+                    >
+                      {info.text}
+                    </button>
+                  ) : (
+                    <span className="text-slate-500 font-normal italic">{info.text}</span>
+                  )
+                })()}
+              </dd>
+            </div>
           </dl>
         </section>
 

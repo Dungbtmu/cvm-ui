@@ -3,6 +3,10 @@ export type TriggerType = 'Realtime' | 'Near Realtime' | 'Offline'
 export type ChannelType = 'Push' | 'Zalo OA' | 'SMS' | 'Banner' | 'Email' | 'USSD'
 export type TriggerLogic = 'OR' | 'AND'
 export type BlackoutAction = 'discard' | 'delay'
+// Loại hình chiến dịch (CR Priority Redesign — xem solution/priority-redesign-solution.md Mục 3.2):
+// 'ongoing' = Vận hành thường trực (không tham gia bàn kéo-thả, tiebreak theo createdAt khi trùng trigger),
+// 'limited' = Có thời hạn (duy nhất loại tham gia Nhóm ưu tiên liên-campaign tại Cài đặt).
+export type CampaignType = 'ongoing' | 'limited'
 
 export interface Campaign {
   id: string
@@ -16,7 +20,17 @@ export interface Campaign {
   endDate?: string
   // true = không giới hạn ngày kết thúc; campaign chạy đến khi QTV/Admin chủ động [Dừng] (Kill Switch)
   isInfinite?: boolean
+  // [DEPRECATED] Không còn dùng để hiển thị/tính toán kể từ CR Priority Redesign (Mục 2.8 solution doc) —
+  // giữ tạm field này chỉ để tương thích ngược data cũ trong prototype, thay thế hoàn toàn bằng
+  // campaignType + groupPositions (mô hình "N vị trí độc lập theo nhóm trigger", xem Mục 2.4 solution doc).
   priority: number
+  // Loại hình chiến dịch — bắt buộc chọn khi Tạo (radio, không pre-select). Quyết định campaign có tham
+  // gia Nhóm ưu tiên liên-campoanh (bàn kéo-thả tại Cài đặt) hay không. Xem solution Mục 3.2.
+  campaignType?: CampaignType
+  // Vị trí trong từng nhóm trigger — key = mã trigger, value = index hiển thị (1-based) trong bàn kéo-thả
+  // của nhóm đó. Chỉ có ý nghĩa với campaign campaignType = 'limited' và status = 'Active'. Mô hình khái
+  // niệm "Campaign × Nhóm Trigger → Vị trí" (solution Mục 2.4) — KHÔNG phải 1 số toàn cục.
+  groupPositions?: Record<string, number>
   owner: string
   createdAt: string
   submittedAt?: string

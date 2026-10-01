@@ -6,8 +6,17 @@ import { StatusBadge, TriggerChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockCampaigns, mockTriggers } from '../data/mock'
-import { reactivateBlockReason, reactivateFlow, sortCampaignsForList, isBeforeStart } from '../lib/utils'
+import { reactivateBlockReason, reactivateFlow, sortCampaignsForList, isBeforeStart, priorityDisplayInfo } from '../lib/utils'
 import type { Campaign, CampaignStatus } from '../types'
+
+const campaignTypeLabel: Record<'ongoing' | 'limited', string> = {
+  ongoing: 'Thường trực',
+  limited: 'Có thời hạn',
+}
+const campaignTypeClass: Record<'ongoing' | 'limited', string> = {
+  ongoing: 'bg-purple-100 text-purple-700',
+  limited: 'bg-blue-100 text-blue-700',
+}
 
 const statusFilters: CampaignStatus[] = ['Active', 'Draft', 'Pending', 'Paused', 'Ended']
 const statusLabel: Record<CampaignStatus, string> = {
@@ -25,10 +34,6 @@ export function CampaignList() {
   const [tooltipCampaign, setTooltipCampaign] = useState<string | null>(null)
   const [confirmActivatePending, setConfirmActivatePending] = useState<Campaign | null>(null)
   const [confirmUnlockResume, setConfirmUnlockResume] = useState<Campaign | null>(null)
-  const [editingPriority, setEditingPriority] = useState<string | null>(null)
-  const [priorityDraft, setPriorityDraft] = useState('')
-  const [priorityErr, setPriorityErr] = useState('')
-  const [confirmPriorityChange, setConfirmPriorityChange] = useState<{ campaign: Campaign; newPriority: number } | null>(null)
 
   const toggleFilter = (f: CampaignStatus) =>
     setActiveFilters(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f])
@@ -84,53 +89,6 @@ export function CampaignList() {
     setConfirmUnlockResume(null)
   }
 
-  // Sửa priority inline trên Campaign List — áp dụng cho campaign Active và Draft.
-  // Active: xác nhận đổi → chuyển về Pending để Admin xác nhận lại (khác Priority Matrix,
-  // nơi Admin tự sắp xếp không cần duyệt lại). Draft: chưa từng qua duyệt nên lưu ngay,
-  // không confirm dialog, không đổi trạng thái.
-  const startEditPriority = (c: Campaign) => {
-    setEditingPriority(c.id)
-    setPriorityDraft(String(c.priority))
-    setPriorityErr('')
-  }
-  // Validate: số nguyên dương 1–9999, cùng ngưỡng với Campaign Builder (URD Screen 3 STT 5,
-  // Screen 2 STT 7 v4.11) — sai định dạng/ngoài khoảng thì giữ edit mode, không âm thầm bỏ qua.
-  const commitPriorityEdit = (c: Campaign) => {
-    const newPriority = Number(priorityDraft)
-    if (!Number.isInteger(newPriority) || newPriority < 1 || newPriority > 9999) {
-      setPriorityErr('Độ ưu tiên phải là số nguyên từ 1 đến 9999')
-      return
-    }
-    if (newPriority !== c.priority) {
-      // Không cho trùng độ ưu tiên với campaign Active khác (URD UC-CAM-01 V4.14) — thống nhất với
-      // Campaign Builder (chặn tại Gửi duyệt) và Priority Matrix (chặn cứng). Draft không tham gia
-      // so trùng vì chưa giữ vị trí xếp hạng thật.
-      const dup = campaigns.find(x => x.id !== c.id && x.status === 'Active' && x.priority === newPriority)
-      if (dup) {
-        setPriorityErr(`Độ ưu tiên ${newPriority} đã được dùng bởi campaign ${dup.name} — vui lòng chọn số khác`)
-        return
-      }
-    }
-    setEditingPriority(null)
-    setPriorityErr('')
-    if (newPriority === c.priority) return
-    if (c.status === 'Draft') {
-      setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, priority: newPriority } : x))
-      toast('Đã cập nhật độ ưu tiên ✓', 'success')
-      return
-    }
-    setConfirmPriorityChange({ campaign: c, newPriority })
-  }
-  const confirmPriorityChangeApply = () => {
-    if (!confirmPriorityChange) return
-    const { campaign: c, newPriority } = confirmPriorityChange
-    setCampaigns(prev => prev.map(x => x.id === c.id
-      ? { ...x, priority: newPriority, status: 'Pending' as CampaignStatus }
-      : x))
-    toast('Đã đổi độ ưu tiên — chiến dịch chuyển về Chờ duyệt', 'warning')
-    setConfirmPriorityChange(null)
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -175,6 +133,7 @@ export function CampaignList() {
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Tên / Mã Chiến dịch</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Sự kiện kích hoạt</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Hiệu lực</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Loại hình</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Ưu tiên</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Trạng thái</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Hành động</th>
@@ -239,34 +198,28 @@ export function CampaignList() {
                   {c.startDate} – {c.isInfinite ? 'Vô hạn' : c.endDate}
                 </td>
                 <td className="px-4 py-3">
-                  {c.status === 'Active' || c.status === 'Draft' ? (
-                    editingPriority === c.id ? (
-                      <div>
-                        <input
-                          type="number"
-                          autoFocus
-                          value={priorityDraft}
-                          min={1}
-                          max={9999}
-                          onChange={e => { setPriorityDraft(e.target.value); setPriorityErr('') }}
-                          onBlur={() => commitPriorityEdit(c)}
-                          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-                          className={`w-16 px-1.5 py-1 text-xs border rounded focus:outline-none ${priorityErr ? 'border-red-400 bg-red-50' : 'border-blue-300'}`}
-                        />
-                        {priorityErr && <div className="text-[10px] text-red-500 mt-0.5 w-32">{priorityErr}</div>}
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => startEditPriority(c)}
-                        className="text-xs text-slate-700 hover:text-blue-600 hover:underline px-1.5 py-1 rounded"
-                        title="Nhấn để sửa độ ưu tiên"
-                      >
-                        {c.priority}
-                      </button>
-                    )
-                  ) : (
-                    <span className="text-xs text-slate-400">{c.priority}</span>
+                  {c.campaignType && (
+                    <span className={`text-xs rounded px-2 py-0.5 font-medium ${campaignTypeClass[c.campaignType]}`}>
+                      {campaignTypeLabel[c.campaignType]}
+                    </span>
                   )}
+                </td>
+                <td className="px-4 py-3">
+                  {/* [CR Priority Redesign] Cột Ưu tiên đổi từ inline-edit sang HIỂN THỊ theo trạng thái
+                      (solution Mục 2.7, 3.4) — sắp xếp thật diễn ra duy nhất tại Cài đặt → Tab "Độ ưu tiên". */}
+                  {(() => {
+                    const info = priorityDisplayInfo(c)
+                    return info.kind === 'link' ? (
+                      <button
+                        onClick={() => navigate(`/settings?tab=priority&campaign=${c.id}`)}
+                        className="text-xs text-blue-600 hover:underline text-left"
+                      >
+                        {info.text}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">{info.text}</span>
+                    )
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -309,7 +262,7 @@ export function CampaignList() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">
+                <td colSpan={7} className="px-4 py-12 text-center text-slate-400 text-sm">
                   Không có chiến dịch nào phù hợp.
                 </td>
               </tr>
@@ -365,18 +318,6 @@ export function CampaignList() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={!!confirmPriorityChange} onClose={() => setConfirmPriorityChange(null)} title="Thay đổi độ ưu tiên?">
-        <p className="text-sm text-slate-600">
-          Thay đổi độ ưu tiên sẽ chuyển chiến dịch về <strong>Chờ duyệt</strong> để Quản trị viên xác nhận lại
-          {confirmPriorityChange && (
-            <> — từ <strong>{confirmPriorityChange.campaign.priority}</strong> thành <strong>{confirmPriorityChange.newPriority}</strong>.</>
-          )}
-        </p>
-        <DialogActions>
-          <Button variant="outline" onClick={() => setConfirmPriorityChange(null)}>Hủy</Button>
-          <Button variant="primary" onClick={confirmPriorityChangeApply}>Xác nhận</Button>
-        </DialogActions>
-      </Dialog>
     </div>
   )
 }

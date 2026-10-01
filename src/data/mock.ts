@@ -11,12 +11,15 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/04/2026',
     endDate: '30/06/2026',
     priority: 1,
+    campaignType: 'limited',
     owner: 'QTV Marketing',
     createdAt: '10/05/2026 14:32',
     submittedAt: '12/05/2026 09:15',
     goal: 'Onboard eSIM, nhắc cài app',
   },
   {
+    // Nhóm trigger E06 — 1 trong 3 campaign "Có thời hạn" cạnh tranh vị trí (xem id14, id16).
+    // Vị trí #1 trong nhóm E06 (xem groupPositions — CR Priority Redesign, solution Mục 2.4).
     id: '2',
     name: 'Nhắc nạp tiền',
     code: 'CVM-REMIND-TOPUP-05-2026',
@@ -26,6 +29,8 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/05/2026',
     endDate: '31/05/2026',
     priority: 2,
+    campaignType: 'limited',
+    groupPositions: { E06: 1 },
     owner: 'QTV Sales',
     createdAt: '28/04/2026 10:00',
   },
@@ -39,6 +44,7 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/05/2026',
     endDate: '31/05/2026',
     priority: 3,
+    campaignType: 'limited',
     owner: 'QTV Marketing',
     createdAt: '28/04/2026 11:00',
     paramInvalid: { triggerName: 'U_PRE_EXPIRY', paramName: 'ten_goi', locked: true },
@@ -53,6 +59,7 @@ export const mockCampaigns: Campaign[] = [
     startDate: '15/05/2026',
     endDate: '30/06/2026',
     priority: 4,
+    campaignType: 'limited',
     owner: 'QTV Marketing',
     createdAt: '14/05/2026 08:00',
     filterInvalid: { triggerName: 'U09', filterFieldName: 'Số ngày gắn bó', locked: true },
@@ -69,6 +76,7 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/06/2026',
     endDate: '31/12/2026',
     priority: 12,
+    campaignType: 'limited',
     owner: 'QTV Marketing',
     createdAt: '20/08/2026 09:30',
     paramInvalid: { triggerName: 'E01', paramName: 'package_code', locked: true },
@@ -87,6 +95,7 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/07/2026',
     endDate: '31/12/2026',
     priority: 13,
+    campaignType: 'limited',
     owner: 'QTV Marketing',
     createdAt: '22/08/2026 09:00',
     submittedAt: '22/08/2026 09:00',
@@ -104,7 +113,10 @@ export const mockCampaigns: Campaign[] = [
     endDate: '31/08/2026',
     // Test case: trùng priority với campaign Active "Nhắc nạp tiền" (id 2) — dùng để kiểm tra
     // dialog Duyệt tại AdminScreen chặn đúng khi phát hiện trùng (URD UC-CAM-05 V4.15).
+    // [LEGACY] Case trùng priority không còn ý nghĩa kể từ CR Priority Redesign (không còn khái
+    // niệm "trùng" — xem solution Mục 1.2), giữ nguyên comment lịch sử, chỉ bổ sung campaignType.
     priority: 2,
+    campaignType: 'limited',
     owner: 'QTV Marketing',
     createdAt: '19/05/2026 10:15',
     submittedAt: '19/05/2026 14:00',
@@ -120,6 +132,7 @@ export const mockCampaigns: Campaign[] = [
     startDate: '25/05/2026',
     endDate: '30/06/2026',
     priority: 8,
+    campaignType: 'limited',
     owner: 'QTV Sales',
     createdAt: '20/05/2026 08:00',
     submittedAt: '20/05/2026 11:45',
@@ -134,6 +147,7 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/06/2026',
     endDate: '07/06/2026',
     priority: 9,
+    campaignType: 'limited',
     owner: 'QTV Sales',
     createdAt: '21/05/2026 09:00',
     submittedAt: '21/05/2026 15:20',
@@ -149,6 +163,7 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/06/2026',
     endDate: '15/06/2026',
     priority: 10,
+    campaignType: 'limited',
     owner: 'QTV Marketing',
     createdAt: '21/05/2026 13:30',
     submittedAt: '22/05/2026 08:00',
@@ -164,11 +179,16 @@ export const mockCampaigns: Campaign[] = [
     startDate: '20/01/2026',
     endDate: '10/02/2026',
     priority: 6,
+    campaignType: 'limited',
     owner: 'QTV Marketing',
     createdAt: '15/01/2026 09:00',
     goal: 'Chúc Tết, khuyến mãi gói cước',
   },
   {
+    // Campaign dùng NHIỀU trigger (Advanced mode) — demo "N vị trí độc lập theo nhóm trigger"
+    // (solution Mục 2.4): xuất hiện độc lập ở 6 nhóm khác nhau, mỗi nhóm 1 vị trí riêng, không
+    // liên quan nhau. Trong nhóm E06 đứng #3 (sau id2 #1, id14 #2); các nhóm còn lại đứng #1
+    // (không cạnh tranh với "Có thời hạn" nào khác dùng đúng trigger đó).
     id: '5',
     name: 'Giữ chân KH có nguy cơ rời mạng',
     code: 'CVM-RETENTION-Q2-2026',
@@ -178,6 +198,8 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/05/2026',
     endDate: '30/06/2026',
     priority: 5,
+    campaignType: 'limited',
+    groupPositions: { E05: 1, E13: 1, E08: 1, E02: 1, U09: 1, E06: 3 },
     owner: 'QTV Marketing',
     createdAt: '13/05/2026 09:00',
     goal: 'Giảm churn rate, tăng engagement',
@@ -187,6 +209,9 @@ export const mockCampaigns: Campaign[] = [
     // demo trạng thái ban đầu trước khi set cờ thủ công (xem ghi chú DEMO SCRIPT bên dưới),
     // vì prototype UI không tự tính cờ khi Khóa param/filter ở Trigger Admin (giới hạn mock —
     // logic đó là backend thật, quét nội dung message thực tế đối chiếu param/filter bị khóa).
+    // Nhóm trigger E01 — DUY NHẤT 1 campaign "Có thời hạn" dùng trigger này → case Mục 5.3
+    // (không có bàn kéo-thả, hiển thị dạng đơn giản "vị trí #1, không có campaign Có thời hạn
+    // nào khác cạnh tranh").
     id: '11',
     name: 'Demo test trigger E01',
     code: 'CVM-DEMO-TRIGGER-E01',
@@ -196,6 +221,8 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/06/2026',
     endDate: '31/12/2026',
     priority: 11,
+    campaignType: 'limited',
+    groupPositions: { E01: 1 },
     owner: 'QTV Marketing',
     createdAt: '20/08/2026 09:00',
     goal: 'Dữ liệu demo — test nghiệp vụ Trigger (Thêm/Sửa/Khóa param + điều kiện lọc)',
@@ -203,7 +230,9 @@ export const mockCampaigns: Campaign[] = [
   {
     // Demo endDate = Vô hạn — không có endDate, chạy đến khi QTV/Admin chủ động [Dừng].
     // Campaign List/Detail phải hiển thị "DD/MM – Vô hạn" thay vì khoảng ngày.
-    id: '13',
+    // Đồng thời là campaign "Vận hành thường trực" trong nhóm E06 — không tham gia bàn kéo-thả,
+    // hiển thị ở khối ghi chú phụ (solution Mục 2.1/2.6) cùng nhóm với id2/id14/id16 (Có thời hạn).
+    id: '13b',
     name: 'Chăm sóc KH lâu dài — không giới hạn',
     code: 'CVM-LOYALTY-INFINITE-2026',
     status: 'Active',
@@ -212,6 +241,7 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/07/2026',
     isInfinite: true,
     priority: 13,
+    campaignType: 'ongoing',
     owner: 'QTV Marketing',
     createdAt: '15/07/2026 09:00',
     goal: 'Chăm sóc khách hàng dài hạn — không đặt ngày kết thúc cố định',
@@ -219,6 +249,7 @@ export const mockCampaigns: Campaign[] = [
   {
     // Demo badge "Chưa tới ngày bắt đầu" — Active nhưng startDate ở tương lai so với "hôm nay" (21/08/2026).
     // Vẫn giữ nguyên status Active, chỉ thêm badge phụ tại Campaign List/Detail (URD Screen 2 STT 8).
+    // Nhóm trigger E06 — 1 trong 3 campaign "Có thời hạn" cạnh tranh vị trí, đứng #2 (sau id2 #1).
     id: '14',
     name: 'Khai trương chi nhánh mới Q4',
     code: 'CVM-BRANCH-OPEN-Q4-2026',
@@ -228,10 +259,64 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/10/2026',
     endDate: '31/12/2026',
     priority: 14,
+    campaignType: 'limited',
+    groupPositions: { E06: 2 },
     owner: 'QTV Marketing',
     createdAt: '20/08/2026 10:00',
     submittedAt: '20/08/2026 11:00',
     goal: 'Quảng bá chi nhánh mới — đã duyệt trước, chờ tới ngày khai trương mới bắt đầu gửi',
+  },
+  {
+    // Nhóm trigger E06 — campaign "Có thời hạn" thứ 3 cạnh tranh, mới Active gần đây nhất nên
+    // xếp cuối bàn kéo-thả (#4, sau id5 #3) — minh họa rule "luôn xếp cuối khi mới Active" (Mục 2.3).
+    id: '16',
+    name: 'Mừng sinh nhật khách hàng thân thiết',
+    code: 'CVM-BIRTHDAY-VIP-2026',
+    status: 'Active',
+    triggers: ['E06'],
+    templateIds: ['2'],
+    startDate: '01/09/2026',
+    endDate: '31/12/2026',
+    priority: 16,
+    campaignType: 'limited',
+    groupPositions: { E06: 4 },
+    owner: 'QTV Marketing',
+    createdAt: '25/08/2026 09:00',
+    submittedAt: '25/08/2026 10:00',
+    goal: 'Tăng gắn bó khách hàng VIP nhân dịp sinh nhật',
+  },
+  {
+    // Nhóm trigger U_PRE_EXPIRY — TOÀN BỘ là "Vận hành thường trực", KHÔNG có campaign "Có thời
+    // hạn" nào Active dùng trigger này → case Mục 2.5 (chỉ liệt kê, tiebreak theo createdAt, không
+    // có bàn kéo-thả, Admin không thao tác gì).
+    id: '17',
+    name: 'Nhắc gia hạn tự động — thường trực',
+    code: 'CVM-AUTORENEW-ONGOING-2026',
+    status: 'Active',
+    triggers: ['U_PRE_EXPIRY'],
+    templateIds: ['3'],
+    startDate: '01/01/2026',
+    isInfinite: true,
+    priority: 17,
+    campaignType: 'ongoing',
+    owner: 'QTV Marketing',
+    createdAt: '02/01/2026 08:00',
+    goal: 'Nhắc gia hạn gói cước sắp hết hạn — chạy liên tục, không thời hạn',
+  },
+  {
+    id: '18',
+    name: 'Chăm sóc định kỳ KH sắp hết hạn gói',
+    code: 'CVM-CARE-RENEW-ONGOING-2026',
+    status: 'Active',
+    triggers: ['U_PRE_EXPIRY'],
+    templateIds: ['3'],
+    startDate: '15/02/2026',
+    isInfinite: true,
+    priority: 18,
+    campaignType: 'ongoing',
+    owner: 'QTV Sales',
+    createdAt: '10/02/2026 09:00',
+    goal: 'Chăm sóc định kỳ, bổ trợ cho campaign nhắc gia hạn tự động',
   },
   {
     // Demo pausedConfigChanged — khác paramInvalid/filterInvalid (đó là do Khóa). Ở đây Admin đã SỬA
@@ -248,6 +333,7 @@ export const mockCampaigns: Campaign[] = [
     startDate: '01/07/2026',
     endDate: '31/12/2026',
     priority: 15,
+    campaignType: 'limited',
     owner: 'QTV Marketing',
     createdAt: '10/07/2026 09:00',
     pausedConfigChanged: true,
