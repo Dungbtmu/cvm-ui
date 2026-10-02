@@ -64,6 +64,9 @@ interface TriggerCardData {
 // channelCards[channel][triggerCode] = TriggerCardData
 type ChannelCards = Record<string, Record<string, TriggerCardData>>
 
+// Nhắc lại (Re-engagement) — 1 cặp cấu hình cho 1 cấp (toàn campaign / 1 kênh / 1 biến thể trong kênh)
+interface ReminderCfg { allow: boolean; maxCount: string; gapDays: string }
+
 function defaultVariant(): { segmentId: null; segmentName: string; content: VariantContent } {
   return { segmentId: null, segmentName: 'Tất cả (dự phòng)', content: {} }
 }
@@ -1115,6 +1118,49 @@ function ScheduleBlock({ scheduleType, onScheduleType, blackoutOn, onBlackoutOn,
   )
 }
 
+interface ReminderBlockProps {
+  cfg: ReminderCfg
+  onChange: (patch: Partial<ReminderCfg>) => void
+  maxErr: boolean
+  gapErr: boolean
+}
+function ReminderBlock({ cfg, onChange, maxErr, gapErr }: ReminderBlockProps) {
+  const incomplete = cfg.allow && (cfg.maxCount === '' || cfg.gapDays === '')
+  return (
+    <div>
+      <label className="flex items-center gap-2 cursor-pointer w-fit">
+        <input type="checkbox" checked={cfg.allow} onChange={e => onChange({ allow: e.target.checked })}
+          className="accent-blue-500" />
+        <span className="text-xs font-medium text-slate-700">Cho phép nhắc lại</span>
+      </label>
+      <div className="text-xs text-slate-400 mt-0.5">
+        Nếu KH vẫn còn thoả điều kiện trigger này sau khi đã nhận tin, hệ thống sẽ chủ động gửi nhắc thêm.
+      </div>
+      {cfg.allow && (
+        <div className="mt-2 space-y-2 pl-6">
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-slate-600 w-48">Số lần nhắc lại tối đa:</label>
+            <input type="number" min="1" max="9999" value={cfg.maxCount}
+              onChange={e => onChange({ maxCount: e.target.value })} placeholder="VD: 2"
+              className={`w-24 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-400 ${maxErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-slate-600 w-48">Khoảng cách tối thiểu (ngày):</label>
+            <input type="number" min="1" max="365" value={cfg.gapDays}
+              onChange={e => onChange({ gapDays: e.target.value })} placeholder="VD: 3"
+              className={`w-24 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-400 ${gapErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+          </div>
+          {incomplete && (
+            <div className="text-xs text-red-500 bg-red-50 rounded px-2 py-1 w-fit">
+              Vui lòng nhập đầy đủ số lần và khoảng cách nhắc lại
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function CampaignBuilder() {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -1165,17 +1211,38 @@ export function CampaignBuilder() {
 
   // Nhắc lại (Re-engagement) — cấu hình riêng theo campaign, không phải toàn hệ thống (URD II.6.10).
   // Khác Retry kỹ thuật: chỉ nhắc khi lần gửi trước THÀNH CÔNG và KH vẫn còn thoả điều kiện trigger.
-  const [allowReminder, setAllowReminder] = useState(false)
-  const [reminderMaxCount, setReminderMaxCount] = useState('')
-  const [reminderGapDays, setReminderGapDays] = useState('')
+  // Cấp áp dụng đi theo đúng lựa chọn Lịch chung/Lịch riêng per kênh (schedulePer, STT 2):
+  // - Lịch chung: 1 cặp (reminderCommon) dùng chung cho cả campaign
+  // - Lịch riêng per kênh: mỗi kênh 1 cặp độc lập (reminderPerChannel)
+  // - Có Audience Variant (hasVariants): bên trong mỗi kênh, mỗi biến thể 1 cặp độc lập (reminderPerVariant)
+  const [reminderCommon, setReminderCommon] = useState<ReminderCfg>({ allow: false, maxCount: '', gapDays: '' })
+  const [reminderPerChannel, setReminderPerChannel] = useState<Record<string, ReminderCfg>>({})
+  const [reminderPerVariant, setReminderPerVariant] = useState<Record<string, Record<number, ReminderCfg>>>({})
+
+  const getReminderCfg = (ch?: string, variantIdx?: number): ReminderCfg => {
+    const empty: ReminderCfg = { allow: false, maxCount: '', gapDays: '' }
+    if (schedulePer === 'common') return reminderCommon
+    if (ch === undefined) return empty
+    if (hasVariants && variantIdx !== undefined) return reminderPerVariant[ch]?.[variantIdx] ?? empty
+    return reminderPerChannel[ch] ?? empty
+  }
+  const setReminderCfg = (patch: Partial<ReminderCfg>, ch?: string, variantIdx?: number) => {
+    if (schedulePer === 'common') { setReminderCommon(prev => ({ ...prev, ...patch })); return }
+    if (ch === undefined) return
+    if (hasVariants && variantIdx !== undefined) {
+      setReminderPerVariant(prev => ({
+        ...prev,
+        [ch]: { ...(prev[ch] ?? {}), [variantIdx]: { ...getReminderCfg(ch, variantIdx), ...patch } }
+      }))
+      return
+    }
+    setReminderPerChannel(prev => ({ ...prev, [ch]: { ...getReminderCfg(ch), ...patch } }))
+  }
   const inRange = (v: string, max: number) => {
     if (v === '') return false
     const n = Number(v)
     return !Number.isInteger(n) || n <= 0 || n > max
   }
-  const reminderMaxErr = inRange(reminderMaxCount, 9999)
-  const reminderGapErr = inRange(reminderGapDays, 365)
-  const reminderIncompleteErr = allowReminder && (reminderMaxCount === '' || reminderGapDays === '')
 
   // S4
   const [activeChannelTab, setActiveChannelTab] = useState<ChannelType>('Push')
@@ -1214,6 +1281,18 @@ export function CampaignBuilder() {
   const hasVariants = Object.values(channelCards).some(byTrig =>
     Object.values(byTrig).some(card => card.variants.length > 1)
   )
+
+  // Danh sách toàn bộ cặp cấu hình Nhắc lại đang áp dụng (theo đúng cấp hiện hành) — dùng để validate chung
+  const allReminderCfgs: ReminderCfg[] = schedulePer === 'common'
+    ? [reminderCommon]
+    : activeChannels.flatMap(ch =>
+        hasVariants
+          ? (channelCards[ch] ? Object.values(channelCards[ch])[0]?.variants ?? [] : []).map((_, vIdx) => getReminderCfg(ch, vIdx))
+          : [getReminderCfg(ch)]
+      )
+  const reminderMaxErr = allReminderCfgs.some(c => inRange(c.maxCount, 9999))
+  const reminderGapErr = allReminderCfgs.some(c => inRange(c.gapDays, 365))
+  const reminderIncompleteErr = allReminderCfgs.some(c => c.allow && (c.maxCount === '' || c.gapDays === ''))
 
   // Issues
   const issues: string[] = []
@@ -2042,7 +2121,7 @@ export function CampaignBuilder() {
 
                 {/* ── Lịch chung ── */}
                 {schedulePer === 'common' && (
-                  <div className="pl-4 space-y-2 mt-1 border-l-2 border-slate-100">
+                  <div className="pl-4 space-y-3 mt-1 border-l-2 border-slate-100">
                     <ScheduleBlock
                       scheduleType={scheduleType}
                       onScheduleType={setScheduleType}
@@ -2052,73 +2131,79 @@ export function CampaignBuilder() {
                       onBlackoutAction={setBlackoutAction}
                       namePrefix="common"
                     />
+                    {/* Nhắc lại (Re-engagement, URD II.6.10) — cấp Lịch chung: 1 cặp dùng chung cả campaign */}
+                    <div className="border-t border-slate-100 pt-2">
+                      <ReminderBlock
+                        cfg={reminderCommon}
+                        onChange={patch => setReminderCfg(patch)}
+                        maxErr={inRange(reminderCommon.maxCount, 9999)}
+                        gapErr={inRange(reminderCommon.gapDays, 365)}
+                      />
+                    </div>
                   </div>
                 )}
 
                 {/* ── Lịch riêng theo kênh — accordion ── */}
                 {schedulePer === 'per' && activeChannels.length > 0 && (
                   <div className="space-y-2 mt-1">
-                    {activeChannels.map(ch => (
-                      <div key={ch} className="border border-slate-200 rounded-lg overflow-hidden">
-                        <button
-                          onClick={() => setPerChannelSchedule(prev => ({ ...prev, [ch]: !prev[ch] }))}
-                          className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                        >
-                          <span>{ch}</span>
-                          <span className="text-slate-400">{perChannelSchedule[ch] ? '▼' : '▶'}</span>
-                        </button>
-                        {perChannelSchedule[ch] && (
-                          <div className="p-3">
-                            <ScheduleBlock
-                              scheduleType={perChScheduleType[ch] ?? 'now'}
-                              onScheduleType={v => setPerChScheduleType(prev => ({ ...prev, [ch]: v }))}
-                              blackoutOn={!!perChBlackoutOn[ch]}
-                              onBlackoutOn={v => setPerChBlackoutOn(prev => ({ ...prev, [ch]: v }))}
-                              blackoutAction={perChBlackoutAction[ch] ?? 'discard'}
-                              onBlackoutAction={v => setPerChBlackoutAction(prev => ({ ...prev, [ch]: v }))}
-                              namePrefix={ch}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    {activeChannels.map(ch => {
+                      const firstCard = channelCards[ch] ? Object.values(channelCards[ch])[0] : undefined
+                      const chVariants = firstCard?.variants ?? []
+                      return (
+                        <div key={ch} className="border border-slate-200 rounded-lg overflow-hidden">
+                          <button
+                            onClick={() => setPerChannelSchedule(prev => ({ ...prev, [ch]: !prev[ch] }))}
+                            className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                          >
+                            <span>{ch}</span>
+                            <span className="text-slate-400">{perChannelSchedule[ch] ? '▼' : '▶'}</span>
+                          </button>
+                          {perChannelSchedule[ch] && (
+                            <div className="p-3 space-y-3">
+                              <ScheduleBlock
+                                scheduleType={perChScheduleType[ch] ?? 'now'}
+                                onScheduleType={v => setPerChScheduleType(prev => ({ ...prev, [ch]: v }))}
+                                blackoutOn={!!perChBlackoutOn[ch]}
+                                onBlackoutOn={v => setPerChBlackoutOn(prev => ({ ...prev, [ch]: v }))}
+                                blackoutAction={perChBlackoutAction[ch] ?? 'discard'}
+                                onBlackoutAction={v => setPerChBlackoutAction(prev => ({ ...prev, [ch]: v }))}
+                                namePrefix={ch}
+                              />
+                              {/* Nhắc lại (Re-engagement) — cấp Kênh: 1 cặp riêng cho kênh này;
+                                  có Audience Variant (hasVariants): mỗi biến thể trong kênh 1 cặp riêng */}
+                              <div className="border-t border-slate-100 pt-2">
+                                {!hasVariants ? (
+                                  <ReminderBlock
+                                    cfg={getReminderCfg(ch)}
+                                    onChange={patch => setReminderCfg(patch, ch)}
+                                    maxErr={inRange(getReminderCfg(ch).maxCount, 9999)}
+                                    gapErr={inRange(getReminderCfg(ch).gapDays, 365)}
+                                  />
+                                ) : (
+                                  <div className="space-y-3">
+                                    {chVariants.map((v, vIdx) => (
+                                      <div key={vIdx}>
+                                        <div className="text-xs text-slate-500 mb-1">Biến thể {vIdx + 1} · {v.segmentName}</div>
+                                        <ReminderBlock
+                                          cfg={getReminderCfg(ch, vIdx)}
+                                          onChange={patch => setReminderCfg(patch, ch, vIdx)}
+                                          maxErr={inRange(getReminderCfg(ch, vIdx).maxCount, 9999)}
+                                          gapErr={inRange(getReminderCfg(ch, vIdx).gapDays, 365)}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
             )}
-
-            {/* Nhắc lại (Re-engagement) */}
-            <div className="border-t border-slate-100 pt-3">
-              <label className="flex items-center gap-2 cursor-pointer w-fit">
-                <input type="checkbox" checked={allowReminder} onChange={e => setAllowReminder(e.target.checked)}
-                  className="accent-blue-500" />
-                <span className="text-xs font-medium text-slate-700">Cho phép nhắc lại</span>
-              </label>
-              <div className="text-xs text-slate-400 mt-0.5">
-                Nếu KH vẫn còn thoả điều kiện trigger này sau khi đã nhận tin, hệ thống sẽ chủ động gửi nhắc thêm.
-              </div>
-              {allowReminder && (
-                <div className="mt-2 space-y-2 pl-6">
-                  <div className="flex items-center gap-3">
-                    <label className="text-xs text-slate-600 w-48">Số lần nhắc lại tối đa:</label>
-                    <input type="number" min="1" max="9999" value={reminderMaxCount}
-                      onChange={e => setReminderMaxCount(e.target.value)} placeholder="VD: 2"
-                      className={`w-24 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-400 ${reminderMaxErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <label className="text-xs text-slate-600 w-48">Khoảng cách tối thiểu (ngày):</label>
-                    <input type="number" min="1" max="365" value={reminderGapDays}
-                      onChange={e => setReminderGapDays(e.target.value)} placeholder="VD: 3"
-                      className={`w-24 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-400 ${reminderGapErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
-                  </div>
-                  {reminderIncompleteErr && (
-                    <div className="text-xs text-red-500 bg-red-50 rounded px-2 py-1 w-fit">
-                      Vui lòng nhập đầy đủ số lần và khoảng cách nhắc lại
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           </Card>
         </div>
       </div>
