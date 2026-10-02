@@ -8,14 +8,9 @@ import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockTriggers, mockSegments, mockCampaigns, mockTemplates } from '../data/mock'
 import { removeVietnameseTones, smsSegmentInfo, priorityDisplayInfo } from '../lib/utils'
-import type { ChannelType, TriggerLogic, BlackoutAction, TriggerFilterField, FilterFieldDataType, CampaignType, Campaign } from '../types'
+import type { ChannelType, TriggerLogic, BlackoutAction, TriggerFilterField, FilterFieldDataType, Campaign } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
-
-// TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — feature flag ẩn radio "Loại hình chiến dịch" khỏi
-// Section 1 (xem solution doc OQ-4: CNTT đặt câu hỏi ranh giới CVM/Core). Đổi thành `true` để hiện
-// lại ngay khi OQ-4 được chốt — không cần viết lại JSX.
-const SHOW_CAMPAIGN_TYPE_SELECTOR = false
 
 const MOCK_SUBSCRIBERS = [
   { phone: '0987 xxx 001', name: 'Nguyễn Văn A', status: 'Active' },
@@ -1131,13 +1126,11 @@ export function CampaignBuilder() {
   const [goal, setGoal] = useState(existing?.goal ?? '')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  // Loại hình chiến dịch (CR Priority Redesign, solution Mục 3.2) — radio bắt buộc chọn, KHÔNG
-  // pre-select (null khi Tạo mới). Quyết định field Ngày kết thúc ẩn/hiện (Mục 3.3).
-  // TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — radio chọn loại hình đang ẩn khỏi UI (xem JSX bên
-  // dưới), nên mặc định ngầm ở đây đổi từ `null` sang `'limited'` để hành vi Ngày kết thúc (bắt buộc +
-  // hiện) hoạt động đúng như case "Có thời hạn" bình thường. Logic `campaignType`/'ongoing' KHÔNG bị xóa
-  // — chỉ không cho user chọn 'ongoing' qua UI nữa. Khi OQ-4 chốt: trả lại `existing?.campaignType ?? null`.
-  const [campaignType, setCampaignType] = useState<CampaignType | null>(existing?.campaignType ?? 'limited')
+  // Checkbox "Vô hạn" cạnh Ngày kết thúc (URD UC-CAM-02 Section 1 STT 4, V4.25) — tick = không giới
+  // hạn ngày kết thúc (endDate = undefined khi lưu), campaign chạy đến khi QTV/Admin chủ động [Dừng].
+  // Mọi campaign Active (dù Vô hạn hay không) đều tham gia bàn kéo-thả Nhóm ưu tiên liên-campaign
+  // theo cùng 1 luật — không còn tách riêng theo loại hình chiến dịch.
+  const [isInfinite, setIsInfinite] = useState(existing?.isInfinite ?? false)
   const [s1Collapsed, setS1Collapsed] = useState(false)
 
   // S2
@@ -1221,17 +1214,13 @@ export function CampaignBuilder() {
   const hasVariants = Object.values(channelCards).some(byTrig =>
     Object.values(byTrig).some(card => card.variants.length > 1)
   )
-  // Vận hành thường trực tự coi là Vô hạn — không còn checkbox "Vô hạn" riêng (solution Mục 3.3).
-  const isInfinite = campaignType === 'ongoing'
 
   // Issues
   const issues: string[] = []
   if (!name.trim()) issues.push('Chưa nhập tên campaign')
-  // TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — bỏ validate "chưa chọn loại hình" vì radio đang ẩn
-  // khỏi UI và campaignType luôn có giá trị ngầm ('limited'), không còn trạng thái null để chặn.
   if (!startDate) issues.push('Chưa chọn ngày bắt đầu')
-  if (!isInfinite && !endDate) issues.push('Chưa chọn ngày kết thúc (bắt buộc với chiến dịch Có thời hạn)')
-  // Ngày kết thúc quá khứ là blocking issue — KHÔNG áp dụng cho campaign Vận hành thường trực (không có endDate để so sánh)
+  if (!isInfinite && !endDate) issues.push('Chưa chọn ngày kết thúc (bắt buộc trừ khi chọn Vô hạn)')
+  // Ngày kết thúc quá khứ là blocking issue — KHÔNG áp dụng khi chọn Vô hạn (không có endDate để so sánh)
   if (!isInfinite && endDate && new Date(endDate) < new Date(new Date().toDateString())) {
     issues.push('Ngày kết thúc không được ở trong quá khứ')
   }
@@ -1569,13 +1558,13 @@ export function CampaignBuilder() {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-slate-600 mb-1 block">Độ ưu tiên</label>
-                    {/* [CR Priority Redesign] Field đổi từ ô nhập tay sang vùng hiển thị READ-ONLY theo
-                        đúng trạng thái campaign (solution Mục 2.7, Assumption A8) — không bao giờ cho nhập
-                        tay. Sắp xếp thật diễn ra duy nhất tại Cài đặt → Tab "Độ ưu tiên" (Admin only). */}
+                    {/* Field READ-ONLY, hiển thị theo đúng trạng thái campaign (URD Screen 3 STT 5) —
+                        không bao giờ cho nhập tay. Sắp xếp thật diễn ra duy nhất tại Cài đặt → Tab
+                        "Độ ưu tiên" (Admin only). Chỉ xét theo Trạng thái, không còn phân nhánh theo
+                        loại hình chiến dịch (V4.25). */}
                     {(() => {
                       const info = priorityDisplayInfo({
                         status: existing?.status ?? 'Draft',
-                        campaignType: campaignType ?? undefined,
                       } as Campaign)
                       return info.kind === 'link' ? (
                         <button
@@ -1593,43 +1582,6 @@ export function CampaignBuilder() {
                     })()}
                   </div>
                 </div>
-                {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — radio "Loại hình chiến dịch" ẩn khỏi
-                    UI (CNTT đặt câu hỏi ranh giới CVM/Core, xem solution doc OQ-4). campaignType vẫn tồn
-                    tại ngầm (mặc định 'limited' ở state init trên) để các logic khác (Ngày kết thúc,
-                    priorityDisplayInfo, nhóm ở Settings...) không bị vỡ. Không xóa nhánh 'ongoing' —
-                    chỉ không cho chọn qua UI. Khi OQ-4 chốt: bỏ comment khối JSX dưới đây để hiện lại. */}
-                {SHOW_CAMPAIGN_TYPE_SELECTOR && (
-                <div>
-                  <label className="text-xs font-medium text-slate-600 mb-2 block">Loại hình chiến dịch *</label>
-                  <div className="flex gap-6 text-sm">
-                    {([
-                      ['ongoing', 'Vận hành thường trực'],
-                      ['limited', 'Có thời hạn'],
-                    ] as const).map(([val, label]) => (
-                      <label key={val} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="campaignType"
-                          checked={campaignType === val}
-                          onChange={() => {
-                            // Đổi ý khi đang Draft: xóa dữ liệu Ngày kết thúc không cảnh báo khi chuyển
-                            // sang Vận hành thường trực; hiện lại trống khi chuyển sang Có thời hạn
-                            // (solution Mục 3.3 — không khôi phục giá trị cũ).
-                            setCampaignType(val)
-                            if (val === 'ongoing') setEndDate('')
-                            else setEndDate('')
-                            setTouched(true)
-                          }}
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
-                  {!campaignType && touched && (
-                    <div className="text-xs text-red-500 mt-1">Vui lòng chọn loại hình chiến dịch</div>
-                  )}
-                </div>
-                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-slate-600 mb-1 block">Ngày bắt đầu *</label>
@@ -1637,19 +1589,33 @@ export function CampaignBuilder() {
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-600 mb-1 block">
-                      Ngày kết thúc {!isInfinite && '*'}
-                    </label>
-                    {campaignType === 'ongoing' ? (
-                      // Vận hành thường trực: field ẨN HẲN (không phải disabled) — hệ thống tự gán Vô hạn,
-                      // chạy đến khi QTV/Admin chủ động [Dừng] (solution Mục 3.3).
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-slate-600 block">
+                        Ngày kết thúc {!isInfinite && '*'}
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isInfinite}
+                          onChange={e => {
+                            // Tick "Vô hạn": ẩn Ngày kết thúc (không phải disabled), hệ thống tự gán = Vô
+                            // hạn, campaign chạy đến khi QTV/Admin chủ động [Dừng] (URD UC-CAM-02 STT 4).
+                            // Bỏ tick: hiện lại trống, bắt buộc nhập — không khôi phục giá trị cũ.
+                            setIsInfinite(e.target.checked)
+                            setEndDate('')
+                            setTouched(true)
+                          }}
+                        />
+                        Vô hạn
+                      </label>
+                    </div>
+                    {isInfinite ? (
                       <div className="w-full px-3 py-2 text-sm border border-slate-100 rounded-md bg-slate-50 text-slate-400 italic">
-                        Không áp dụng — chạy đến khi [Dừng] (Vận hành thường trực)
+                        Không giới hạn — chạy đến khi [Dừng]
                       </div>
                     ) : (
                       <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setTouched(true) }}
-                        disabled={!campaignType}
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300" />
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
                     )}
                   </div>
                 </div>

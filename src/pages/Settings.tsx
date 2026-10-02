@@ -1,7 +1,5 @@
 import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-// TODO(OQ-4): `Info` chỉ dùng trong khối ghi chú "Vận hành thường trực" hiện đang comment-out bên
-// dưới — thêm lại vào import khi bật lại khối đó.
 import { HelpCircle, GripVertical } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
@@ -125,20 +123,15 @@ export function Settings() {
   const [triggerFilter, setTriggerFilter] = useState<string>('')
   const [campaignFilter, setCampaignFilter] = useState<string>(() => searchParams.get('campaign') ?? '')
 
-  // TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — `buildPriorityGroups` vẫn trả về nhóm "toàn Vận
-  // hành thường trực" (group.limited rỗng, group.ongoing có dữ liệu) vì logic/dữ liệu campaignType
-  // KHÔNG đổi (chỉ ẩn ở tầng render). Lọc bỏ các nhóm đó ở đây — nếu không, Card của nhóm sẽ render
-  // với thân rỗng (cả 2 nhánh hiển thị liên quan ongoing-only đã comment-out bên dưới). Khi OQ-4
-  // chốt và bật lại các nhánh render đó, bỏ luôn `.filter(g => g.limited.length > 0)` ở đây.
   const allGroups = useMemo(
-    () => buildPriorityGroups(localCampaigns).filter(g => g.limited.length > 0),
+    () => buildPriorityGroups(localCampaigns),
     [localCampaigns]
   )
 
-  // 2 chế độ filter độc lập (solution Mục 2.1): theo Trigger (1 trigger → 1 nhóm) hoặc theo Campaign
-  // (hiện TẤT CẢ nhóm mà campaign đó tham gia — phục vụ link điều hướng từ Builder/List Mục 2.7).
+  // 2 chế độ filter độc lập (UC-PRIORITY-01): theo Trigger (1 trigger → 1 nhóm) hoặc theo Campaign
+  // (hiện TẤT CẢ nhóm mà campaign đó tham gia — phục vụ link điều hướng từ Builder/List).
   const displayedGroups: PriorityGroup[] = campaignFilter
-    ? groupsForCampaign(localCampaigns, campaignFilter).filter(g => g.limited.length > 0)
+    ? groupsForCampaign(localCampaigns, campaignFilter)
     : triggerFilter
       ? allGroups.filter(g => g.triggerCode === triggerFilter)
       : allGroups
@@ -147,14 +140,14 @@ export function Settings() {
 
   // Kéo-thả thật (nâng cấp từ nút ▲▼ — @dnd-kit/core + @dnd-kit/sortable) — chỉ hoán đổi vị trí
   // trong PHẠM VI 1 nhóm trigger, không ảnh hưởng vị trí của campaign đó ở các nhóm trigger khác
-  // (đúng mô hình "N vị trí độc lập theo nhóm", solution Mục 2.4). Giữ nguyên logic nghiệp vụ cũ
-  // (cập nhật groupPositions theo index mới) — chỉ đổi cách người dùng tương tác.
+  // (đúng mô hình "N vị trí độc lập theo nhóm", URD II.6.8/UC-PRIORITY-01). Giữ nguyên logic nghiệp
+  // vụ cũ (cập nhật groupPositions theo index mới) — chỉ đổi cách người dùng tương tác.
   const reorderGroup = (triggerCode: string, fromId: string, toId: string) => {
     if (fromId === toId) return
     setLocalCampaigns(prev => {
       const group = buildPriorityGroups(prev).find(g => g.triggerCode === triggerCode)
       if (!group) return prev
-      const ordered = group.limited.map(m => m.campaign.id)
+      const ordered = group.members.map(m => m.campaign.id)
       const fromIdx = ordered.indexOf(fromId)
       const toIdx = ordered.indexOf(toId)
       if (fromIdx < 0 || toIdx < 0) return prev
@@ -391,18 +384,19 @@ export function Settings() {
                     Nhóm Trigger: {trig?.name ?? group.triggerCode}{' '}
                     <span className="text-xs text-slate-400 font-mono font-normal">({group.triggerCode})</span>
                   </div>
-                  {group.limited.length >= 2 && (
+                  {group.members.length >= 2 && (
                     <Button variant="primary" size="sm" onClick={() => setSaveConfirm({ triggerCode: group.triggerCode })}>
                       Lưu thứ tự
                     </Button>
                   )}
                 </div>
 
-                {group.limited.length >= 2 && (
-                  // ≥ 2 campaign "Có thời hạn" cạnh tranh → bàn kéo-thả THẬT (nâng cấp từ nút ▲▼ sang
-                  // @dnd-kit/core + @dnd-kit/sortable). SortableContext bọc riêng per-nhóm (items = id
-                  // campaign của ĐÚNG nhóm này) nên kéo-thả chỉ hoán vị trong phạm vi 1 nhóm, không thể
-                  // kéo chéo sang nhóm trigger khác (đúng mô hình N vị trí độc lập, solution Mục 2.4).
+                {group.members.length >= 2 && (
+                  // ≥ 2 campaign Active cạnh tranh → bàn kéo-thả THẬT (@dnd-kit/core + @dnd-kit/sortable).
+                  // SortableContext bọc riêng per-nhóm (items = id campaign của ĐÚNG nhóm này) nên kéo-thả
+                  // chỉ hoán vị trong phạm vi 1 nhóm, không thể kéo chéo sang nhóm trigger khác (đúng mô
+                  // hình N vị trí độc lập, URD II.6.8/UC-PRIORITY-01). Mọi campaign Active cùng 1 luật —
+                  // không phân biệt có hay không có ngày kết thúc (V4.25).
                   <DndContext
                     sensors={dndSensors}
                     collisionDetection={closestCenter}
@@ -422,9 +416,9 @@ export function Settings() {
                           <th className="text-center pb-2 font-medium w-20">Vị trí</th>
                         </tr>
                       </thead>
-                      <SortableContext items={group.limited.map(m => m.campaign.id)} strategy={verticalListSortingStrategy}>
+                      <SortableContext items={group.members.map(m => m.campaign.id)} strategy={verticalListSortingStrategy}>
                         <tbody>
-                          {group.limited.map((m, i) => (
+                          {group.members.map((m, i) => (
                             <SortablePriorityRow key={m.campaign.id} member={m} index={i} isNew={isRecentlyAddedToGroup(m.campaign)} />
                           ))}
                         </tbody>
@@ -433,59 +427,20 @@ export function Settings() {
                   </DndContext>
                 )}
 
-                {group.limited.length === 1 && (
-                  // Mục 5.3 — chỉ 1 campaign "Có thời hạn", không cạnh tranh: hiển thị đơn giản, không kéo-thả.
+                {group.members.length === 1 && (
+                  // Chỉ 1 campaign Active dùng trigger này, không cạnh tranh: hiển thị đơn giản, không kéo-thả.
                   <div className="text-sm text-slate-600 bg-slate-50 rounded px-3 py-2 flex items-center gap-2">
                     <span>
-                      Campaign <strong>{group.limited[0].campaign.name}</strong> — vị trí #1 (không có campaign{' '}
-                      <strong>Có thời hạn</strong> nào khác cạnh tranh cùng trigger này)
+                      Campaign <strong>{group.members[0].campaign.name}</strong> — vị trí #1 (không có campaign nào
+                      khác cạnh tranh cùng trigger này)
                     </span>
-                    {isRecentlyAddedToGroup(group.limited[0].campaign) && (
+                    {isRecentlyAddedToGroup(group.members[0].campaign) && (
                       <span className="text-[10px] font-medium bg-emerald-100 text-emerald-700 rounded-full px-1.5 py-0.5">
                         Mới
                       </span>
                     )}
                   </div>
                 )}
-
-                {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — case "nhóm toàn Vận hành thường trực"
-                    (Mục 2.5 solution doc). Không còn ai tạo được loại 'ongoing' qua UI (radio đã ẩn ở
-                    CampaignBuilder), nhưng dữ liệu mock cũ (id17, id18 — trigger U_PRE_EXPIRY) vẫn giữ
-                    nguyên trong mock.ts để dễ bật lại — chỉ ẩn ở tầng render này. Logic buildPriorityGroups
-                    (group.ongoing) KHÔNG đổi, vẫn tính toán bình thường, chỉ không render ra UI nữa.
-                {group.limited.length === 0 && group.ongoing.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="text-xs text-slate-500">
-                      {group.ongoing.length} campaign vận hành thường trực dùng chung trigger này, tự động xếp theo
-                      thời gian tạo (sớm hơn thắng) — không cần sắp xếp.
-                    </div>
-                    <ul className="text-sm text-slate-600 space-y-1">
-                      {group.ongoing.map((c, i) => (
-                        <li key={c.id} className="flex items-center gap-2 bg-slate-50 rounded px-3 py-1.5">
-                          <span className="text-xs text-slate-400 w-5">{i + 1}.</span>
-                          <span className="flex-1">{c.name}</span>
-                          <span className="text-xs text-slate-400 font-mono">{c.createdAt}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                */}
-
-                {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — khối ghi chú phụ "Vận hành thường trực"
-                    trong mỗi nhóm có cả limited + ongoing (Mục 2.1, 2.6 solution doc). Giữ Info import
-                    (dùng lại khi bật) — logic group.ongoing vẫn tính, chỉ không render.
-                {group.limited.length > 0 && group.ongoing.length > 0 && (
-                  <div className="flex items-start gap-2 text-xs text-slate-500 bg-slate-50 rounded px-3 py-2">
-                    <Info size={14} className="flex-shrink-0 mt-0.5" />
-                    <span>
-                      Ngoài ra còn có {group.ongoing.length} campaign <strong>Vận hành thường trực</strong> dùng
-                      chung trigger này (không xếp hạng, luôn nhường campaign Có thời hạn):{' '}
-                      {group.ongoing.map(c => c.name).join(', ')}
-                    </span>
-                  </div>
-                )}
-                */}
               </Card>
             )
           })}
@@ -495,16 +450,12 @@ export function Settings() {
       {/* Help dialog */}
       <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title="Độ ưu tiên — Hướng dẫn">
         <p className="text-sm text-slate-600">
-          Khi nhiều chiến dịch "Có thời hạn" cùng dùng 1 sự kiện kích hoạt (trigger), hệ thống xử lý theo đúng
-          thứ tự Admin sắp xếp trong nhóm của trigger đó.
+          Khi nhiều chiến dịch Đang chạy cùng dùng 1 sự kiện kích hoạt (trigger), hệ thống xử lý theo đúng
+          thứ tự Admin sắp xếp trong nhóm của trigger đó — mọi chiến dịch Đang chạy đều tham gia bàn kéo-thả
+          theo cùng 1 luật, không phân biệt có hay không có ngày kết thúc.
         </p>
         <ul className="mt-3 text-xs text-slate-500 space-y-1 list-disc pl-4">
           <li>Kéo-thả dòng (biểu tượng ⠿) để đổi vị trí trong nhóm — chỉ ảnh hưởng nhóm trigger đang xem</li>
-          {/* TODO(OQ-4): ẩn tạm, bật lại khi chốt với CNTT — 2 dòng hướng dẫn nhắc khái niệm "Vận hành
-              thường trực", vốn không còn hiển thị ở đâu khác trong UI khi radio Loại hình đã ẩn.
-          <li>Chiến dịch "Có thời hạn" luôn được xử lý trước "Vận hành thường trực" cùng trigger, mặc định</li>
-          <li>Giữa các campaign "Vận hành thường trực": xếp theo ngày tạo sớm hơn, không cấu hình được</li>
-          */}
           <li>Chiến dịch Đang chạy mới luôn tự thêm vào CUỐI nhóm — không chèn giữa</li>
           <li>Chiến dịch Tạm dừng/Đã kết thúc tự gỡ khỏi mọi nhóm</li>
           <li>Badge <strong>"Mới"</strong> đánh dấu chiến dịch vừa tự động thêm vào nhóm trong 24 giờ gần nhất — cần Admin rà soát</li>

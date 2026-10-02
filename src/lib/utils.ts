@@ -1,24 +1,24 @@
 import { type ClassValue, clsx } from 'clsx'
 import type { Campaign, CampaignStatus } from '../types'
 
-// ── Nhóm ưu tiên liên-campaign (CR Priority Redesign) ──────────────────────────────────────────
-// Xem solution/priority-redesign-solution.md Mục 1.3: KHÔNG nhầm với "Thứ tự trigger nội bộ"
-// (Priority trigger trong Advanced mode, UC-CAM-02 bước 2b) — cơ chế đó giữ nguyên, không đụng.
-// Cơ chế ở đây là "Nhóm ưu tiên liên-campaign": sắp xếp thứ tự giữa nhiều CAMPAIGN khác nhau
-// cùng dùng chung 1 trigger.
+// ── Nhóm ưu tiên liên-campaign (URD II.6.8 / UC-PRIORITY-01) ──────────────────────────────────
+// KHÔNG nhầm với "Thứ tự trigger nội bộ" (Priority trigger trong Advanced mode, UC-CAM-02 bước 2b)
+// — cơ chế đó giữ nguyên, không đụng. Cơ chế ở đây là "Nhóm ưu tiên liên-campaign": sắp xếp thứ tự
+// giữa nhiều CAMPAIGN khác nhau cùng dùng chung 1 trigger. Từ V4.25: mọi campaign Active (dù có hay
+// không có ngày kết thúc/endDate) đều tham gia nhóm và bàn kéo-thả theo CÙNG 1 luật — không còn tách
+// riêng campaign "Vô hạn" ra khỏi bàn kéo-thả, không còn tiebreak riêng theo createdAt cho nhóm nào.
 
 export interface PriorityGroupMember {
   campaign: Campaign
-  position?: number // chỉ có với campaignType 'limited' — vị trí hiển thị trong bàn kéo-thả
+  position?: number // vị trí hiển thị trong bàn kéo-thả (theo groupPositions)
 }
 
 export interface PriorityGroup {
   triggerCode: string
-  limited: PriorityGroupMember[] // đã sort theo groupPositions tăng dần — đây là bàn kéo-thả
-  ongoing: Campaign[] // đã sort theo createdAt sớm hơn trước (tiebreak) — không kéo-thả
+  members: PriorityGroupMember[] // đã sort theo groupPositions tăng dần — đây là bàn kéo-thả
 }
 
-// Parse "DD/MM/YYYY HH:mm" hoặc "DD/MM/YYYY" — dùng cho tiebreak createdAt (sớm hơn thắng).
+// Parse "DD/MM/YYYY HH:mm" hoặc "DD/MM/YYYY" — dùng cho các so sánh ngày tạo (badge "Mới").
 function parseVnDateTime(d: string): number {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/.exec(d)
   if (!m) return 0
@@ -26,11 +26,11 @@ function parseVnDateTime(d: string): number {
   return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min)).getTime()
 }
 
-// Badge "Mới" (Assumption A2, solution Mục 2.3 + Mục 8) — campaign vừa được tự động thêm vào 1 nhóm
-// trigger trong 24 giờ gần nhất. Solution doc dùng timestamp riêng `added_to_group_at`, nhưng mock
-// data hiện tại chưa có field này — xấp xỉ bằng `createdAt` của campaign (assumption, không phải
-// hành vi chốt: nếu 1 campaign đổi loại hình/gỡ-thêm lại nhóm nhiều lần, createdAt KHÔNG phản ánh
-// đúng lần thêm gần nhất; SA/Dev cần field `added_to_group_at` riêng khi lên production thật).
+// Badge "Mới" — campaign vừa được tự động thêm vào 1 nhóm trigger trong 24 giờ gần nhất (UC-PRIORITY-01).
+// Lý tưởng cần timestamp riêng `added_to_group_at`, nhưng mock data hiện tại chưa có field này —
+// xấp xỉ bằng `createdAt` của campaign (assumption, không phải hành vi chốt: nếu 1 campaign đổi/gỡ-thêm
+// lại nhóm nhiều lần do đổi trigger, createdAt KHÔNG phản ánh đúng lần thêm gần nhất; SA/Dev cần field
+// `added_to_group_at` riêng khi lên production thật).
 export function isRecentlyAddedToGroup(campaign: Campaign, now: Date = new Date()): boolean {
   const addedAt = parseVnDateTime(campaign.createdAt)
   if (!addedAt) return false
@@ -38,33 +38,28 @@ export function isRecentlyAddedToGroup(campaign: Campaign, now: Date = new Date(
   return diffMs >= 0 && diffMs <= 24 * 60 * 60 * 1000
 }
 
-// Quét toàn bộ campaign Active → gom nhóm theo trigger (solution Mục 2.1, 2.2, 2.5).
-// Chỉ campaign Active mới được tính vào nhóm (Draft/Pending/Paused/Ended không tham gia — Mục 2.2, 2.3).
+// Quét toàn bộ campaign Active → gom nhóm theo trigger (URD II.6.8/UC-PRIORITY-01).
+// Chỉ campaign Active mới được tính vào nhóm (Draft/Pending/Paused/Ended không tham gia).
 // Trigger không có campaign Active nào dùng → không tạo nhóm (ẩn khỏi màn Cài đặt).
+// Mọi campaign Active tham gia đồng nhất — không phân biệt có hay không có endDate (V4.25).
 export function buildPriorityGroups(campaigns: Campaign[]): PriorityGroup[] {
   const active = campaigns.filter(c => c.status === 'Active')
   const triggerCodes = Array.from(new Set(active.flatMap(c => c.triggers))).sort()
 
   return triggerCodes.map(triggerCode => {
-    const members = active.filter(c => c.triggers.includes(triggerCode))
-    const limited = members
-      .filter(c => c.campaignType !== 'ongoing')
+    const members = active
+      .filter(c => c.triggers.includes(triggerCode))
       .sort((a, b) => (a.groupPositions?.[triggerCode] ?? 999) - (b.groupPositions?.[triggerCode] ?? 999))
       .map(c => ({ campaign: c, position: c.groupPositions?.[triggerCode] }))
-    const ongoing = members
-      .filter(c => c.campaignType === 'ongoing')
-      .sort((a, b) => parseVnDateTime(a.createdAt) - parseVnDateTime(b.createdAt))
-    return { triggerCode, limited, ongoing }
-  }).filter(g => g.limited.length > 0 || g.ongoing.length > 0)
+    return { triggerCode, members }
+  }).filter(g => g.members.length > 0)
 }
 
 // Tất cả nhóm (theo mã trigger) mà 1 campaign cụ thể đang tham gia — phục vụ filter theo Campaign
-// (solution Mục 2.1) và link điều hướng "Xem/Điều chỉnh tại Cài đặt →" (Mục 2.7).
+// và link điều hướng "Xem/Điều chỉnh tại Cài đặt →" (UC-PRIORITY-01).
 export function groupsForCampaign(campaigns: Campaign[], campaignId: string): PriorityGroup[] {
   const groups = buildPriorityGroups(campaigns)
-  return groups.filter(g =>
-    g.limited.some(m => m.campaign.id === campaignId) || g.ongoing.some(c => c.id === campaignId)
-  )
+  return groups.filter(g => g.members.some(m => m.campaign.id === campaignId))
 }
 
 // Lý do khóa nút [Bật] (kích hoạt lại) của campaign Paused do cờ vô hiệu — null nếu không bị khóa.
@@ -129,13 +124,11 @@ export function campaignsUsingTrigger(campaigns: Campaign[], triggerCode: string
 }
 
 // Nội dung hiển thị tại field "Độ ưu tiên" (Section 1 Builder + Campaign List) — đúng bảng trạng thái
-// Mục 2.7 solution doc. Field này KHÔNG BAO GIỜ cho nhập tay ở bất kỳ trạng thái nào (Assumption A8) —
-// chỉ hiển thị dòng chữ tĩnh hoặc link điều hướng sang Cài đặt. kind='link' → component gọi nơi dùng
-// tự render <button>/<a> điều hướng; các kind khác chỉ hiển thị text tĩnh.
+// Screen 2 STT 7 / Screen 3 STT 5, chỉ xét theo Trạng thái (V4.25 — không còn phân nhánh theo loại
+// hình chiến dịch). Field này KHÔNG BAO GIỜ cho nhập tay ở bất kỳ trạng thái nào — chỉ hiển thị dòng
+// chữ tĩnh hoặc link điều hướng sang Cài đặt. kind='link' → component gọi nơi dùng tự render
+// <button>/<a> điều hướng; các kind khác chỉ hiển thị text tĩnh.
 export function priorityDisplayInfo(c: Campaign): { text: string; kind: 'static' | 'link' } {
-  if (c.campaignType === 'ongoing') {
-    return { text: 'Chiến dịch vận hành thường trực — không sử dụng cơ chế xếp hạng ưu tiên', kind: 'static' }
-  }
   switch (c.status) {
     case 'Draft':
     case 'Pending':

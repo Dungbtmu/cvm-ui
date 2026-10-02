@@ -9,11 +9,6 @@ import { mockCampaigns } from '../data/mock'
 import { reactivateBlockReason, reactivateFlow, isBeforeStart, priorityDisplayInfo } from '../lib/utils'
 import type { ChannelType, CampaignStatus } from '../types'
 
-const campaignTypeLabel: Record<'ongoing' | 'limited', string> = {
-  ongoing: 'Vận hành thường trực',
-  limited: 'Có thời hạn',
-}
-
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
 // Điều kiện lọc theo Trigger × Phân khúc × Kênh (URD Screen 2B STT 7, đồng bộ Campaign Builder
@@ -315,7 +310,6 @@ export function CampaignDetail() {
               ['Tên chiến dịch', campaign.name],
               ['Mã kịch bản', campaign.code],
               ['Mục tiêu', campaign.goal ?? '—'],
-              ['Loại hình chiến dịch', campaign.campaignType ? campaignTypeLabel[campaign.campaignType] : '—'],
               ['Thời gian', `${campaign.startDate} – ${campaign.isInfinite ? 'Vô hạn' : campaign.endDate}`],
               ['Người tạo', campaign.owner],
               ['Ngày tạo', campaign.createdAt],
