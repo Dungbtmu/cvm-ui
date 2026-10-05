@@ -128,15 +128,31 @@ export function Settings() {
     [localCampaigns]
   )
 
-  // 2 chế độ filter độc lập (UC-PRIORITY-01): theo Trigger (1 trigger → 1 nhóm) hoặc theo Campaign
-  // (hiện TẤT CẢ nhóm mà campaign đó tham gia — phục vụ link điều hướng từ Builder/List).
-  const displayedGroups: PriorityGroup[] = campaignFilter
-    ? groupsForCampaign(localCampaigns, campaignFilter)
-    : triggerFilter
-      ? allGroups.filter(g => g.triggerCode === triggerFilter)
+  // 2 filter kết hợp AND có ràng buộc 2 chiều (URD V4.28/UC-PRIORITY-01, Screen Settings Tab 3
+  // STT 3.1-3.2): chọn Trigger trước → dropdown Campaign chỉ hiện campaign đang dùng trigger đó;
+  // chọn Campaign trước → dropdown Trigger chỉ hiện trigger mà campaign đó đang dùng. Nhờ ràng buộc
+  // lẫn nhau, không bao giờ kết hợp ra kết quả rỗng — không cần empty state riêng cho trường hợp sai.
+  const filterCampaignObj = campaignFilter ? localCampaigns.find(c => c.id === campaignFilter) : undefined
+
+  // Options khả dụng cho dropdown Trigger: nếu đã chọn Campaign, chỉ hiện trigger của campaign đó.
+  const triggerOptions = filterCampaignObj
+    ? allGroups.filter(g => filterCampaignObj.triggers.includes(g.triggerCode))
+    : allGroups
+
+  // Options khả dụng cho dropdown Campaign: nếu đã chọn Trigger, chỉ hiện campaign Active dùng trigger đó.
+  const campaignOptions = triggerFilter
+    ? localCampaigns.filter(c => c.status === 'Active' && c.triggers.includes(triggerFilter))
+    : localCampaigns.filter(c => c.status === 'Active')
+
+  // Cả 2 đã chọn → chỉ hiện đúng 1 khối nhóm theo Trigger đã chọn (không hiện các nhóm khác của
+  // Campaign đó). Chỉ 1 trong 2 → hành vi như trước (theo Trigger, hoặc tất cả nhóm của Campaign).
+  const displayedGroups: PriorityGroup[] = triggerFilter
+    ? allGroups.filter(g => g.triggerCode === triggerFilter)
+    : campaignFilter
+      ? groupsForCampaign(localCampaigns, campaignFilter)
       : allGroups
 
-  const filteredCampaignName = campaignFilter ? localCampaigns.find(c => c.id === campaignFilter)?.name : undefined
+  const filteredCampaignName = filterCampaignObj?.name
 
   // Kéo-thả thật (nâng cấp từ nút ▲▼ — @dnd-kit/core + @dnd-kit/sortable) — chỉ hoán đổi vị trí
   // trong PHẠM VI 1 nhóm trigger, không ảnh hưởng vị trí của campaign đó ở các nhóm trigger khác
@@ -326,11 +342,19 @@ export function Settings() {
                 <label className="text-xs text-slate-500">Lọc theo Trigger:</label>
                 <select
                   value={triggerFilter}
-                  onChange={e => { setTriggerFilter(e.target.value); setCampaignFilter(''); setSearchParams({}) }}
+                  onChange={e => {
+                    const next = e.target.value
+                    setTriggerFilter(next)
+                    // Ràng buộc 2 chiều: nếu Campaign đang chọn không dùng trigger mới này, bỏ chọn Campaign.
+                    if (next && filterCampaignObj && !filterCampaignObj.triggers.includes(next)) {
+                      setCampaignFilter('')
+                    }
+                    setSearchParams({})
+                  }}
                   className="text-sm border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400"
                 >
                   <option value="">Tất cả nhóm</option>
-                  {allGroups.map(g => (
+                  {triggerOptions.map(g => (
                     <option key={g.triggerCode} value={g.triggerCode}>
                       {g.triggerCode} — {mockTriggers.find(t => t.code === g.triggerCode)?.name ?? g.triggerCode}
                     </option>
@@ -341,11 +365,20 @@ export function Settings() {
                 <label className="text-xs text-slate-500">Lọc theo Campaign:</label>
                 <select
                   value={campaignFilter}
-                  onChange={e => { setCampaignFilter(e.target.value); setTriggerFilter(''); setSearchParams({}) }}
+                  onChange={e => {
+                    const next = e.target.value
+                    setCampaignFilter(next)
+                    // Ràng buộc 2 chiều: nếu Trigger đang chọn không thuộc campaign mới này, bỏ chọn Trigger.
+                    if (next && triggerFilter) {
+                      const nextCampaign = localCampaigns.find(c => c.id === next)
+                      if (!nextCampaign?.triggers.includes(triggerFilter)) setTriggerFilter('')
+                    }
+                    setSearchParams({})
+                  }}
                   className="text-sm border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400 max-w-56"
                 >
                   <option value="">Không lọc</option>
-                  {localCampaigns.filter(c => c.status === 'Active').map(c => (
+                  {campaignOptions.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -360,7 +393,12 @@ export function Settings() {
               )}
             </div>
 
-            {campaignFilter && (
+            {campaignFilter && triggerFilter && (
+              <div className="text-xs text-blue-700 bg-blue-50 rounded px-2 py-1.5">
+                Đang xem đúng nhóm trigger <strong>{triggerFilter}</strong> của campaign <strong>{filteredCampaignName ?? campaignFilter}</strong>.
+              </div>
+            )}
+            {campaignFilter && !triggerFilter && (
               <div className="text-xs text-blue-700 bg-blue-50 rounded px-2 py-1.5">
                 Đang xem tất cả nhóm mà campaign <strong>{filteredCampaignName ?? campaignFilter}</strong> tham gia ({displayedGroups.length} nhóm).
               </div>
