@@ -109,11 +109,12 @@ export interface Template {
   usageCount: number
   status: 'Active' | 'Inactive'
   contents?: Partial<Record<ChannelType, TemplateChannelContent>>
-  // Trigger gắn cho template — BẮT BUỘC chọn đúng 1 trigger (URD v4.4). Mục đích: lấy đúng bộ
-  // tham số động của trigger đó để soạn nhanh + chính xác, KHÔNG phải để nhóm hiển thị (khác V4.0/4.3).
-  // Optional ở type-level vì đang trong lúc soạn (trước khi lưu) có thể chưa chọn; UI validate bắt buộc.
-  // Lưu mã trigger (Trigger.code) để tránh phụ thuộc vòng với danh sách trigger.
-  triggerCode?: string
+  // Trigger gắn cho template — multi-select, BẮT BUỘC ít nhất 1 trigger khi lưu (URD V4.18, UC-TPL-01).
+  // Mục đích: lấy đúng bộ tham số động (hợp/union) của TẤT CẢ trigger đã chọn để soạn nhanh + chính xác,
+  // KHÔNG phải để nhóm hiển thị. 1 template có thể tái sử dụng cho nhiều trigger có nội dung tương tự nhau.
+  // Optional ở type-level vì lúc đang soạn (trước khi lưu) có thể chưa chọn trigger nào; UI validate bắt buộc
+  // ít nhất 1 phần tử khi lưu. Lưu mã trigger (Trigger.code) để tránh phụ thuộc vòng với danh sách trigger.
+  triggerCodes: string[]
 }
 
 // Phạm vi bản ghi Blacklist — 'campaign' (mặc định, theo cặp campaign-kênh) hoặc 'global' (Blacklist

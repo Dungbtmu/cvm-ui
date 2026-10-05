@@ -24,6 +24,7 @@ export function TemplateManagement() {
   const [disableTarget, setDisableTarget] = useState<Template | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Template | null>(null)
   const [usagePopup, setUsagePopup] = useState<Template | null>(null)
+  const [triggerPopup, setTriggerPopup] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState(20)
 
   // Sắp xếp phẳng theo số lần dùng nhiều nhất — không nhóm theo Trigger (URD v4.3: cột Trigger
@@ -119,15 +120,57 @@ export function TemplateManagement() {
           </thead>
           <tbody className="divide-y divide-slate-50">
             {filtered.map(t => {
-              const trig = t.triggerCode ? mockTriggers.find(x => x.code === t.triggerCode) : undefined
               return (
                 <tr key={t.id} className={`hover:bg-slate-50 ${t.status === 'Inactive' ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-2.5 font-medium text-slate-800">{t.name}</td>
-                  <td className="px-4 py-2.5">
-                    {t.triggerCode ? (
-                      <span title={trig ? `${trig.name}\n${trig.source} · ${trig.type}` : t.triggerCode} className="cursor-default">
-                        <TriggerChip code={t.triggerCode} />
-                      </span>
+                  <td className="px-4 py-2.5 relative">
+                    {t.triggerCodes.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 items-center">
+                        {t.triggerCodes.slice(0, 2).map(code => {
+                          const trig = mockTriggers.find(x => x.code === code)
+                          return (
+                            <span
+                              key={code}
+                              title={trig ? `${trig.name}\n${trig.source} · ${trig.type}` : code}
+                              className="cursor-default"
+                            >
+                              <TriggerChip code={code} />
+                            </span>
+                          )
+                        })}
+                        {t.triggerCodes.length > 2 && (
+                          <div className="relative">
+                            <button
+                              onClick={() => setTriggerPopup(triggerPopup === t.id ? null : t.id)}
+                              className="text-xs text-slate-500 hover:text-blue-600 border border-slate-200 rounded-full px-1.5 py-0.5"
+                            >
+                              +{t.triggerCodes.length - 2} ⓘ
+                            </button>
+                            {triggerPopup === t.id && (
+                              <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 min-w-72 w-80">
+                                <div className="px-3 pt-2.5 pb-1.5 border-b border-slate-100 text-xs font-medium text-slate-500">
+                                  Tất cả sự kiện kích hoạt ({t.triggerCodes.length})
+                                </div>
+                                <div className="max-h-64 overflow-y-auto divide-y divide-slate-50">
+                                  {t.triggerCodes.map(code => {
+                                    const trig = mockTriggers.find(x => x.code === code)
+                                    return (
+                                      <div key={code} className="px-3 py-2 text-xs space-y-0.5">
+                                        <div className="font-mono text-amber-700 font-medium">{code}</div>
+                                        <div className="text-slate-600">{trig?.name ?? '—'}</div>
+                                        <div className="text-slate-400">{trig?.source ?? '—'} · {trig?.type ?? '—'}</div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                                <div className="px-3 py-1.5 border-t border-slate-100">
+                                  <button onClick={() => setTriggerPopup(null)} className="text-xs text-slate-400 hover:text-slate-600">Đóng</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-slate-400">–</span>
                     )}

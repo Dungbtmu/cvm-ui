@@ -2,22 +2,32 @@ import { useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, X, Upload, ChevronRight, ChevronDown } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { ParamChip } from '../components/ui/Badge'
+import { ParamChip, TriggerChip } from '../components/ui/Badge'
 import { Dialog, DialogActions } from '../components/ui/Dialog'
 import { useToast } from '../components/ui/Toast'
 import { mockTemplates, mockCampaigns, mockTriggers } from '../data/mock'
-import { removeVietnameseTones } from '../lib/utils'
-import type { ChannelType, TemplateChannelContent } from '../types'
+import { smsSegmentInfo } from '../lib/utils'
+import type { ChannelType, TemplateChannelContent, TriggerParam } from '../types'
 
 const CHANNELS: ChannelType[] = ['Push', 'Zalo OA', 'SMS', 'Banner', 'Email', 'USSD']
 
-const CHANNEL_LIMITS: Record<ChannelType, { title?: number; body: number; hasImage: boolean; imageRequired?: boolean }> = {
+// SMS không khai báo `body` cố định — ngưỡng tự chuyển 70/160 theo có dấu/không dấu (xem smsSegmentInfo).
+// Email Body không có giới hạn cứng chặn nhập (65.535 ký tự, tự cắt khi dán vượt — xử lý riêng ở handler paste).
+const CHANNEL_LIMITS: Record<ChannelType, { title?: number; body?: number; hasImage: boolean; imageRequired?: boolean }> = {
   Push:    { title: 65,  body: 240,   hasImage: true },
   'Zalo OA': { body: 1000, hasImage: true },
-  SMS:     { body: 160,  hasImage: false },
+  SMS:     { hasImage: false },
   USSD:    { body: 182,  hasImage: false },
   Banner:  { title: 65,  body: 120,   hasImage: true, imageRequired: true },
-  Email:   { title: 100, body: 99999, hasImage: true },
+  Email:   { title: 150, body: 65535, hasImage: true },
+}
+
+const EMAIL_BODY_MAX = 65535
+
+// Ký tự đặc biệt với USSD: dấu tiếng Việt có thanh điệu hoặc ký tự ngoài ASCII in được (emoji, ký hiệu...)
+function hasUssdSpecialChars(text: string): boolean {
+  // eslint-disable-next-line no-control-regex
+  return /[^\x00-\x7F]/.test(text)
 }
 
 interface ChannelContent {
@@ -42,13 +52,16 @@ function ChannelPreview({ ch, content }: { ch: ChannelType; content: ChannelCont
           <div className="text-slate-500">{body || 'Nội dung...'}</div>
         </>
       )}
-      {ch === 'SMS' && (
-        <>
-          <div className="text-[10px] text-slate-400 font-medium">VietnamPost</div>
-          <div className="bg-slate-100 rounded p-2 text-slate-700">{body || 'Nội dung SMS...'}</div>
-          <div className="text-slate-400">{(body ?? '').length}/160 · {Math.ceil(Math.max(1, (body ?? '').length) / 160)} SMS</div>
-        </>
-      )}
+      {ch === 'SMS' && (() => {
+        const info = smsSegmentInfo(body ?? '')
+        return (
+          <>
+            <div className="text-[10px] text-slate-400 font-medium">VietnamPost</div>
+            <div className="bg-slate-100 rounded p-2 text-slate-700">{body || 'Nội dung SMS...'}</div>
+            <div className="text-slate-400">{info.length}/{info.limit} · {info.segments} SMS segment</div>
+          </>
+        )
+      })()}
       {ch === 'Zalo OA' && (
         <>
           <div className="font-medium text-blue-700">🟦 VietnamPost</div>
@@ -93,18 +106,36 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
   const [tplName, setTplName] = useState(existing?.name ?? '')
   const [tplDesc, setTplDesc] = useState(existing?.description ?? '')
   const [tplStatus, setTplStatus] = useState<'Active' | 'Inactive'>(existing?.status ?? 'Active')
-  // Trigger — BẮT BUỘC chọn đúng 1 trigger (URD v4.4). Mục đích: lấy đúng bộ tham số của trigger đó
-  // để soạn nhanh + chính xác, KHÔNG phải để nhóm hiển thị. Chỉ liệt kê trigger đang Active để chọn.
-  const [triggerCode, setTriggerCode] = useState<string>(existing?.triggerCode ?? '')
+  // Trigger — multi-select, BẮT BUỘC ít nhất 1 trigger, không giới hạn số lượng (URD V4.18, UC-TPL-01).
+  // Mục đích: lấy đúng bộ tham số (hợp/union của mọi trigger đã chọn) để soạn nhanh + chính xác, KHÔNG
+  // phải để nhóm hiển thị. Chỉ liệt kê trigger đang Active để chọn; không cho chọn trùng.
+  const [triggerCodes, setTriggerCodes] = useState<string[]>(existing?.triggerCodes ?? [])
   const [triggerPickerOpen, setTriggerPickerOpen] = useState(false)
   const [triggerTouched, setTriggerTouched] = useState(false)
+  const [triggerSearch, setTriggerSearch] = useState('')
   const activeTriggers = mockTriggers.filter(t => t.status === 'Active')
-  const selectedTrigger = mockTriggers.find(t => t.code === triggerCode)
-  const selectTrigger = (code: string) => {
-    setTriggerCode(code)
+  const selectedTriggers = triggerCodes
+    .map(code => mockTriggers.find(t => t.code === code))
+    .filter((t): t is NonNullable<typeof t> => !!t)
+  const pickableTriggers = activeTriggers.filter(t =>
+    !triggerCodes.includes(t.code) &&
+    (!triggerSearch || t.code.toLowerCase().includes(triggerSearch.toLowerCase()) || t.name.toLowerCase().includes(triggerSearch.toLowerCase()))
+  )
+  const addTrigger = (code: string) => {
+    if (triggerCodes.includes(code)) return
+    setTriggerCodes(prev => [...prev, code])
     setTriggerTouched(true)
-    setTriggerPickerOpen(false)
+    setTriggerSearch('')
   }
+  const removeTrigger = (code: string) => {
+    setTriggerCodes(prev => prev.filter(c => c !== code))
+    setTriggerTouched(true)
+  }
+  // Hợp (union) tham số của TẤT CẢ trigger đã chọn — param trùng tên nhưng khác trigger nguồn vẫn giữ
+  // riêng (đồng bộ pattern multi-trigger điều kiện lọc ở Campaign Builder: optgroup theo mã trigger).
+  const unionParams: { triggerCode: string; param: TriggerParam }[] = selectedTriggers.flatMap(t =>
+    t.params.map(p => ({ triggerCode: t.code, param: p }))
+  )
   const [activeChannels, setActiveChannels] = useState<ChannelType[]>(existing?.channels ?? [])
   const [activeTab, setActiveTab] = useState<ChannelType>(existing?.channels[0] ?? 'Push')
   const [contents, setContents] = useState<Record<ChannelType, ChannelContent>>(
@@ -112,6 +143,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
   )
   const [guideOpen, setGuideOpen] = useState(false)
   const [inactiveConfirm, setInactiveConfirm] = useState(false)
+  const [channelTouched, setChannelTouched] = useState(false)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
 
   const limits = CHANNEL_LIMITS[activeTab]
@@ -152,15 +184,23 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
 
   const hasContent = (ch: ChannelType) => !!(contents[ch]?.body || contents[ch]?.title)
 
+  // Vượt giới hạn ký tự bắt buộc là blocking issue khi lưu — chỉ áp dụng cho trường có giới hạn "cứng"
+  // nhưng input chưa chặn nhập tuyệt đối trong prototype này (Email Subject); các giới hạn cứng khác
+  // (Push Title/Body, Zalo Body, USSD Body, Banner Body) đã bị input chặn nhập vượt từ đầu (maxLength) nên
+  // không thể vượt được, không cần check lại. SMS/Email Body không có giới hạn cứng chặn nhập → không block.
+  const isChannelOverHardLimit = (ch: ChannelType) => {
+    const c = contents[ch]
+    const lim = CHANNEL_LIMITS[ch]
+    if (lim.title !== undefined && (c?.title ?? '').length > lim.title) return true
+    if (ch !== 'SMS' && ch !== 'Email' && lim.body !== undefined && (c?.body ?? '').length > lim.body) return true
+    return false
+  }
+
   const activeCampaignsUsingThis = existing
     ? mockCampaigns.filter(c => c.status === 'Active')
     : []
 
   const doSave = () => {
-    const emptyChannels = activeChannels.filter(ch => !hasContent(ch))
-    if (emptyChannels.length > 0) {
-      toast(`Cảnh báo: kênh ${emptyChannels.join(', ')} chưa có nội dung`, 'warning')
-    }
     toast('Đã lưu mẫu tin nhắn ✓', 'success')
     navigate('/templates')
   }
@@ -170,9 +210,20 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
       toast('Tên mẫu tin nhắn không được để trống', 'error')
       return
     }
-    if (!triggerCode) {
+    if (triggerCodes.length === 0) {
       setTriggerTouched(true)
-      toast('Vui lòng chọn sự kiện kích hoạt cho mẫu tin nhắn này', 'error')
+      toast('Vui lòng chọn ít nhất 1 sự kiện kích hoạt cho mẫu tin nhắn này', 'error')
+      return
+    }
+    setChannelTouched(true)
+    const emptyChannels = activeChannels.filter(ch => !hasContent(ch))
+    if (emptyChannels.length > 0) {
+      toast(`Kênh ${emptyChannels.join(', ')} chưa có nội dung — vui lòng điền trước khi lưu`, 'error')
+      return
+    }
+    const overLimitChannels = activeChannels.filter(ch => isChannelOverHardLimit(ch))
+    if (overLimitChannels.length > 0) {
+      toast(`Nội dung kênh ${overLimitChannels.join(', ')} đang vượt giới hạn ký tự cho phép`, 'error')
       return
     }
     if (tplStatus === 'Inactive' && activeCampaignsUsingThis.length > 0) {
@@ -213,37 +264,61 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                 />
             }
 
-            {/* Trigger — bắt buộc chọn đúng 1, dùng để lấy đúng tham số động của trigger đó (URD v4.4) */}
+            {/* Trigger — multi-select, bắt buộc ít nhất 1, không giới hạn số lượng (URD V4.18, UC-TPL-01).
+                Trigger đã chọn hiển thị dạng chip có nút xóa; dropdown search tiếp tục mở để chọn thêm. */}
             <div>
               <label className="text-xs text-slate-500 font-medium block mb-1">
                 Sự kiện kích hoạt <span className="text-red-400">*</span>
               </label>
               {readOnly ? (
-                selectedTrigger
-                  ? <span className="bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-xs">{selectedTrigger.code} · {selectedTrigger.name}</span>
-                  : <span className="text-xs text-slate-400 italic">Chưa chọn sự kiện kích hoạt</span>
+                selectedTriggers.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedTriggers.map(t => (
+                      <span key={t.code} className="bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-xs">{t.code} · {t.name}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400 italic">Chưa chọn sự kiện kích hoạt</span>
+                )
               ) : (
                 <div className="relative">
-                  <button type="button" onClick={() => setTriggerPickerOpen(o => !o)}
-                    className={`w-full flex items-center gap-1 px-2 py-1.5 border rounded text-left text-xs min-h-[34px] hover:border-blue-300 ${triggerTouched && !triggerCode ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}>
-                    {selectedTrigger
-                      ? <span className="bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">{selectedTrigger.code} · {selectedTrigger.name}</span>
-                      : <span className="text-slate-400">-- Chọn sự kiện kích hoạt --</span>}
-                  </button>
+                  <div className={`w-full flex items-center gap-1 flex-wrap px-2 py-1.5 border rounded text-left text-xs min-h-[34px] ${triggerTouched && triggerCodes.length === 0 ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}>
+                    {selectedTriggers.map(t => (
+                      <span key={t.code} className="bg-blue-50 text-blue-700 rounded px-1.5 py-0.5 flex items-center gap-1">
+                        {t.code} · {t.name}
+                        <button type="button" onClick={() => removeTrigger(t.code)} className="hover:text-red-500">
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                    <button type="button" onClick={() => setTriggerPickerOpen(o => !o)}
+                      className="text-slate-400 hover:text-blue-500 px-1">
+                      {selectedTriggers.length === 0 ? '-- Chọn sự kiện kích hoạt --' : '+ Thêm'}
+                    </button>
+                  </div>
                   {triggerPickerOpen && (
-                    <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                      {activeTriggers.map(t => (
-                        <button type="button" key={t.code} onClick={() => selectTrigger(t.code)}
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                      <div className="sticky top-0 bg-white p-1.5 border-b border-slate-100">
+                        <input
+                          autoFocus
+                          value={triggerSearch}
+                          onChange={e => setTriggerSearch(e.target.value)}
+                          placeholder="Tìm theo mã hoặc tên..."
+                          className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:border-blue-400"
+                        />
+                      </div>
+                      {pickableTriggers.map(t => (
+                        <button type="button" key={t.code} onClick={() => addTrigger(t.code)}
                           className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 text-left">
                           <span className="font-mono text-slate-500">{t.code}</span>
                           <span className="text-slate-700">{t.name}</span>
                         </button>
                       ))}
-                      {activeTriggers.length === 0 && <div className="px-3 py-2 text-xs text-slate-400">Không có sự kiện kích hoạt nào đang hoạt động</div>}
+                      {pickableTriggers.length === 0 && <div className="px-3 py-2 text-xs text-slate-400">Không còn sự kiện kích hoạt nào phù hợp</div>}
                     </div>
                   )}
-                  {triggerTouched && !triggerCode && (
-                    <div className="text-xs text-red-500 mt-0.5">Vui lòng chọn sự kiện kích hoạt cho mẫu tin nhắn này</div>
+                  {triggerTouched && triggerCodes.length === 0 && (
+                    <div className="text-xs text-red-500 mt-0.5">Vui lòng chọn ít nhất 1 trigger cho mẫu tin nhắn này</div>
                   )}
                 </div>
               )}
@@ -331,6 +406,12 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
           <div className="grid grid-cols-[55%_45%]">
             {/* LEFT: compose */}
             <div className="p-5 border-r border-slate-100 space-y-4">
+              {/* Blocking: kênh đang mở chưa có nội dung — chặn lưu cho đến khi điền (URD UC-TPL-01) */}
+              {!readOnly && channelTouched && !hasContent(activeTab) && (
+                <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2.5 py-1.5">
+                  Kênh {activeTab} chưa có nội dung — vui lòng điền trước khi lưu
+                </div>
+              )}
               {/* Guide toggle — ẩn khi readOnly */}
               {!readOnly && (
                 <>
@@ -347,7 +428,7 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                         <div>• Hình ảnh: tùy chọn, tỉ lệ 1:1, tối đa 1MB.</div>
                       </>}
                       {activeTab === 'SMS' && <>
-                        <div>• Nội dung: tối đa 160 ký tự/đoạn. Vượt 160 → tính thêm đoạn.</div>
+                        <div>• Nội dung: tự động phát hiện có dấu tiếng Việt — có dấu tối đa 70 ký tự/segment, không dấu tối đa 160 ký tự/segment. Vượt ngưỡng → tính thêm segment, chỉ cảnh báo, không chặn lưu.</div>
                         <div>• Chỉ văn bản thuần — không hỗ trợ ảnh.</div>
                       </>}
                       {activeTab === 'Zalo OA' && <>
@@ -355,7 +436,8 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                         <div>• OA phải được liên kết và phê duyệt trước khi gửi.</div>
                       </>}
                       {activeTab === 'USSD' && <>
-                        <div>• Nội dung: tối đa 182 ký tự. Chỉ văn bản thuần, không dấu tiếng Việt.</div>
+                        <div>• Nội dung: tối đa 182 ký tự, không cho nhập thêm.</div>
+                        <div>• Ký tự đặc biệt (dấu tiếng Việt, emoji...) không bị tự động chỉnh sửa — chỉ cảnh báo có thể hiển thị sai trên USSD.</div>
                       </>}
                       {activeTab === 'Banner' && <>
                         <div>• Hình ảnh: BẮT BUỘC, tỉ lệ 16:9, tối đa 2MB.</div>
@@ -363,26 +445,29 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                         <div>• Nhãn nút bấm + Đường dẫn nút bấm: bắt buộc.</div>
                       </>}
                       {activeTab === 'Email' && <>
-                        <div>• Tiêu đề thư: tối đa 100 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
-                        <div>• Nội dung: văn bản thuần, không giới hạn.</div>
+                        <div>• Tiêu đề thư: bắt buộc, tối đa 150 ký tự. Hỗ trợ biến {'{{...}}'}.</div>
+                        <div>• Nội dung: tối đa 65.535 ký tự, không có counter hiển thị. Dán nội dung vượt giới hạn sẽ tự động cắt bớt.</div>
                       </>}
                     </div>
                   )}
                 </>
               )}
 
-              {/* PARAMS — lấy đúng theo trigger đã chọn ở Header (URD v4.4), ẩn khi readOnly */}
+              {/* PARAMS — hợp (union) payload của TẤT CẢ trigger đã chọn ở Header (URD V4.18, UC-TPL-01);
+                  mỗi chip kèm badge mã trigger nguồn, param trùng tên nhưng khác trigger vẫn giữ riêng.
+                  Ẩn khi readOnly. */}
               {!readOnly && (
                 <div>
                   <div className="text-xs text-slate-500 font-medium mb-1.5">THAM SỐ ĐỘNG:</div>
-                  {!selectedTrigger ? (
-                    <div className="text-xs text-slate-400 italic">Chọn sự kiện kích hoạt để xem tham số khả dụng</div>
-                  ) : selectedTrigger.params.length > 0 ? (
+                  {selectedTriggers.length === 0 ? (
+                    <div className="text-xs text-slate-400 italic">Chọn ít nhất 1 trigger để xem tham số khả dụng</div>
+                  ) : unionParams.length > 0 ? (
                     <>
                       <div className="flex flex-wrap gap-1.5">
-                        {selectedTrigger.params.map(p => (
-                          <div key={p.name} className="relative group">
+                        {unionParams.map(({ triggerCode, param: p }) => (
+                          <div key={`${triggerCode}::${p.name}`} className="relative group flex items-center gap-1">
                             <ParamChip name={p.name} onClick={() => insertParam(p.name)} />
+                            <TriggerChip code={triggerCode} className="text-[10px] px-1 py-0" />
                             <div className="absolute bottom-full left-0 mb-1 hidden group-hover:block bg-slate-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-30">
                               {p.description} · {p.format}
                             </div>
@@ -392,17 +477,18 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                       <div className="text-xs text-slate-400 mt-1">→ Click chip để chèn vào nội dung</div>
                     </>
                   ) : (
-                    <div className="text-xs text-slate-400 italic">Sự kiện kích hoạt này chưa khai báo tham số nào</div>
+                    <div className="text-xs text-slate-400 italic">Các sự kiện kích hoạt đã chọn chưa khai báo tham số nào</div>
                   )}
-                  {/* Cảnh báo tham số đã chèn không còn thuộc trigger đang chọn (ví dụ sau khi đổi trigger) */}
-                  {selectedTrigger && (() => {
-                    const validNames = new Set(selectedTrigger.params.map(p => p.name))
+                  {/* Cảnh báo tham số đã chèn không còn thuộc bất kỳ trigger nào trong tập hiện tại
+                      (ví dụ sau khi bớt trigger) — so với union tham số của TOÀN BỘ triggerCodes hiện tại */}
+                  {selectedTriggers.length > 0 && (() => {
+                    const validNames = new Set(unionParams.map(u => u.param.name))
                     const used = Array.from((content.body ?? '').matchAll(/\{\{(\w+)\}\}/g)).map(m => m[1])
                     const invalid = Array.from(new Set(used.filter(n => !validNames.has(n))))
                     if (invalid.length === 0) return null
                     return (
                       <div className="text-xs text-orange-500 mt-1.5">
-                        ⚠ Tham số {invalid.map(n => `{{${n}}}`).join(', ')} không thuộc sự kiện kích hoạt đã chọn — kiểm tra lại nội dung trước khi lưu
+                        ⚠ Tham số {invalid.map(n => `{{${n}}}`).join(', ')} không thuộc trigger đã chọn — kiểm tra lại nội dung trước khi lưu
                       </div>
                     )
                   })()}
@@ -434,11 +520,11 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                 </div>
               )}
 
-              {/* Title / Subject */}
+              {/* Title / Subject — Email Subject bắt buộc tối đa 150 ký tự (counter, chặn nhập thêm) */}
               {limits.title !== undefined && (
                 <div>
                   <label className="text-xs text-slate-600 font-medium block mb-1">
-                    {activeTab === 'Email' ? 'Tiêu đề' : 'Tiêu đề'}
+                    {'Tiêu đề'}
                     <span className="float-right text-slate-400">{(content.title ?? '').length}/{limits.title}</span>
                   </label>
                   <input value={content.title ?? ''} onChange={e => updateContent('title', e.target.value)}
@@ -447,30 +533,59 @@ export function TemplateEditor({ readOnly = false }: { readOnly?: boolean } = {}
                 </div>
               )}
 
-              {/* Body */}
+              {/* Body — SMS: ngưỡng tự chuyển 70/160 theo có dấu/không dấu, không chặn nhập/lưu, chỉ cảnh
+                  báo cam. USSD: giữ nguyên nội dung người dùng gõ (không tự xóa dấu), chặn cứng 182 ký tự,
+                  chỉ cảnh báo ký tự đặc biệt. Email: không có counter hiển thị, tự cắt khi dán vượt 65.535. */}
               <div>
                 <label className="text-xs text-slate-600 font-medium block mb-1">
                   {'Nội dung'}
-                  <span className={`float-right ${limits.body !== 99999 && (content.body ?? '').length > limits.body ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
-                    {(content.body ?? '').length}{limits.body !== 99999 ? `/${limits.body}` : ''}
-                  </span>
+                  {activeTab === 'SMS' ? (() => {
+                    const info = smsSegmentInfo(content.body ?? '')
+                    const over = info.length > info.limit
+                    return (
+                      <span className={`float-right ${over ? 'text-orange-500 font-semibold' : 'text-slate-400'}`}>
+                        {info.length}/{info.limit}
+                      </span>
+                    )
+                  })() : activeTab === 'Email' ? null : (
+                    <span className={`float-right ${limits.body !== undefined && (content.body ?? '').length > limits.body ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
+                      {(content.body ?? '').length}{limits.body !== undefined ? `/${limits.body}` : ''}
+                    </span>
+                  )}
                 </label>
                 <textarea ref={bodyRef} rows={activeTab === 'Email' ? 5 : 3}
                   value={content.body ?? ''}
-                  onChange={e => {
-                    const val = activeTab === 'USSD' ? removeVietnameseTones(e.target.value) : e.target.value
-                    updateContent('body', val)
+                  maxLength={activeTab === 'USSD' ? limits.body : undefined}
+                  onChange={e => updateContent('body', e.target.value)}
+                  onPaste={e => {
+                    if (activeTab !== 'Email') return
+                    const el = e.currentTarget
+                    const pasted = e.clipboardData.getData('text')
+                    const start = el.selectionStart ?? (content.body ?? '').length
+                    const end = el.selectionEnd ?? start
+                    const current = content.body ?? ''
+                    const merged = current.slice(0, start) + pasted + current.slice(end)
+                    if (merged.length > EMAIL_BODY_MAX) {
+                      e.preventDefault()
+                      const truncated = merged.slice(0, EMAIL_BODY_MAX)
+                      updateContent('body', truncated)
+                      toast('Nội dung đã được cắt bớt do vượt giới hạn 65.535 ký tự', 'warning')
+                    }
                   }}
                   disabled={readOnly}
                   className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-400 resize-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed" />
-                {activeTab === 'USSD' && (
-                  <div className="text-xs text-slate-400 mt-1">⚠ USSD không hỗ trợ tiếng Việt có dấu — tự động chuyển sang không dấu</div>
+                {activeTab === 'USSD' && hasUssdSpecialChars(content.body ?? '') && (
+                  <div className="text-xs text-orange-500 mt-1">⚠ Ký tự đặc biệt có thể hiển thị sai trên USSD</div>
                 )}
-                {activeTab === 'SMS' && (content.body ?? '').length > 160 && (
-                  <div className="text-xs text-orange-500 mt-1">
-                    {Math.ceil((content.body ?? '').length / 160)} đoạn SMS
-                  </div>
-                )}
+                {activeTab === 'SMS' && (() => {
+                  const info = smsSegmentInfo(content.body ?? '')
+                  if (info.length <= info.limit) return null
+                  return (
+                    <div className="text-xs text-orange-500 mt-1">
+                      {info.segments} SMS segment
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* CTA (Banner) */}

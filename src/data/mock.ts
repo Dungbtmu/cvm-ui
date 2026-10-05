@@ -2091,7 +2091,7 @@ export const mockTemplates: Template[] = [
   {
     id: '1', name: 'Chào mừng SIM', channels: ['Push', 'Zalo OA'], usageCount: 3, status: 'Active',
     description: 'Gửi khi khách hàng kích hoạt SIM mới — chào đón và giới thiệu gói cước',
-    triggerCode: 'E01',
+    triggerCodes: ['E01'],
     contents: {
       Push: { title: 'Chào mừng {{ten_kh}} đến với VietnamPost!', body: 'SIM {{loai_sim}} của bạn đã kích hoạt thành công vào {{ngay_kich_hoat}}. Khám phá các gói cước ưu đãi dành riêng cho bạn ngay hôm nay.' },
       'Zalo OA': { body: 'Xin chào {{ten_kh}},\n\nChúc mừng bạn đã kích hoạt thành công SIM {{loai_sim}} của VietnamPost vào ngày {{ngay_kich_hoat}}.\n\nSố dư hiện tại: {{so_du}} đ\nSố điện thoại: {{so_dt}}\n\nCảm ơn bạn đã tin tùy chọn VietnamPost. Chúc bạn có trải nghiệm tuyệt vời!' },
@@ -2100,7 +2100,7 @@ export const mockTemplates: Template[] = [
   {
     id: '2', name: 'Nhắc nạp thẻ', channels: ['SMS', 'USSD'], usageCount: 3, status: 'Active',
     description: 'Nhắc khách hàng nạp tiền khi số dư tài khoản thấp hoặc sắp hết hạn gói',
-    triggerCode: 'E_ZERO_BALANCE',
+    triggerCodes: ['E_ZERO_BALANCE'],
     contents: {
       SMS: { body: 'VietnamPost: Tai khoan {{so_dt}} con {{so_du}}d, het han {{ngay_het_han}}. Nap the ngay de khong bi gian doan lien lac. Hotline: 1800 xxxx.' },
       USSD: { body: 'VietnamPost thong bao: So du con {{so_du}}d. Het han {{ngay_het_han}}. Nap the de tiep tuc su dung dich vu.' },
@@ -2109,7 +2109,7 @@ export const mockTemplates: Template[] = [
   {
     id: '3', name: 'Sắp hết data', channels: ['Push', 'SMS'], usageCount: 2, status: 'Active',
     description: 'Cảnh báo khi data gói cước còn dưới ngưỡng — khuyến khích mua thêm data',
-    triggerCode: 'E_DATA_100',
+    triggerCodes: ['E_DATA_100'],
     contents: {
       Push: { title: 'Data của bạn sắp hết!', body: 'Gói data còn {{data_con_lai}} MB — sắp hết rồi {{ten_kh}} ơi. Mua thêm data ngay để lướt net không bị gián đoạn.' },
       SMS: { body: 'VietnamPost: Goi data cua {{so_dt}} chi con {{data_con_lai}}MB. Mua them data tai *098# hoac lien he hotline 1800 xxxx.' },
@@ -2118,7 +2118,7 @@ export const mockTemplates: Template[] = [
   {
     id: '4', name: 'Sinh nhật KH', channels: ['Zalo OA', 'Email'], usageCount: 2, status: 'Active',
     description: 'Gửi lời chúc sinh nhật kèm ưu đãi đặc biệt dành riêng cho khách hàng',
-    triggerCode: 'U09',
+    triggerCodes: ['U09'],
     contents: {
       'Zalo OA': { body: 'Chúc mừng sinh nhật {{ten_kh}}! 🎂\n\nNhân dịp sinh nhật, VietnamPost tặng bạn ưu đãi đặc biệt: 1GB data miễn phí trong hôm nay.\n\nSố dư hiện tại: {{so_du}} đ\nSố điện thoại: {{so_dt}}\n\nTrân trọng,\nĐội ngũ VietnamPost' },
       Email: {
@@ -2131,9 +2131,21 @@ export const mockTemplates: Template[] = [
   {
     id: '5', name: 'Cài app nhắc nhở', channels: ['Push'], usageCount: 2, status: 'Inactive',
     description: 'Nhắc khách hàng chưa cài ứng dụng VietnamPost Mobile',
-    triggerCode: 'E02',
+    triggerCodes: ['E02'],
     contents: {
       Push: { title: 'Quản lý tài khoản dễ dàng hơn!', body: 'Xin chào {{ten_kh}}, hãy tải app VietnamPost để nạp tiền, kiểm tra số dư và đăng ký gói cước mọi lúc mọi nơi. Tải ngay — hoàn toàn miễn phí!' },
+    },
+  },
+  // Minh họa template multi-trigger (URD V4.18, UC-TPL-01) — 1 template tái sử dụng cho 2 trigger có
+  // nội dung tương tự nhau (cùng là "khách hàng mới kích hoạt SIM / chưa cài app"); ten_kh + so_dt trùng
+  // tên giữa E01 và E02 nhưng vẫn giữ riêng theo trigger nguồn khi hiển thị chip tham số.
+  {
+    id: '6', name: 'Nhắc cài app đa sự kiện', channels: ['SMS', 'Zalo OA'], usageCount: 0, status: 'Active',
+    description: 'Dùng chung cho khách hàng mới kích hoạt SIM hoặc chưa cài app sau 24h — nhắc cài ứng dụng VietnamPost Mobile',
+    triggerCodes: ['E01', 'E02'],
+    contents: {
+      SMS: { body: 'VietnamPost: Chao {{ten_kh}}, hay tai app VietnamPost Mobile de quan ly tai khoan {{so_dt}} de dang hon. Tai ngay!' },
+      'Zalo OA': { body: 'Xin chào {{ten_kh}},\n\nTải app VietnamPost Mobile để quản lý tài khoản {{so_dt}} dễ dàng hơn — nạp tiền, kiểm tra số dư, đăng ký gói cước mọi lúc mọi nơi.\n\nTrân trọng,\nĐội ngũ VietnamPost' },
     },
   },
 ]

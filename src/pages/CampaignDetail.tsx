@@ -122,14 +122,31 @@ const DEFAULT_SCHEDULE: ScheduleConfig = {
   channels: {},
 }
 
-// Nhắc lại (Re-engagement, URD II.6.10) — cấu hình riêng theo từng campaign (V4.1, đổi đơn vị
-// khoảng cách sang ngày ở V4.7); keyed theo campaign id, mặc định Tắt nếu không có mock riêng.
+// Nhắc lại (Re-engagement, URD II.6.10) — cấu hình theo đúng cấp Lịch gửi đã chọn (V4.26):
+// Lịch chung → 1 cặp dùng chung (common); Lịch riêng per kênh → mỗi kênh 1 cặp (perChannel);
+// có Audience Variant → bên trong mỗi kênh, mỗi biến thể 1 cặp riêng (perVariant, key = segmentName).
 type ReminderConfig = { enabled: boolean; maxCount?: number; gapDays?: number }
-const MOCK_REMINDERS: Record<string, ReminderConfig> = {
-  '1': { enabled: true, maxCount: 2, gapDays: 3 },
-  '3': { enabled: true, maxCount: 1, gapDays: 7 },
+type ReminderSettings = {
+  common?: ReminderConfig
+  perChannel?: Partial<Record<ChannelType, ReminderConfig>>
+  perVariant?: Partial<Record<ChannelType, Record<string, ReminderConfig>>>
 }
-const DEFAULT_REMINDER: ReminderConfig = { enabled: false }
+const MOCK_REMINDERS: Record<string, ReminderSettings> = {
+  '1': { common: { enabled: true, maxCount: 2, gapDays: 3 } },
+  // Lịch riêng per kênh + per biến thể (minh họa đầy đủ URD II.6.10, Screen 2B STT 9)
+  '3': {
+    perChannel: {
+      SMS: { enabled: true, maxCount: 1, gapDays: 7 }, // không bật Variant cho SMS ở ví dụ này
+    },
+    perVariant: {
+      'Zalo OA': {
+        'Tất cả (dự phòng)': { enabled: true, maxCount: 2, gapDays: 5 },
+        'Nguy cơ rời mạng': { enabled: true, maxCount: 3, gapDays: 2 },
+      },
+    },
+  },
+}
+const DEFAULT_REMINDER_CFG: ReminderConfig = { enabled: false }
 
 const BL_PHONES = [
   '0987 xxx 001',
@@ -147,6 +164,7 @@ type VariantContent = { segmentName: string; title?: string; body: string }
 // Mock variant per trigger per channel — key phải khớp trigger code trong mockCampaigns
 // E01: Push/Zalo 3 biến thể, Email 2, SMS/Banner/USSD chỉ 1 (không có tab)
 // E02: Push/Zalo 2 biến thể, các kênh còn lại 1
+// U_PRE_EXPIRY: SMS/Zalo 2 biến thể (minh họa Nhắc lại per kênh + per biến thể, campaign id3)
 const MOCK_VARIANTS: Record<string, Record<ChannelType, VariantContent[]>> = {
   E01: {
     Push: [
@@ -194,6 +212,20 @@ const MOCK_VARIANTS: Record<string, Record<ChannelType, VariantContent[]>> = {
     USSD: [
       { segmentName: 'Tất cả (dự phòng)', body: 'TAI APP MYVNPOST. Bam 1 nhan link tai. Bam 2 de sau.' },
     ],
+  },
+  U_PRE_EXPIRY: {
+    SMS: [
+      { segmentName: 'Tất cả (dự phòng)', body: 'VietnamPost: Goi cuoc cua ban sap het han. Gia han ngay tai *098# de khong bi gian doan.' },
+      { segmentName: 'Nguy cơ rời mạng', body: 'VietnamPost: Goi cuoc sap het han! Gia han ngay hom nay de nhan uu dai giu chan 20%.' },
+    ],
+    'Zalo OA': [
+      { segmentName: 'Tất cả (dự phòng)', body: 'Chào {{ten_kh}}! Gói cước của bạn sẽ hết hạn sau {{days_to_expiry}} ngày. Gia hạn ngay để không bị gián đoạn dịch vụ.' },
+      { segmentName: 'Nguy cơ rời mạng', body: 'Chào {{ten_kh}}! Gói cước sắp hết hạn — gia hạn ngay hôm nay để nhận ưu đãi giữ chân đặc biệt!' },
+    ],
+    USSD: [
+      { segmentName: 'Tất cả (dự phòng)', body: 'GOI CUOC SAP HET HAN. Bam 1 gia han ngay. Bam 2 xem chi tiet.' },
+    ],
+    Push: [], Banner: [], Email: [],
   },
 }
 
@@ -470,7 +502,17 @@ export function CampaignDetail() {
         {/* S5 */}
         {(() => {
           const schedule = MOCK_SCHEDULES[id ?? ''] ?? DEFAULT_SCHEDULE
-          const reminder = MOCK_REMINDERS[id ?? ''] ?? DEFAULT_REMINDER
+          const reminderSettings = MOCK_REMINDERS[id ?? ''] ?? {}
+          const triggerCode = campaign.triggers[0]
+
+          const renderReminderCfg = (cfg: ReminderConfig) => (
+            cfg.enabled ? (
+              <span className="text-slate-700">
+                Bật · tối đa <span className="font-medium">{cfg.maxCount}</span> lần · cách nhau <span className="font-medium">{cfg.gapDays}</span> ngày
+              </span>
+            ) : <span className="text-slate-400">Tắt</span>
+          )
+
           return (
             <section className="px-6 py-4 space-y-3">
               <h2 className="text-sm font-semibold text-slate-700">5. Kênh &amp; Lịch gửi</h2>
@@ -492,6 +534,11 @@ export function CampaignDetail() {
                         : 'Tắt'}
                     </span>
                   </div>
+                  {/* Nhắc lại — cấp Lịch chung: 1 cặp dùng chung cả campaign (URD II.6.10) */}
+                  <div className="flex gap-2">
+                    <span className="text-slate-500 w-40 flex-shrink-0">Cho phép nhắc lại:</span>
+                    {renderReminderCfg(reminderSettings.common ?? DEFAULT_REMINDER_CFG)}
+                  </div>
                 </div>
               ) : (
                 <table className="w-full text-sm border border-slate-100 rounded-lg overflow-hidden">
@@ -500,14 +547,20 @@ export function CampaignDetail() {
                       <th className="text-left px-3 py-2 font-medium">Kênh</th>
                       <th className="text-left px-3 py-2 font-medium">Thời gian gửi</th>
                       <th className="text-left px-3 py-2 font-medium">Giờ giới nghiêm</th>
+                      <th className="text-left px-3 py-2 font-medium">Cho phép nhắc lại</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {CHANNELS.map(ch => {
                       const s = schedule.channels[ch]
                       if (!s) return null
+                      // Nhắc lại — có Audience Variant cho đúng kênh này (xem MOCK_VARIANTS theo trigger)
+                      // thì tách hiển thị theo từng biến thể; không có Variant thì 1 cặp cho cả kênh.
+                      const variantsForCh = MOCK_VARIANTS[triggerCode]?.[ch] ?? []
+                      const perVariantCfg = reminderSettings.perVariant?.[ch]
+                      const hasVariantReminder = variantsForCh.length > 1 && !!perVariantCfg
                       return (
-                        <tr key={ch} className="text-slate-700">
+                        <tr key={ch} className="text-slate-700 align-top">
                           <td className="px-3 py-2 font-medium w-24">{ch}</td>
                           <td className="px-3 py-2 text-slate-600">{formatSendTime(s.sendTime)}</td>
                           <td className="px-3 py-2">
@@ -515,29 +568,25 @@ export function CampaignDetail() {
                               ? `Bật · ${s.blackout.from} – ${s.blackout.to} · ${s.blackout.action}`
                               : <span className="text-slate-400">Tắt</span>}
                           </td>
+                          <td className="px-3 py-2">
+                            {hasVariantReminder ? (
+                              <div className="space-y-1">
+                                {variantsForCh.map((v, vIdx) => (
+                                  <div key={vIdx}>
+                                    <span className="text-xs text-slate-400">{v.segmentName}: </span>
+                                    {renderReminderCfg(perVariantCfg?.[v.segmentName] ?? DEFAULT_REMINDER_CFG)}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              renderReminderCfg(reminderSettings.perChannel?.[ch] ?? DEFAULT_REMINDER_CFG)
+                            )}
+                          </td>
                         </tr>
                       )
                     })}
                   </tbody>
                 </table>
-              )}
-
-              {/* Nhắc lại (Re-engagement) — URD II.6.10, cấu hình riêng theo campaign (V4.1) */}
-              <div className="flex gap-2 text-sm pt-1 border-t border-slate-100">
-                <span className="text-slate-500 w-40 flex-shrink-0">Cho phép nhắc lại:</span>
-                <span className="font-medium text-slate-700">{reminder.enabled ? 'Bật' : 'Tắt'}</span>
-              </div>
-              {reminder.enabled && (
-                <>
-                  <div className="flex gap-2 text-sm">
-                    <span className="text-slate-500 w-40 flex-shrink-0">Số lần nhắc lại tối đa:</span>
-                    <span className="font-medium text-slate-700">{reminder.maxCount}</span>
-                  </div>
-                  <div className="flex gap-2 text-sm">
-                    <span className="text-slate-500 w-40 flex-shrink-0">Khoảng cách tối thiểu:</span>
-                    <span className="font-medium text-slate-700">{reminder.gapDays} ngày</span>
-                  </div>
-                </>
               )}
             </section>
           )
