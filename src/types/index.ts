@@ -16,10 +16,6 @@ export interface Campaign {
   endDate?: string
   // true = không giới hạn ngày kết thúc; campaign chạy đến khi QTV/Admin chủ động [Dừng] (Kill Switch)
   isInfinite?: boolean
-  // [DEPRECATED] Không còn dùng để hiển thị/tính toán kể từ CR Priority Redesign — giữ tạm field này
-  // chỉ để tương thích ngược data cũ trong prototype, thay thế hoàn toàn bằng groupPositions (mô hình
-  // "N vị trí độc lập theo nhóm trigger", xem URD II.6.8/UC-PRIORITY-01).
-  priority: number
   // Vị trí trong từng nhóm trigger — key = mã trigger, value = index hiển thị (1-based) trong bàn kéo-thả
   // của nhóm đó. Chỉ có ý nghĩa với campaign status = 'Active'. Mô hình khái niệm "Campaign × Nhóm
   // Trigger → Vị trí" (URD II.6.8/UC-PRIORITY-01) — KHÔNG phải 1 số toàn cục. Mọi campaign Active (dù

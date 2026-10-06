@@ -37,14 +37,6 @@ export function AdminScreen() {
     setApproveTarget(null)
   }
 
-  // Không cho Phê duyệt (Pending → Active) nếu độ ưu tiên trùng campaign Active khác — lỗ hổng thứ 4
-  // trong chuỗi chặn trùng priority (URD UC-CAM-05 V4.15): thời điểm campaign thực sự tham gia xếp
-  // hạng là lúc Phê duyệt, không phải lúc Gửi duyệt (đã chặn ở Campaign Builder, V4.14). Admin không
-  // tự sửa priority tại đây — chỉ [Từ chối] để QTV sửa lại, [Từ chối] vẫn là action tự quyết định
-  // bình thường, không bị ép buộc.
-  const findPriorityConflict = (c: Campaign) =>
-    mockCampaigns.find(x => x.id !== c.id && x.status === 'Active' && x.priority === c.priority)
-
   const rejectReasonErr = rejectReason.trim().length > 0 && rejectReason.trim().length < 10
   const canReject = rejectReason.trim().length >= 10
 
@@ -160,37 +152,21 @@ export function AdminScreen() {
 
       {activeTab === 1 && <TriggerAdmin />}
 
-      {/* Approve dialog — check trùng độ ưu tiên với campaign Active khác trước khi cho xác nhận
-          (URD UC-CAM-05 V4.15, lỗ hổng thứ 4 trong chuỗi chặn trùng priority). Trùng thì đổi hẳn
-          nội dung dialog sang cảnh báo, không có nút xác nhận duyệt — chỉ [Đóng]; yêu cầu sửa lại
-          độ ưu tiên trước khi gửi duyệt lại, không sửa priority ngay tại đây. */}
-      {approveTarget && (() => {
-        const conflict = findPriorityConflict(approveTarget)
-        return (
-          <Dialog open onClose={() => setApproveTarget(null)} title={conflict ? 'Không thể duyệt — trùng độ ưu tiên' : 'Duyệt chiến dịch?'}>
-            {conflict ? (
-              <p className="text-sm text-slate-600">
-                Độ ưu tiên <strong>{approveTarget.priority}</strong> của <strong>{approveTarget.name}</strong> đang được dùng bởi campaign <strong>{conflict.name}</strong> đang chạy.
-                Vui lòng sửa lại độ ưu tiên trước khi gửi duyệt lại.
-              </p>
-            ) : (
-              <p className="text-sm text-slate-600">
-                Duyệt chiến dịch <strong>{approveTarget.name}</strong>? Chiến dịch sẽ chuyển sang trạng thái Đang chạy ngay.
-              </p>
-            )}
-            <DialogActions>
-              {conflict ? (
-                <Button variant="outline" onClick={() => setApproveTarget(null)}>Đóng</Button>
-              ) : (
-                <>
-                  <Button variant="outline" onClick={() => setApproveTarget(null)}>Hủy</Button>
-                  <Button variant="success" onClick={handleApprove}>Duyệt</Button>
-                </>
-              )}
-            </DialogActions>
-          </Dialog>
-        )
-      })()}
+      {/* Approve dialog — không còn check trùng Độ ưu tiên tại đây (URD UC-CAM-05 V4.18: bỏ hẳn check
+          trùng priority, tách rời hoàn toàn khỏi validate ưu tiên). Sau khi Duyệt, hệ thống tự động
+          thêm campaign vào cuối mỗi nhóm trigger tương ứng tại Cài đặt → Tab "Độ ưu tiên" — không có
+          khái niệm "trùng" cần chặn ở bước này. */}
+      {approveTarget && (
+        <Dialog open onClose={() => setApproveTarget(null)} title="Duyệt chiến dịch?">
+          <p className="text-sm text-slate-600">
+            Duyệt chiến dịch <strong>{approveTarget.name}</strong>? Chiến dịch sẽ chuyển sang trạng thái Đang chạy ngay.
+          </p>
+          <DialogActions>
+            <Button variant="outline" onClick={() => setApproveTarget(null)}>Hủy</Button>
+            <Button variant="success" onClick={handleApprove}>Duyệt</Button>
+          </DialogActions>
+        </Dialog>
+      )}
 
       {/* Reject dialog */}
       <Dialog open={!!rejectTarget} onClose={() => setRejectTarget(null)} title="Từ chối chiến dịch">
