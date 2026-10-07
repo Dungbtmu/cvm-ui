@@ -119,7 +119,6 @@ export function Settings() {
   // không có API thật — mọi thay đổi chỉ tồn tại trong phiên xem hiện tại (reload sẽ mất).
   const [localCampaigns, setLocalCampaigns] = useState<Campaign[]>(mockCampaigns)
   const [helpOpen, setHelpOpen] = useState(false)
-  const [saveConfirm, setSaveConfirm] = useState<{ triggerCode: string } | null>(null)
   const [triggerFilter, setTriggerFilter] = useState<string>('')
   const [campaignFilter, setCampaignFilter] = useState<string>(() => searchParams.get('campaign') ?? '')
 
@@ -156,8 +155,8 @@ export function Settings() {
 
   // Kéo-thả thật (nâng cấp từ nút ▲▼ — @dnd-kit/core + @dnd-kit/sortable) — chỉ hoán đổi vị trí
   // trong PHẠM VI 1 nhóm trigger, không ảnh hưởng vị trí của campaign đó ở các nhóm trigger khác
-  // (đúng mô hình "N vị trí độc lập theo nhóm", URD II.6.8/UC-PRIORITY-01). Giữ nguyên logic nghiệp
-  // vụ cũ (cập nhật groupPositions theo index mới) — chỉ đổi cách người dùng tương tác.
+  // (đúng mô hình "N vị trí độc lập theo nhóm", URD II.6.8/UC-PRIORITY-01). Áp dụng ngay khi thả —
+  // không có nút [Lưu] riêng hay confirm dialog bổ sung (Screen Settings Tab 3 STT 3.4).
   const reorderGroup = (triggerCode: string, fromId: string, toId: string) => {
     if (fromId === toId) return
     setLocalCampaigns(prev => {
@@ -175,6 +174,7 @@ export function Settings() {
           : c
       )
     })
+    toast('Đã cập nhật thứ tự ưu tiên ✓', 'success')
   }
 
   // Sensor dùng chung cho mọi bàn kéo-thả trong trang — PointerSensor cho chuột/touch, KeyboardSensor
@@ -183,11 +183,6 @@ export function Settings() {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
-
-  const confirmSave = () => {
-    toast('Đã cập nhật thứ tự ưu tiên ✓', 'success')
-    setSaveConfirm(null)
-  }
 
   const perms: [string, boolean, boolean][] = [
     ['Xem Bảng điều hành', true, true],
@@ -422,11 +417,6 @@ export function Settings() {
                     Nhóm Trigger: {trig?.name ?? group.triggerCode}{' '}
                     <span className="text-xs text-slate-400 font-mono font-normal">({group.triggerCode})</span>
                   </div>
-                  {group.members.length >= 2 && (
-                    <Button variant="primary" size="sm" onClick={() => setSaveConfirm({ triggerCode: group.triggerCode })}>
-                      Lưu thứ tự
-                    </Button>
-                  )}
                 </div>
 
                 {group.members.length >= 2 && (
@@ -500,18 +490,6 @@ export function Settings() {
         </ul>
         <DialogActions>
           <Button variant="outline" onClick={() => setHelpOpen(false)}>Đóng</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Save confirm dialog */}
-      <Dialog open={!!saveConfirm} onClose={() => setSaveConfirm(null)} title="Lưu thứ tự ưu tiên?">
-        <p className="text-sm text-slate-600">
-          Thứ tự mới sẽ áp dụng ngay cho sự kiện trigger tiếp theo trong nhóm này — không ảnh hưởng vị trí của các
-          campaign ở những nhóm trigger khác.
-        </p>
-        <DialogActions>
-          <Button variant="outline" onClick={() => setSaveConfirm(null)}>Hủy</Button>
-          <Button variant="primary" onClick={confirmSave}>Xác nhận</Button>
         </DialogActions>
       </Dialog>
     </div>
