@@ -12,22 +12,35 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100] as const
 
 // Multi-select checkbox list dùng chung cho Campaign/Kênh trong các modal Blacklist — tái dùng pattern
 // checkbox đã có ở CampaignBuilder.tsx (danh sách checkbox có scroll) thay vì thêm thư viện multi-select mới.
-function CheckboxMultiSelect<T extends string>({ options, selected, onToggle, renderLabel }: {
+// existingValues (URD V4.30, UC-BL-01 Screen 6B STT 2, 3): Campaign/Kênh số đang nhập đã từng bị chặn từ
+// trước — hiển thị ĐÃ TICK VÀ KHÓA (disabled), không cho bỏ tick: modal này chỉ có chức năng Thêm, không
+// Gỡ, nên để tick tự do mà bỏ tick không có tác dụng gỡ gì sẽ là 1 checkbox giả vờ tương tác được (v4.29
+// đã làm vậy và bị phát hiện mâu thuẫn logic — sửa lại ở v4.30). QTV chỉ tick/bỏ tick được Campaign/Kênh
+// CHƯA từng chặn số này.
+function CheckboxMultiSelect<T extends string>({ options, selected, onToggle, renderLabel, existingValues }: {
   options: T[]
   selected: T[]
   onToggle: (v: T) => void
   renderLabel?: (v: T) => string
+  existingValues?: T[]
 }) {
   return (
     <div className="border border-slate-200 rounded max-h-36 overflow-y-auto divide-y divide-slate-50">
-      {options.map(opt => (
-        <label key={opt} className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-slate-50 cursor-pointer">
-          <input type="checkbox" className="accent-blue-500"
-            checked={selected.includes(opt)}
-            onChange={() => onToggle(opt)} />
-          <span className="text-slate-700">{renderLabel ? renderLabel(opt) : opt}</span>
-        </label>
-      ))}
+      {options.map(opt => {
+        const isLocked = existingValues?.includes(opt) ?? false
+        return (
+          <label key={opt} className={`flex items-center gap-2 px-2 py-1.5 text-sm ${isLocked ? 'bg-slate-50' : 'hover:bg-slate-50 cursor-pointer'}`}>
+            <input type="checkbox" className="accent-blue-500 disabled:accent-slate-400"
+              checked={selected.includes(opt)}
+              disabled={isLocked}
+              onChange={() => { if (!isLocked) onToggle(opt) }} />
+            <span className={isLocked ? 'text-slate-500' : 'text-slate-700'}>{renderLabel ? renderLabel(opt) : opt}</span>
+            {isLocked && (
+              <span className="text-xs text-blue-500 bg-blue-50 rounded px-1.5 py-0.5 ml-auto">Đã có từ trước</span>
+            )}
+          </label>
+        )
+      })}
       {options.length === 0 && <div className="px-2 py-3 text-xs text-slate-400 text-center">Không có lựa chọn nào</div>}
     </div>
   )
@@ -200,14 +213,21 @@ export function BlacklistManagement() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
-  // Add form (theo Campaign) — multi-select Campaign + Kênh, cả 2 đều bắt buộc (URD Screen 6B STT 2, 3)
+  // Add form (theo Campaign) — URD V4.30: chỉ 1 số/lần; ngay khi số hợp lệ, tra lịch sử blacklist của
+  // ĐÚNG số đó rồi hiển thị Campaign/Kênh đã từng chặn ở trạng thái tick + KHÓA (disabled, không ẩn ai —
+  // xem UC-BL-01, Screen 6B STT 2, 3). QTV chỉ tick/bỏ tick được Campaign/Kênh CHƯA từng chặn số này —
+  // modal chỉ có chức năng Thêm, không Gỡ, nên không để tick tự do với phần đã có (tick tự do mà bỏ tick
+  // không có tác dụng gỡ gì sẽ là checkbox giả vờ tương tác được, đã bị phát hiện mâu thuẫn ở v4.29).
   const [addPhone, setAddPhone] = useState('')
   const [addPhoneErr, setAddPhoneErr] = useState('')
   const [addCampaigns, setAddCampaigns] = useState<string[]>([])
   const [addCampaignErr, setAddCampaignErr] = useState('')
-  const [addChannels, setAddChannels] = useState<ChannelType[]>(['Push'])
+  const [addChannels, setAddChannels] = useState<ChannelType[]>([])
   const [addChannelErr, setAddChannelErr] = useState('')
   const [addModalErr, setAddModalErr] = useState('')
+  // Campaign/Kênh mà số đang nhập đã từng bị chặn từ trước — dùng để tick + khóa, hiển thị nhãn "Đã có từ trước".
+  const [addExistingCampaigns, setAddExistingCampaigns] = useState<string[]>([])
+  const [addExistingChannels, setAddExistingChannels] = useState<ChannelType[]>([])
 
   // Upload form (theo Campaign) — multi-select Campaign + Kênh (URD Screen 6C STT 1, 2)
   const [upCampaigns, setUpCampaigns] = useState<string[]>([])
@@ -244,39 +264,67 @@ export function BlacklistManagement() {
     return ''
   }
 
-  // Thêm thủ công (theo Campaign) — mỗi số hợp lệ tạo N (Campaign) × M (Kênh) bản ghi, bỏ qua tổ hợp
-  // đã tồn tại; parse nhiều số cách nhau bởi dấu phẩy/xuống dòng (URD Screen 6B STT 1, 4, 6).
+  // Tra cứu lịch sử blacklist của 1 số — gọi ngay khi số hợp lệ về định dạng (debounce qua onBlur/onChange
+  // đơn giản hóa trên prototype: tra lại mỗi khi addPhone đổi và hợp lệ). Trả về Campaign/Kênh đã từng
+  // chặn số này, dùng để tick + khóa (URD UC-BL-01 bước 2, Screen 6B STT 2, 3) — set đồng thời vào
+  // addCampaigns/addChannels vì checkbox tương ứng sẽ bị disabled, QTV không thể bỏ tick các giá trị này.
+  const lookupExisting = (phone: string) => {
+    const entries = list.filter(x => x.phone === phone && (x.scope ?? 'campaign') === 'campaign')
+    const campaigns = [...new Set(entries.map(e => e.campaign))]
+    const channels = [...new Set(entries.map(e => e.channel))]
+    setAddExistingCampaigns(campaigns)
+    setAddExistingChannels(channels)
+    setAddCampaigns(campaigns)
+    setAddChannels(channels)
+  }
+
+  const handleAddPhoneChange = (val: string) => {
+    setAddPhone(val)
+    setAddPhoneErr('')
+    setAddModalErr('')
+    const trimmed = val.trim()
+    if (!validatePhone(trimmed)) {
+      lookupExisting(trimmed)
+    } else {
+      setAddExistingCampaigns([])
+      setAddExistingChannels([])
+      setAddCampaigns([])
+      setAddChannels([])
+    }
+  }
+
+  // Thêm thủ công (theo Campaign) — URD V4.30: chỉ 1 số/lần. Chỉ tạo bản ghi mới cho tổ hợp (số, Campaign,
+  // Kênh) đang tick mà CHƯA từng tồn tại; tổ hợp đã tồn tại (đang tick + khóa) giữ nguyên, không tạo trùng,
+  // không báo lỗi (Screen 6B STT 4, 6). Muốn gỡ Campaign/Kênh đã có phải dùng nút [Xóa] ở bảng danh sách.
   const handleAdd = () => {
     setAddModalErr('')
     setAddCampaignErr('')
     setAddChannelErr('')
-    const phones = addPhone.split(/[,\n]/).map(p => p.trim()).filter(Boolean)
-    const validPhones = phones.filter(p => !validatePhone(p))
-    if (validPhones.length === 0) { setAddPhoneErr('Số điện thoại không được để trống'); return }
+    const phone = addPhone.trim()
+    const phoneErr = validatePhone(phone)
+    if (phoneErr) { setAddPhoneErr(phoneErr); return }
     let hasError = false
     if (addCampaigns.length === 0) { setAddCampaignErr('Vui lòng chọn ít nhất 1 chiến dịch'); hasError = true }
     if (addChannels.length === 0) { setAddChannelErr('Vui lòng chọn ít nhất 1 kênh'); hasError = true }
     if (hasError) return
 
     const toAdd: BlacklistEntry[] = []
-    for (const phone of validPhones) {
-      for (const campaign of addCampaigns) {
-        for (const channel of addChannels) {
-          const isDuplicate = list.some(x => x.phone === phone && x.campaign === campaign && x.channel === channel && (x.scope ?? 'campaign') === 'campaign')
-            || toAdd.some(x => x.phone === phone && x.campaign === campaign && x.channel === channel)
-          if (!isDuplicate) toAdd.push({ phone, campaign, channel, source: 'manual', scope: 'campaign' })
-        }
+    for (const campaign of addCampaigns) {
+      for (const channel of addChannels) {
+        const exists = list.some(x => x.phone === phone && x.campaign === campaign && x.channel === channel && (x.scope ?? 'campaign') === 'campaign')
+        if (!exists) toAdd.push({ phone, campaign, channel, source: 'manual', scope: 'campaign' })
       }
     }
 
     if (toAdd.length === 0) {
-      setAddModalErr('Toàn bộ tổ hợp đã nhập đều đã có trong danh sách chặn — không có bản ghi nào được thêm')
+      setAddModalErr('Số này chưa có Chiến dịch/Kênh mới nào được chọn thêm — vui lòng tick thêm hoặc đóng modal')
       return
     }
     setList(prev => [...toAdd, ...prev])
-    toast(`Đã thêm ${toAdd.length} bản ghi vào danh sách chặn ✓`, 'success')
+    toast(`Đã thêm ${toAdd.length} bản ghi mới vào danh sách chặn ✓`, 'success')
     setAddOpen(false)
-    setAddPhone(''); setAddCampaigns([]); setAddChannels(['Push']); setAddPhoneErr(''); setAddCampaignErr(''); setAddChannelErr(''); setAddModalErr('')
+    setAddPhone(''); setAddCampaigns([]); setAddChannels([]); setAddExistingCampaigns([]); setAddExistingChannels([])
+    setAddPhoneErr(''); setAddCampaignErr(''); setAddChannelErr(''); setAddModalErr('')
   }
 
   // Xóa 1 chip — gỡ đúng 1 tổ hợp (số, campaign, kênh); dòng còn chip khác vẫn giữ nguyên
@@ -500,35 +548,46 @@ export function BlacklistManagement() {
         </div>
       </div>
 
-      {/* Add dialog */}
-      <Dialog open={addOpen} onClose={() => { setAddOpen(false); setAddPhoneErr(''); setAddCampaignErr(''); setAddChannelErr(''); setAddModalErr('') }} title="Thêm vào Danh sách chặn" className="max-w-md">
+      {/* Add dialog — URD V4.30: chỉ 1 số/lần; Campaign/Kênh đã từng chặn số này tick + khóa (disabled) */}
+      <Dialog open={addOpen} onClose={() => {
+        setAddOpen(false); setAddPhone(''); setAddCampaigns([]); setAddChannels([])
+        setAddExistingCampaigns([]); setAddExistingChannels([])
+        setAddPhoneErr(''); setAddCampaignErr(''); setAddChannelErr(''); setAddModalErr('')
+      }} title="Thêm vào Danh sách chặn" className="max-w-md">
         <div className="space-y-3 text-sm">
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Số điện thoại *</label>
-            <textarea value={addPhone} rows={2}
-              onChange={e => { setAddPhone(e.target.value); setAddPhoneErr(''); setAddModalErr('') }}
-              placeholder="0987xxxxxx, 0912xxxxxx hoặc mỗi số 1 dòng"
-              className={`w-full px-2 py-1.5 border rounded focus:outline-none focus:border-blue-400 resize-none ${addPhoneErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+            <input type="text" value={addPhone}
+              onChange={e => handleAddPhoneChange(e.target.value)}
+              placeholder="0987xxxxxx"
+              className={`w-full px-2 py-1.5 border rounded focus:outline-none focus:border-blue-400 ${addPhoneErr ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
             {addPhoneErr && <div className="text-xs text-red-500 mt-1">{addPhoneErr}</div>}
+            <div className="text-xs text-slate-400 mt-1">Chỉ nhập 1 số/lần — muốn thêm nhiều số, dùng [Tải lên danh sách]</div>
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Chiến dịch * <span className="font-normal text-slate-400">(chọn nhiều)</span></label>
             <CheckboxMultiSelect
               options={mockCampaigns.map(c => c.name)}
               selected={addCampaigns}
+              existingValues={addExistingCampaigns}
               onToggle={v => { setAddCampaigns(prev => toggleInArray(prev, v)); setAddCampaignErr('') }} />
             {addCampaignErr && <div className="text-xs text-red-500 mt-1">{addCampaignErr}</div>}
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Kênh * <span className="font-normal text-slate-400">(chọn nhiều)</span></label>
             <CheckboxMultiSelect options={CHANNELS} selected={addChannels}
+              existingValues={addExistingChannels}
               onToggle={v => { setAddChannels(prev => toggleInArray(prev, v)); setAddChannelErr('') }} />
             {addChannelErr && <div className="text-xs text-red-500 mt-1">{addChannelErr}</div>}
           </div>
           {addModalErr && <div className="text-xs text-red-600 bg-red-50 rounded px-2 py-1.5">{addModalErr}</div>}
         </div>
         <DialogActions>
-          <Button variant="outline" onClick={() => { setAddOpen(false); setAddPhoneErr(''); setAddModalErr('') }}>Hủy</Button>
+          <Button variant="outline" onClick={() => {
+            setAddOpen(false); setAddPhone(''); setAddCampaigns([]); setAddChannels([])
+            setAddExistingCampaigns([]); setAddExistingChannels([])
+            setAddPhoneErr(''); setAddModalErr('')
+          }}>Hủy</Button>
           <Button variant="primary" onClick={handleAdd} disabled={!addPhone.trim()}>Thêm</Button>
         </DialogActions>
       </Dialog>
