@@ -1218,6 +1218,9 @@ export function CampaignBuilder() {
   const [reminderCommon, setReminderCommon] = useState<ReminderCfg>({ allow: false, maxCount: '', gapDays: '' })
   const [reminderPerChannel, setReminderPerChannel] = useState<Record<string, ReminderCfg>>({})
   const [reminderPerVariant, setReminderPerVariant] = useState<Record<string, Record<number, ReminderCfg>>>({})
+  // Tab biến thể đang chọn trong khối "Cho phép nhắc lại" của từng kênh (Lịch riêng per kênh, có Audience
+  // Variant) — mỗi kênh có bộ tab biến thể riêng nên lưu theo key = tên kênh, value = index biến thể.
+  const [reminderActiveVariant, setReminderActiveVariant] = useState<Record<string, number>>({})
 
   const getReminderCfg = (ch?: string, variantIdx?: number): ReminderCfg => {
     const empty: ReminderCfg = { allow: false, maxCount: '', gapDays: '' }
@@ -2170,7 +2173,7 @@ export function CampaignBuilder() {
                                 namePrefix={ch}
                               />
                               {/* Nhắc lại (Re-engagement) — cấp Kênh: 1 cặp riêng cho kênh này;
-                                  có Audience Variant (hasVariants): mỗi biến thể trong kênh 1 cặp riêng */}
+                                  có Audience Variant (hasVariants): tab chọn biến thể, mỗi tab 1 cặp riêng */}
                               <div className="border-t border-slate-100 pt-2">
                                 {!hasVariants ? (
                                   <ReminderBlock
@@ -2179,21 +2182,38 @@ export function CampaignBuilder() {
                                     maxErr={inRange(getReminderCfg(ch).maxCount, 9999)}
                                     gapErr={inRange(getReminderCfg(ch).gapDays, 365)}
                                   />
-                                ) : (
-                                  <div className="space-y-3">
-                                    {chVariants.map((v, vIdx) => (
-                                      <div key={vIdx}>
-                                        <div className="text-xs text-slate-500 mb-1">Biến thể {vIdx + 1} · {v.segmentName}</div>
-                                        <ReminderBlock
-                                          cfg={getReminderCfg(ch, vIdx)}
-                                          onChange={patch => setReminderCfg(patch, ch, vIdx)}
-                                          maxErr={inRange(getReminderCfg(ch, vIdx).maxCount, 9999)}
-                                          gapErr={inRange(getReminderCfg(ch, vIdx).gapDays, 365)}
-                                        />
+                                ) : (() => {
+                                  const activeIdx = reminderActiveVariant[ch] ?? 0
+                                  const safeIdx = Math.min(activeIdx, Math.max(chVariants.length - 1, 0))
+                                  return (
+                                    <div className="space-y-2">
+                                      <div className="text-xs text-slate-500">Nhắc lại theo biến thể:</div>
+                                      <div className="flex gap-1.5 flex-wrap">
+                                        {chVariants.map((v, vIdx) => (
+                                          <button
+                                            key={vIdx}
+                                            onClick={() => setReminderActiveVariant(prev => ({ ...prev, [ch]: vIdx }))}
+                                            className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                                              safeIdx === vIdx
+                                                ? 'bg-orange-100 border-orange-300 text-orange-700 font-medium'
+                                                : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
+                                            }`}
+                                          >
+                                            {v.segmentName}
+                                          </button>
+                                        ))}
                                       </div>
-                                    ))}
-                                  </div>
-                                )}
+                                      {chVariants[safeIdx] && (
+                                        <ReminderBlock
+                                          cfg={getReminderCfg(ch, safeIdx)}
+                                          onChange={patch => setReminderCfg(patch, ch, safeIdx)}
+                                          maxErr={inRange(getReminderCfg(ch, safeIdx).maxCount, 9999)}
+                                          gapErr={inRange(getReminderCfg(ch, safeIdx).gapDays, 365)}
+                                        />
+                                      )}
+                                    </div>
+                                  )
+                                })()}
                               </div>
                             </div>
                           )}
